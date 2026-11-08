@@ -199,6 +199,20 @@ pre { background: var(--paper); border: 1px solid var(--line); padding: 12px 14p
   </ul>
 </div>
 
+<div class="note demos">
+  <p><strong>本頁的互動式示範</strong>：每一步都列出所有變數和資料結構的內容，可以上一步、下一步，或直接點步驟清單。</p>
+  <ul>
+    <li><a href="#decTool">解壓縮逐步執行</a>（第 3 節，18 步）：解碼器怎麼讀 token、literal、offset，把一個 block 還原。</li>
+    <li><a href="#encTool">壓縮逐步執行</a>（第 4 節，64 步）：ip、anchor、hash table 怎麼變，什麼時候產生 sequence。</li>
+    <li><a href="#btTool">建置到開機</a>（第 9 節，21 步）：image 怎麼切、RO page 逐頁離線壓縮、flash 佈局、boot loader 載入、加速器 <code>INIT</code> 建堆疊。</li>
+    <li><a href="#evTool">RW page 移出並壓縮：hot → cold</a>（第 10 節，17 步）：從 reclaim、PTE、TLB shootdown、描述子到每個 chunk 的取用、refill、寫 COT。</li>
+    <li><a href="#fiTool">Page fault 解壓縮：cold → hot</a>（第 10 節，19 步）：walker、handle、CTLB、逐 chunk 翻譯、三項檢查、<code>INVALIDATE</code>、spill。</li>
+    <li><a href="#flowTool">三個流程在 SoC 上的路徑</a>（第 12 節）：每一步哪些元件和匯流排參與。</li>
+    <li><a href="#lifeTool">8 個 page 從開機到運行</a>（第 12 節，27 步）：縮小的系統，COT、pool、堆疊、frame 全部狀態一起看。</li>
+  </ul>
+  <p>試算與實驗：<a href="#lenTool">長度編碼</a>（第 2 節）、<a href="#labTool">實驗台</a>（第 5 節，輸入自己的文字）、<a href="#xlTool">地址翻譯</a>（第 10 節）、<a href="#latTool">page fault 延遲</a>與<a href="#capTool">DRAM 要多大</a>（第 13 節）。</p>
+</div>
+
 <div class="part">A. LZ4 演算法</div>
 
 <h2 id="s1">1. 核心想法</h2>
@@ -601,7 +615,7 @@ pre { background: var(--paper); border: 1px solid var(--line); padding: 12px 14p
   </tbody>
 </table></div>
 <p>延伸 bytes 就接在對應欄位的後面：literal 的延伸放在 Token 之後，match 的延伸放在 offset 之後。下面可以輸入其他長度試算：</p>
-<div class="tool">
+<div class="tool" id="lenTool">
   <h4>長度編碼試算</h4>
   <div class="ctl">
     <label for="lenN">長度</label><input id="lenN" type="number" min="0" max="100000" value="280" style="width:110px">
@@ -1640,7 +1654,7 @@ pre { background: var(--paper); border: 1px solid var(--line); padding: 12px 14p
   </svg></div>
   <figcaption>解碼器只會要求「這個物件的第幾個 byte」，不需要知道資料其實分散在哪裡。這張圖沒有依實際地址排列 chunk。</figcaption>
 </figure>
-<div class="tool">
+<div class="tool" id="xlTool">
   <h4>翻譯試算（物件 0x14567，共 2296 bytes）</h4>
   <div class="ctl"><label for="xlOff">Byte 位置</label><input id="xlOff" type="number" min="0" max="2295" value="1100" style="width:110px"><span class="m" id="xlRes" aria-live="polite"></span></div>
 </div>
