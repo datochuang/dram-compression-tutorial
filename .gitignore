@@ -2,3 +2,5 @@ shots/
 *.dom
 *.png.tmp
 .DS_Store
+src/*.png
+src/*.html.tmp

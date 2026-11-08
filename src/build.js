@@ -14,6 +14,13 @@ html = html.replace(/<svg\b([^>]*)>([\s\S]*?)<\/svg>/g, (m, attrs, body) => {
 });
 console.log('hatched figures', zn);
 fs.writeFileSync('../docs/lz4-soc-explainer.html', html);
+// GitHub Pages serves the file as-is, so docs/index.html is the same page wrapped in a full document (standards mode, viewport meta).
+{
+  const cut = html.indexOf('</style>') + '</style>'.length;
+  if (cut < 8) throw new Error('style block missing');
+  const page = '<!doctype html>\n<html lang="zh-Hant">\n<head>\n<meta name="viewport" content="width=device-width, initial-scale=1">\n' + html.slice(0, cut) + '\n</head>\n<body>' + html.slice(cut) + '\n</body>\n</html>\n';
+  fs.writeFileSync('../docs/index.html', page);
+}
 
 const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
 const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]);

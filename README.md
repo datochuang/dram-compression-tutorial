@@ -10,7 +10,8 @@
   在 DOM stub 裡跑完所有互動示範檢查錯誤，輸出 `docs/lz4-soc-explainer.html`。
 - `src/figs9.py`：第 9 節五張 DRAM 圖的產生器，直接改寫 `src/page.html` 裡 `<!--fig9X-->` 標記後的圖。
 - `src/shoot.sh`：用 headless Chrome 截圖或 dump DOM。
-- `docs/lz4-soc-explainer.html`：建置結果，也就是發佈的文件。
+- `docs/lz4-soc-explainer.html`：建置結果，發佈到 claude.ai artifact 的版本（沒有 `<html>` 外殼，由發佈端包起來）。
+- `docs/index.html`：同一份內容加上完整的 HTML 外殼，給 GitHub Pages 用；Pages 設成從 `main` 分支的 `/docs` 目錄發佈，網址就是 `https://<帳號>.github.io/<repo>/`。
 - `docs/lz4-verify/`：LZ4 程式（`lz4core.js`）、與 `lz4` v1.10.0 的比對（`verify.js`）、量測腳本，
   以及 512 MiB 設計的所有數字（`plan512.py`）。
 - `figures/capacity-approaches/`：sketchnote 圖的 prompts、產生紀錄與審查。
