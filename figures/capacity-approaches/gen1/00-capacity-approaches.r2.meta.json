@@ -1,0 +1,31 @@
+{
+  "name": "00-capacity-approaches.r2.png",
+  "source": "/Users/sherrachen/claude_workspace/dram-compression/figures/capacity-approaches/gen1/00-capacity-approaches.png",
+  "provider": "openai",
+  "model": "gpt-image-2.5-sunburst",
+  "instruction": "In each of the three lower panels, change the fill of the three small flow boxes in the row directly under the panel title to plain white with the same thin navy outline: OSPA, metadata, 512B chunks; OSPA, CTE, 熱區或冷區; VA, PTE, 壓縮 NUMA node. Keep their text, the green arrows between them, and absolutely everything else in the image exactly unchanged, including all other text, cell colors and the legend.",
+  "started": "2026-11-06T06:29:23",
+  "size": "1536x1024",
+  "duration_s": 32.0,
+  "response": {
+    "created": 1793917794,
+    "usage": {
+      "input_tokens": 1683,
+      "input_tokens_details": {
+        "image_tokens": 1536,
+        "text_tokens": 147
+      },
+      "output_tokens": 1372,
+      "output_tokens_details": {
+        "image_tokens": 1372,
+        "text_tokens": 0
+      },
+      "total_tokens": 3055
+    },
+    "background": "opaque",
+    "output_format": "png",
+    "quality": "high",
+    "size": "1536x1024"
+  },
+  "bytes": 1708739
+}

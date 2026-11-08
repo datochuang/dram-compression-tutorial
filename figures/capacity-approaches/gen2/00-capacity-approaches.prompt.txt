@@ -1,0 +1,105 @@
+Clean editorial flat infographic, the kind used in an annual report or a board deck.
+Aspect ratio 16:9, landscape. Plain white background. Crisp geometric shapes with straight
+edges and uniform thin dark-navy outlines; no hand-drawn wobble, no sketch texture.
+Lettering is a clean humanist sans-serif, dark navy, perfectly legible. All text is English.
+
+People: a figure described as a stick figure is drawn as a simple solid dark-navy human
+silhouette (head and shoulders or full body, no face); a figure described as a robot is
+drawn as a small square chip icon with four pins on each side and a single dot inside.
+EVERY figure in the prompt has a label naming its role; a figure with no label must not
+appear. Speech bubbles are rounded rectangles with a small straight tail. Machines are
+plain rectangles with one small gear glyph in a corner and a thin slot line.
+
+Named objects: whenever the prompt says 'the <object>', draw the same object every time.
+- the compression layer: one wide muted-green rectangle standing between the clients and the
+  memory regions; every arrow from a client enters it; no arrow goes around it.
+- the uncompressed region: a white rectangle with a navy outline, filled with a neat grid of
+  equal-size small squares; never any green inside.
+- the compressed region: a muted-green-tinted rectangle with a navy outline, filled with small
+  blocks of visibly uneven widths.
+- a comparison cell: a flat rectangle holding one short text line. Hardware cells are muted
+  green, software cells are light grey, neutral cells are white.
+
+Categories are always the same tints: light grey for a software thing, muted green for a
+hardware thing, in every image.
+
+Color rules: dark navy for all outlines and text; one accent color, muted green, for key
+concepts, highlighted boxes, flow arrows, check marks and the title rule; mid grey for
+small annotations; no orange, no red, no other hues. Flat fills only: no gradients, no
+shadows, no photo textures, no logos, no watermarks.
+
+Fixed layout: a numbered circle badge at the top-left; the title to its right with a thin
+green rule under it; one grey subtitle line under the title; the panels described in the
+prompt as thin-outlined rectangles with a small panel title at the top-left of each; a
+bottom bar across the full width as described, with its label in a small box at its left.
+
+Hard limits:
+- Render every double-quoted string exactly as written. Correct spelling. No extra words,
+  labels, captions or examples anywhere.
+- Draw only the panels, figures and objects listed. Do not add panels, rows or charts.
+- Copy the subtitle and the bottom-bar sentence word for word. Never rewrite them.
+- No digits anywhere unless the prompt quotes them. No file names, no code, no vendor,
+  company or product names.
+- Generous white space; fewer, larger elements; icons are simple glyphs with no text inside.
+
+Badge: "1"
+Title: "One Compression Layer, Three Ways to Save Capacity"
+Subtitle: "HRT ranges stay uncompressed; the options differ in address mapping and capacity handling"
+
+Layout: one full-width panel on top, three equal-width panels side by side below it, a small
+legend line under the three panels, then the bottom bar.
+
+Top panel "Common path", reading left to right in three columns.
+Left column, two stacked white boxes: upper box "HRT clients" with a smaller line
+"Display, Modem, ISP"; lower box "Other clients" with a smaller line "CPU, GPU, NPU".
+Middle column: the compression layer, labeled "Shared compression layer", with a smaller line
+inside it "Address range check". One solid dark-navy arrow from the upper client box into it,
+one muted-green arrow from the lower client box into it.
+Right column, two stacked objects: upper is the uncompressed region, labeled "Uncompressed
+region", with a smaller line "Fixed mapping, no metadata lookup"; lower is the compressed
+region, labeled "Compressed region", with a smaller line "Managed by one option below".
+One solid dark-navy arrow from the compression layer to the uncompressed region, with the
+label "HRT range: pass through" on the arrow. One muted-green arrow from the compression layer
+to the compressed region, with the label "Other ranges: compress" on the arrow.
+One small mid-grey annotation under the middle column: "HRT still needs DRAM QoS: compression
+traffic also uses bandwidth".
+
+Each of the three lower panels has the same structure, top to bottom: a panel title; then five
+rows, each row having a short bold row label at the left. The first row, labeled "Address
+mapping", holds three small white boxes (white fill only, never green or grey) joined left to
+right by two green arrows. The other four rows each hold one comparison cell at the right. The
+rows line up horizontally across all three panels and are in the same order in each panel.
+
+Panel "Option A: Transparent hardware overcommit"
+Flow boxes: "OSPA" then "metadata" then "512B chunks".
+Row "Data grows": hardware cell "Use inflation room, then add a chunk"
+Row "Physical memory full": software cell "Balloon driver reclaims pages from OS"
+Row "OS changes": neutral cell "Small: add balloon driver"
+Row "Main cost": neutral cell "Possible extra metadata lookups"
+
+Panel "Option B: Hardware hot/cold tiering"
+Flow boxes: "OSPA" then "CTE" then "Hot or cold area".
+Row "Data grows": hardware cell "Decompress cold page to hot area on access"
+Row "Physical memory full": software cell "Compress more cold pages, then OS reclaims"
+Row "OS changes": neutral cell "Small: add reclaim driver"
+Row "Main cost": neutral cell "Migration and decompression latency"
+
+Panel "Option C: OS-managed compressed tier"
+Flow boxes: "PTE" then "Compressed NUMA node" then "Layer's internal mapping".
+Row "Data grows": software cell "Read-only tier; writes move page to DRAM first"
+Row "Physical memory full": software cell "Stop demotion, evict aggressively"
+Row "OS changes": neutral cell "Large: tiering, faults, reclaim"
+Row "Main cost": neutral cell "Less benefit under heavy writes"
+
+Legend line under the three panels, small: at the left a muted-green square followed by
+"Green cell: handled by hardware", a light-grey square followed by "Grey cell: handled by OS";
+at the right, in mid grey, "OSPA: physical address seen by OS; CTE: compression translation entry".
+
+Bottom bar, label "Key takeaway": "HRT keeps a fixed mapping; the options differ in who handles data growth, and all need the OS when physical memory runs out"
+
+Text manifest: auto
+
+Do not: write any digit other than the quoted ones; draw any person, robot, gear glyph or chart;
+draw any arrow that goes around the compression layer; add percentages or performance numbers;
+write any paper, vendor or product name; add a recommendation or a winner mark; rewrite the
+subtitle or the takeaway; write any non-English text.

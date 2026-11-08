@@ -1,0 +1,115 @@
+Clean editorial flat infographic, the kind used in an annual report or a board deck.
+Aspect ratio 16:9, landscape. Plain white background. Crisp geometric shapes with straight
+edges and uniform thin dark-navy outlines; no hand-drawn wobble, no sketch texture.
+Lettering is a clean humanist sans-serif, dark navy, perfectly legible. All text is English.
+
+People: a figure described as a stick figure is drawn as a simple solid dark-navy human
+silhouette (head and shoulders or full body, no face); a figure described as a robot is
+drawn as a small square chip icon with four pins on each side and a single dot inside.
+EVERY figure in the prompt has a label naming its role; a figure with no label must not
+appear. Speech bubbles are rounded rectangles with a small straight tail. Machines are
+plain rectangles with one small gear glyph in a corner and a thin slot line.
+
+Named objects: whenever the prompt says 'the <object>', draw the same object every time.
+- the compression layer: one wide muted-green rectangle standing between the clients and the
+  memory regions; every arrow from a client enters it; no arrow goes around it.
+- the uncompressed region: a white rectangle with a navy outline, filled with a neat grid of
+  equal-size small squares; never any green inside.
+- the compressed region: a muted-green-tinted rectangle with a navy outline, filled with small
+  blocks of visibly uneven widths.
+- a comparison cell: a flat rectangle holding one short text line. Hardware cells are muted
+  green, software cells are light grey, neutral cells are white.
+- a memory bar: a horizontal row exactly four equal slots wide, drawn the same size everywhere.
+- a full page block: a white rectangle with a solid navy outline, exactly one slot wide.
+- a compressed page block: a muted-green rectangle with a solid navy outline, narrower than one
+  slot. Its width changes from page to page and is never exactly half a slot. All compressed
+  page blocks in a bar touch each other with no gaps.
+- a free block: a white rectangle with a dashed mid-grey outline, never any fill.
+
+Categories are always the same tints: light grey for a software thing, muted green for a
+hardware thing, in every image.
+
+Color rules: dark navy for all outlines and text; one accent color, muted green, for key
+concepts, highlighted boxes, flow arrows, check marks and the title rule; mid grey for
+small annotations; no orange, no red, no other hues. Flat fills only: no gradients, no
+shadows, no photo textures, no logos, no watermarks.
+
+Fixed layout: a numbered circle badge at the top-left; the title to its right with a thin
+green rule under it; one grey subtitle line under the title; the panels described in the
+prompt as thin-outlined rectangles with a small panel title at the top-left of each; a
+bottom bar across the full width as described, with its label in a small box at its left.
+
+Hard limits:
+- Render every double-quoted string exactly as written. Correct spelling. No extra words,
+  labels, captions or examples anywhere.
+- Draw only the panels, figures and objects listed. Do not add panels, rows or charts.
+- Copy the subtitle and the bottom-bar sentence word for word. Never rewrite them.
+- No digits anywhere unless the prompt quotes them. No file names, no code, no vendor,
+  company or product names.
+- Generous white space; fewer, larger elements; icons are simple glyphs with no text inside.
+
+Badge: "2"
+Title: "Where the Saved Space Comes From"
+Subtitle: "A smaller page leaves DRAM free, and that free DRAM can hold more pages"
+
+Layout: one full-width panel on top, three equal-width panels side by side below it, a small
+legend line under the three panels, then the bottom bar.
+
+Top panel "Basic idea", reading left to right in three columns.
+Left column: three stacked horizontal rows, all rows the same total length. In each row, a white
+full page bar labeled "4KB page", then a short green arrow, then a bar of the same total length
+as the white bar made of a muted-green part touching a dashed free part. The green part holds
+its size label and its length is proportional to that size:
+upper row "3.8KB", almost the full length, with only a thin sliver of dashed free part;
+middle row "3.2KB", about four fifths of the length;
+lower row "2.1KB", slightly more than half of the length.
+One label "Compress" above the three short green arrows. One label "Free" above the dashed parts.
+Middle column: a green arrow, then a white box "Free DRAM stores more pages".
+Right column: a green arrow, then a white box "OS sees more memory than is installed".
+One small mid-grey annotation under the left column: "Example sizes. Each page shrinks by a different amount, depending on its data."
+
+Each of the three lower panels has the same structure, top to bottom: a panel title, then four
+rows, each row having a short bold row label at the left. The rows line up horizontally across
+all three panels and are in the same order in each panel. The first two rows, "Before" and
+"After", each hold one memory bar. The last two rows, "Who picks" and "OS sees", each hold one
+comparison cell.
+
+Panel "Option A: Transparent hardware overcommit"
+Row "Before": a memory bar of four full page blocks, each labeled "Page".
+Row "After": a memory bar of the same total width as Before, holding four compressed page blocks
+side by side, each labeled "Page", with visibly different widths in this order: almost one full
+slot, about half a slot, about four fifths of a slot, about two thirds of a slot. Then one free
+block filling the rest of the bar, labeled "Free". The free block is clearly narrower than half
+of the bar.
+Row "Who picks": hardware cell "Hardware: every page"
+Row "OS sees": neutral cell "More pages than installed DRAM"
+
+Panel "Option B: Hardware hot/cold tiering"
+Row "Before": a memory bar of four full page blocks labeled, in order, "Hot", "Hot", "Cold", "Cold".
+Row "After": a memory bar of the same total width as Before. Two full page blocks labeled "Hot"
+and "Hot", each exactly as wide as a block in the Before bar. Then two compressed page blocks
+labeled "Cold" and "Cold", with different widths: about four fifths of a slot, then about two
+thirds of a slot. Then one narrow free block filling the rest of the bar, labeled "Free".
+Row "Who picks": hardware cell "Hardware: cold pages only"
+Row "OS sees": neutral cell "More pages than installed DRAM"
+
+Panel "Option C: OS-managed compressed tier"
+Row "Before": a memory bar of four full page blocks labeled, in order, "Hot", "Hot", "Cold", "Cold".
+Row "After": a memory bar with exactly the same blocks and widths as the After bar of Option B,
+plus one thick vertical navy divider at the exact middle of the bar, a small label "Normal DRAM"
+above the left half and a small label "Compressed tier" above the right half.
+Row "Who picks": software cell "OS: cold pages only"
+Row "OS sees": neutral cell "Extra capacity in a NUMA node"
+
+Legend line under the three panels, small: at the left a small full page block followed by
+"Uncompressed page", a small compressed page block followed by "Compressed page", a small free
+block followed by "Free DRAM"; at the right, in mid grey, "HRT range not shown: its pages stay full size".
+
+Bottom bar, label "Key takeaway": "Saved space comes from storing pages smaller; the options differ in which pages shrink and who picks them"
+
+Text manifest: auto
+
+Do not: write any digit other than the quoted ones; draw any person, robot, gear glyph or chart;
+add arrows inside the lower panels; change the number of slots in a memory bar; add percentages
+or performance numbers; write any paper, vendor or product name; add a recommendation or a winner
+mark; rewrite the subtitle or the takeaway; write any non-English text.

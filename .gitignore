@@ -1,0 +1,4 @@
+shots/
+*.dom
+*.png.tmp
+.DS_Store

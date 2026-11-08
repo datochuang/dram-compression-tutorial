@@ -1,0 +1,4 @@
+Edit this image. Keep everything else exactly as it is: layout, style, colors and all other text. Apply only these changes:
+- In each of the three lower panels, change the fill of the three small flow boxes in the row directly under the panel title to plain white with the same thin navy outline: OSPA, metadata, 512B chunks
+- OSPA, CTE, 熱區或冷區
+- VA, PTE, 壓縮 NUMA node. Keep their text, the green arrows between them, and absolutely everything else in the image exactly unchanged, including all other text, cell colors and the legend.

@@ -1,0 +1,34 @@
+{
+  "name": "01-how-space-is-saved.png",
+  "prompts_file": "prompts.md",
+  "provider": "openai",
+  "model": "gpt-image-2.5-sunburst",
+  "fix": null,
+  "dry_run": false,
+  "prompt_sha256": "0f0cf0818502d4a08c9bbe5b50a3efe4c0bd6467d045010c5615618e6ddac757",
+  "started": "2026-11-06T13:15:59",
+  "size": "1536x1024",
+  "quality": "high",
+  "duration_s": 28.5,
+  "response": {
+    "created": 1793942187,
+    "usage": {
+      "input_tokens": 1780,
+      "input_tokens_details": {
+        "image_tokens": 0,
+        "text_tokens": 1780
+      },
+      "output_tokens": 1372,
+      "output_tokens_details": {
+        "image_tokens": 1372,
+        "text_tokens": 0
+      },
+      "total_tokens": 3152
+    },
+    "background": "opaque",
+    "output_format": "png",
+    "quality": "high",
+    "size": "1536x1024"
+  },
+  "bytes": 1387907
+}
