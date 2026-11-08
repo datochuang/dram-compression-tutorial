@@ -45,6 +45,7 @@ a { color: var(--accent); }
 code, .m { font-family: var(--mono); font-size: .9em; }
 code { background: var(--soft); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
 .lede { font-size: 18px; color: var(--muted); max-width: 66ch; }
+.lang { font-family: var(--disp); font-size: 13px; letter-spacing: .03em; margin: 0 0 6px; } .lang a { color: var(--muted); }
 .note { background: var(--paper); border: 1px solid var(--line); padding: 14px 16px; margin: 18px 0; border-radius: 6px; font-size: 15px; }
 .note p:last-child, .note ul:last-child { margin-bottom: 0; }
 .note strong:first-child { font-family: var(--disp); }
@@ -178,6 +179,7 @@ pre { background: var(--paper); border: 1px solid var(--line); padding: 12px 14p
 </nav>
 <main>
 <header>
+  <p class="lang"><a href="https://datochuang.github.io/dram-compression-tutorial/en/">English version</a></p>
   <h1>LZ4 on a Simple SoC</h1>
   <p class="lede">從一個 byte 怎麼編碼開始，一路走到 CPU 讀取一個已被壓縮的 page 時，整顆晶片裡發生的每一步。</p>
   <div id="heroTape" class="tape" aria-label="範例字串壓縮後的 52 個 bytes，依角色上色"></div>
