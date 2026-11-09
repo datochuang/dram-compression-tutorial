@@ -1,6 +1,7 @@
 // Builds both editions of the page from page.html:
 //   zh-Hant: docs/lz4-soc-explainer.html (artifact version, no <html> shell) and docs/index.html (GitHub Pages)
 //   en:      docs/lz4-soc-explainer-en.html and docs/en/index.html
+//   Part C of the English edition on its own (extract.js): docs/lz4-soc-partc-en.html and docs/en/soc/index.html
 // The English edition is page.html with every line that has an entry in en.json replaced by that entry
 // (key = the exact source line). Lines with Chinese text and no entry are reported as MISSING and kept as-is.
 // Each edition gets the tested codec inlined, a hatch pattern per figure, and its scripts are run in a minimal
@@ -105,4 +106,7 @@ function check(html, lang) {
 
 build(zh, 'zh-Hant', '../docs/lz4-soc-explainer.html', '../docs/index.html');
 const en = translate(zh);
-if (en) build(en, 'en', '../docs/lz4-soc-explainer-en.html', '../docs/en/index.html');
+if (en) {
+  build(en, 'en', '../docs/lz4-soc-explainer-en.html', '../docs/en/index.html');
+  require('./extract'); // Part C alone: docs/lz4-soc-partc-en.html and docs/en/soc/index.html
+}
