@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LZ4 DRAM compression lessons</title>
+<style>
+/* layout: one reading column; each lesson is a row with its facts on the right, stacking on a phone */
+:root { color-scheme: dark; --bg: #0b1118; --panel: #0e161f; --card: #121c27; --line: #263546; --ink: #dfe8f1; --dim: #8ea2b6;
+  --kernel: #f4d35e; --hw: #b48cff; --user: #ff8fb1; --note: #7ee2a8; --rw: #3d8bff; --slot: #18222d;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; background: var(--bg); color: var(--ink); -webkit-text-size-adjust: 100%;
+  font: 16px/1.65 "IBM Plex Sans", "PingFang TC", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding-block: 40px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+header { display: flex; flex-direction: column; gap: 10px; }
+.eyebrow { font: 700 12px/1.7 var(--mono); letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase; }
+h1 { font-size: 30px; line-height: 1.25; margin: 0; font-weight: 650; text-wrap: balance; }
+h2 { font-size: 13px; margin: 0; font: 700 12px/1.7 var(--mono); letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase; }
+p { margin: 0; max-width: 62ch; }
+.dim { color: var(--dim); }
+code, .mono { font-family: var(--mono); font-size: 0.92em; }
+code { background: var(--slot); border-radius: 4px; padding: 1px 5px; }
+section { display: flex; flex-direction: column; gap: 12px; }
+.chip { display: inline-block; font: 700 11px/1.7 var(--mono); letter-spacing: 0.06em; border-radius: 999px; padding: 0 9px;
+  color: #10161d; white-space: nowrap; }
+.chip.hw { background: var(--hw); }
+.chip.sw { background: var(--kernel); }
+.chip.soon { background: transparent; color: var(--dim); border: 1px solid var(--line); }
+.lesson { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 14px 24px; padding: 18px 20px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; color: inherit; text-decoration: none; }
+a.lesson:hover { border-color: var(--hw); }
+a.lesson:focus-visible, .links a:focus-visible { outline: 2px solid var(--hw); outline-offset: 3px; }
+.lesson > div { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.lesson h3 { margin: 0; font-size: 19px; line-height: 1.35; font-weight: 650; }
+.lesson .tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lesson .go { color: var(--hw); font-weight: 650; }
+dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; font-size: 13.5px; align-content: start;
+  font-variant-numeric: tabular-nums; }
+dt { color: var(--dim); }
+dd { margin: 0; font-family: var(--mono); }
+.lesson.wait { background: transparent; border-style: dashed; }
+.lesson.wait h3 { color: var(--dim); }
+.pair { border-left: 2px solid var(--line); padding-left: 16px; color: var(--dim); font-size: 14.5px; }
+.links { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 15px; }
+.links a { color: var(--ink); text-decoration-color: var(--line); text-underline-offset: 4px; }
+.links a:hover { text-decoration-color: var(--hw); }
+@media (max-width: 620px) {
+  h1 { font-size: 25px; }
+  .lesson { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">SoC DRAM compression · 3D lessons</div>
+    <h1>一次只看一個 page：誰讀、誰寫、寫了什麼</h1>
+    <p>每一課只講一個場景，貼近到每個 byte。<b>USER SW</b> 是被服務的程式，<b>KERNEL SW</b> 與 <b>LZ4 HW</b> 是兩個角色，job descriptor、COT entry 與 completion 都攤開成一格一個 byte 的板子，逐步看是誰寫的、誰讀過。</p>
+    <p class="dim">給第一次接觸這個主題的人。所有數字都來自 simulator 的同一次執行（seed 1），不是編的例子。按 <span class="mono">Next</span> 一步一步看，舞台可以拖曳旋轉。</p>
+  </header>
+
+  <section>
+    <h2>偏硬體的設計 · HW-leaning</h2>
+    <p class="dim">COT 與 free-chunk stack 都由 LZ4 HW 自己管。kernel 只說「哪個 page、放哪裡」。</p>
+
+    <a class="lesson" href="compress-hw/">
+      <div>
+        <div class="tags"><span class="chip hw">HW-LEANING</span><span class="mono dim">第 1 課</span></div>
+        <h3>COMPRESS：把一個 RW page 壓進 chunk</h3>
+        <p>UI 要一個 frame，kernel 挑中 LOG 的 page <code>0x4F5</code>，把 PTE 改成 invalid，交代 LZ4 HW 壓縮。4096 B 變成 1938 B，放進 4 個 chunk，COT entry 一組一組欄位寫出來。</p>
+        <span class="go">開始這一課</span>
+      </div>
+      <dl>
+        <dt>步數</dt><dd>25</dd>
+        <dt>觸發</dt><dd>reclaim</dd>
+        <dt>access</dt><dd>2997</dd>
+        <dt>LZ4 HW</dt><dd>4496 ns</dd>
+      </dl>
+    </a>
+
+    <a class="lesson" href="decompress-hw/">
+      <div>
+        <div class="tags"><span class="chip hw">HW-LEANING</span><span class="mono dim">第 2 課</span></div>
+        <h3>DECOMPRESS：PTE invalid 觸發的解壓縮</h3>
+        <p>LOG 又來讀 page <code>0x4F5</code>，被 access gate 擋下。kernel 拿一個空 frame，交代兩個 job：DECOMPRESS 把資料解回 frame，INVALIDATE 把 4 個 chunk 還回 stack、COT entry 清成 0。最後才把 PTE 寫回 valid。</p>
+        <span class="go">開始這一課</span>
+      </div>
+      <dl>
+        <dt>步數</dt><dd>33</dd>
+        <dt>觸發</dt><dd>page fault</dd>
+        <dt>access</dt><dd>11519</dd>
+        <dt>LOG 等待</dt><dd>4724 ns</dd>
+      </dl>
+    </a>
+
+    <p class="pair">這兩課是同一個 page 的去與回。第 1 課結束時的 COT entry，就是第 2 課開始時 LZ4 HW 讀到的那 32 B；中間隔了 8522 次 access。建議照順序看。</p>
+  </section>
+
+  <section>
+    <h2>偏軟體的設計 · SW-leaning</h2>
+    <p class="dim">chunk 號碼改由 kernel 自己記，直接寫在 descriptor 裡；硬體每個 job 不留狀態。</p>
+
+    <div class="lesson wait">
+      <div>
+        <div class="tags"><span class="chip sw">SW-LEANING</span><span class="chip soon">製作中</span></div>
+        <h3>COMPRESS 與 DECOMPRESS 各一課</h3>
+        <p class="dim">同樣的兩個場景，換成偏軟體的分工。完成後可以和上面兩課逐步對照，看同一件事換人記帳之後哪裡變了。</p>
+      </div>
+      <dl>
+        <dt>狀態</dt><dd>尚未上線</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <h2>其他頁面</h2>
+    <div class="links">
+      <a href="../">LZ4 與 SoC 的互動說明</a>
+      <a href="../replay/">整次 simulation 的 3D replay</a>
+    </div>
+  </section>
+</main>
+</body>
+</html>
