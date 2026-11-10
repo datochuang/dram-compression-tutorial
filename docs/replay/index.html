@@ -18,6 +18,20 @@ html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); 
 #stage { position: absolute; inset: 0; touch-action: none; cursor: grab; }
 #stage:active { cursor: grabbing; }
 #cv { display: block; width: 100%; height: 100%; }
+#bubbles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.bub { position: absolute; left: 0; top: 0; visibility: hidden; width: max-content; max-width: min(300px, 64vw); background: #f7f9fc; color: #10161d;
+  border: 3px solid var(--kernel); border-radius: 14px; padding: 7px 11px 8px; font-size: 16px; line-height: 1.28; font-weight: 650;
+  overflow-wrap: anywhere; box-shadow: 0 5px 16px rgba(0, 0, 0, 0.5); }
+.bname { display: block; width: max-content; font: 800 12px/1.5 var(--mono); letter-spacing: 0.06em; color: #141a22; background: var(--kernel);
+  border-radius: 999px; padding: 0 8px; margin: 0 0 4px -2px; white-space: nowrap; }
+.bub-hw { border-color: var(--hw); } .bub-hw .bname { background: var(--hw); }
+.bub.quiet { padding: 0; border: 0; background: none; box-shadow: none; }
+.bub.quiet .btext { display: none; }
+.bub.quiet .bname { margin: 0; font-size: 13px; padding: 3px 10px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5); }
+.tails { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tail { fill: #f7f9fc; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.tail-kernel { stroke: var(--kernel); } .tail-hw { stroke: var(--hw); }
+.tail-kernel.quiet { fill: var(--kernel); } .tail-hw.quiet { fill: var(--hw); }
 #err { position: absolute; inset: 30% 16px auto; text-align: center; color: #ffb4b4; }
 #hud { position: absolute; inset: 0; display: grid; pointer-events: none; gap: 10px;
   grid-template: "top top" auto "gap panel" minmax(0, 1fr) "bar bar" auto / minmax(0, 1fr) 348px;
@@ -78,10 +92,18 @@ label.chk { display: inline-flex; gap: 6px; align-items: center; min-height: 38p
   #panel:not(.open) #steps li:not(.on), #panel:not(.open) #detail, #panel:not(.open) #counters, #panel:not(.open) #legend { display: none; }
   #panel:not(.open) #steps { min-height: 0; flex: none; }
   #hint, #pos { display: none; } button, select { padding: 0 9px; font-size: 13px; }
+  .bub { font-size: 14px; max-width: min(250px, 64vw); }
 }
 </style>
 <div id="app">
-  <div id="stage"><canvas id="cv"></canvas></div>
+  <div id="stage"><canvas id="cv"></canvas>
+    <div id="bubbles" aria-hidden="true">
+      <div class="bub bub-kernel" id="bubKernel"><b class="bname">KERNEL SW</b><span class="btext"></span></div>
+      <div class="bub bub-hw" id="bubHw"><b class="bname">LZ4 HW</b><span class="btext"></span></div>
+      <svg class="tails"><path id="tailKernel" class="tail tail-kernel" d="M0 0"/></svg>
+      <svg class="tails"><path id="tailHw" class="tail tail-hw" d="M0 0"/></svg>
+    </div>
+  </div>
   <div id="err" hidden></div>
   <div id="hud">
     <div id="top">
@@ -108,8 +130,8 @@ label.chk { display: inline-flex; gap: 6px; align-items: center; min-height: 38p
         <span class="only-base"><i style="background:var(--sram)"></i>free, number in SRAM</span>
         <span class="only-base"><i style="background:var(--list)"></i>list chunk</span>
         <span class="only-sw"><i style="background:var(--resv)"></i>reserved for a job</span>
-        <span><i style="background:var(--kernel)"></i>kernel acts</span>
-        <span><i style="background:var(--hw)"></i>hardware acts</span>
+        <span><i style="background:var(--kernel)"></i>KERNEL SW</span>
+        <span><i style="background:var(--hw)"></i>LZ4 HW</span>
       </div>
     </section>
     <div id="bar">
@@ -366,7 +388,7 @@ R.Scene = function (model, canvas) {
   this.scene = new THREE.Scene();
   this.scene.background = new THREE.Color(C.bg);
   this.scene.fog = new THREE.Fog(C.bg, 260, 720);
-  this.camera = new THREE.PerspectiveCamera(42, 1, 1, 1500);
+  this.camera = new THREE.PerspectiveCamera(42, 1, 1, 5000);
   this.scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x0b1118, 0.95));
   var sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(-60, 160, 120); this.scene.add(sun);
 
@@ -380,7 +402,7 @@ R.Scene = function (model, canvas) {
   this.effects = [];
   this.temps = [];
 
-  var floor = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), new THREE.MeshLambertMaterial({ color: C.floor }));
+  var floor = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.MeshLambertMaterial({ color: C.floor }));
   floor.rotation.x = -Math.PI / 2; floor.position.y = -0.08; this.scene.add(floor);
 
   /* frame cache */
@@ -440,7 +462,8 @@ R.Scene = function (model, canvas) {
   this.pressPos = new THREE.Vector3(0, 1.0, 0);
 
   /* station labels */
-  var lab = function (t, x, y, z, h, color) { var s = R.makeText(t, { h: h || 2.6, color: color || '#8ea2b6' }); s.position.set(x, y, z); self.scene.add(s); return s; };
+  this.labels = [];
+  var lab = function (t, x, y, z, h, color) { var s = R.makeText(t, { h: h || 2.6, color: color || '#8ea2b6' }); s.position.set(x, y, z); self.scene.add(s); self.labels.push({ o: s, x: s.scale.x, y: s.scale.y }); return s; };
   lab('FRAME CACHE  ' + m.frames + ' frames x 4096 B  (uncompressed)', -76, 0.4, this.frameRows * 2 + 5);
   lab('CHUNK POOL  ' + m.pool_chunks.toLocaleString() + ' chunks x 512 B  (hatched = compressed)', 76, 0.4, this.poolRows / 2 + 5);
   lab('COT  ' + m.pages.toLocaleString() + ' entries x 32 B   written by: ' + (model.variant === 'software' ? 'KERNEL' : 'HARDWARE (RW) / build tool (RO)'), -76, 5.5 + this.cotRows, this.zCot);
@@ -450,8 +473,15 @@ R.Scene = function (model, canvas) {
 
   this.kernel = this.makeKernel(); this.robot = this.makeRobot();
   this.kernel.pos.set(-6, 0, 18); this.robot.pos.set(5, 0, 5);
+  /* what Overview has to keep in view */
+  var top = Math.max(7 + this.cotRows, model.variant === 'software' ? 5 + this.poolRows / 2 : this.towerH + 8);
+  this.box = { x0: -143, x1: 143.5, y0: 0, y1: top, z0: Math.min(this.zCot, this.zBit) - 2, z1: Math.max(this.frameRows * 2, this.poolRows / 2, 24) + 8 };
+  this._ov = new THREE.Vector3((this.box.x0 + this.box.x1) / 2, 0, (this.box.z0 + this.box.z1) / 2);
+  this.bubbles = []; this.spoke = null;
+  this.kernel.bubble = this.makeBubble(this.kernel, 'bubKernel', 'tailKernel');
+  this.robot.bubble = this.makeBubble(this.robot, 'bubHw', 'tailHw');
   this.focus = new THREE.Vector3(0, 2, 0);
-  this.cam = { target: new THREE.Vector3(0, 0, 4), r: 330, th: 0, ph: 0.92, mode: 'follow' };
+  this.cam = { target: new THREE.Vector3(0, 0, 4), r: 330, th: 0, ph: 0.92, mode: 'overview' };
   this.syncAll();
 };
 
@@ -465,8 +495,8 @@ R.Scene.prototype.pageColor = function (h) { return this.model.isRO(h) ? R.COL.r
 /* ---- characters */
 R.Scene.prototype.makeKernel = function () {
   var g = new THREE.Group(), L = THREE.MeshLambertMaterial, a = {};
-  var body = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.7, 3.6, 16), new L({ color: 0xf1ead9 })); body.position.y = 3.4; g.add(body);
-  var vest = new THREE.Mesh(new THREE.CylinderGeometry(1.42, 1.6, 1.5, 16), new L({ color: R.COL.kernel })); vest.position.y = 3.8; g.add(vest);
+  var body = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.7, 3.6, 16), new L({ color: R.COL.kernel })); body.position.y = 3.4; g.add(body);
+  var vest = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.52, 0.42, 16), new L({ color: 0xffffff })); vest.position.y = 3.6; g.add(vest);
   var head = new THREE.Mesh(new THREE.SphereGeometry(1.2, 18, 14), new L({ color: 0xf6dcc0 })); head.position.y = 6.3; g.add(head);
   var hat = new THREE.Mesh(new THREE.SphereGeometry(1.32, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), new L({ color: R.COL.kernel })); hat.position.y = 6.55; g.add(hat);
   var brim = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.75, 0.14, 18), new L({ color: R.COL.kernel })); brim.position.y = 6.6; g.add(brim);
@@ -474,9 +504,9 @@ R.Scene.prototype.makeKernel = function () {
   a.legs = [-0.6, 0.6].map(function (x) { var l = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.7, 0.8), new L({ color: 0x3b4758 })); l.position.set(x, 0.85, 0); g.add(l); return l; });
   var board = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.7, 0.14), new L({ color: 0x8b6b43 })); board.position.set(1.7, 3.6, 0.9); board.rotation.x = -0.5; g.add(board);
   a.hands = new THREE.Object3D(); a.hands.position.set(0, 4.2, 2.3); g.add(a.hands);
-  a.tag = R.makeText('KERNEL', { h: 1.5, color: '#141a22', bg: '#f4d35e', depthTest: false }); a.tag.position.y = 8.8; g.add(a.tag);
-  a.bubble = R.makeText('', { h: 1.7, color: '#f4d35e', bg: 'rgba(11,17,24,0.82)', depthTest: false }); a.bubble.position.y = 10.9; g.add(a.bubble);
-  a.group = g; a.pos = g.position; a.walk = 0; a.baseY = 0;
+  a.group = g; a.pos = g.position; a.walk = 0; a.baseY = 0; a.s = 1;
+  a.top = function () { return 7.9 * a.s; };
+  a.halo = this.makeHalo(R.COL.kernel);
   this.scene.add(g);
   return a;
 };
@@ -484,21 +514,110 @@ R.Scene.prototype.makeKernel = function () {
 R.Scene.prototype.makeRobot = function () {
   var g = new THREE.Group(), L = THREE.MeshLambertMaterial, a = {}, inner = new THREE.Group();
   g.add(inner);
-  var body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.6, 2.6), new L({ color: 0x9aa4b8 })); body.position.y = 1.6; inner.add(body);
-  var chest = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.9, 0.2), new THREE.MeshBasicMaterial({ color: R.COL.hw })); chest.position.set(0, 1.7, 1.35); inner.add(chest);
-  var head = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.6, 2), new L({ color: 0xc3cad8 })); head.position.y = 3.9; inner.add(head);
+  var body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.6, 2.6), new L({ color: 0x8d74d6 })); body.position.y = 1.6; inner.add(body);
+  var chest = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.9, 0.2), new THREE.MeshBasicMaterial({ color: 0xefe8ff })); chest.position.set(0, 1.7, 1.35); inner.add(chest);
+  var head = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.6, 2), new L({ color: R.COL.hw })); head.position.y = 3.9; inner.add(head);
   var visor = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 0.2), new THREE.MeshBasicMaterial({ color: 0x5ff1ff })); visor.position.set(0, 4.0, 1.0); inner.add(visor);
   var ant = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.2, 6), new L({ color: 0xc3cad8 })); ant.position.y = 5.3; inner.add(ant);
   var tip = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 8), new THREE.MeshBasicMaterial({ color: R.COL.hw })); tip.position.y = 5.95; inner.add(tip);
-  [-2, 2].forEach(function (x) { var arm = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 2.6), new L({ color: 0x7c879c })); arm.position.set(x, 1.4, 1.2); inner.add(arm); });
+  [-2, 2].forEach(function (x) { var arm = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 2.6), new L({ color: 0x6a55b0 })); arm.position.set(x, 1.4, 1.2); inner.add(arm); });
   a.flame = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.2, 12), new THREE.MeshBasicMaterial({ color: 0x8d74ff, transparent: true, opacity: 0.75 }));
   a.flame.rotation.x = Math.PI; a.flame.position.y = -0.8; inner.add(a.flame);
   a.hands = new THREE.Object3D(); a.hands.position.set(0, 1.2, 3.0); inner.add(a.hands);
-  a.tag = R.makeText('LZ4 ACCELERATOR (HW)', { h: 1.5, color: '#141a22', bg: '#b48cff', depthTest: false }); a.tag.position.y = 7.6; inner.add(a.tag);
-  a.bubble = R.makeText('', { h: 1.7, color: '#d9c8ff', bg: 'rgba(11,17,24,0.82)', depthTest: false }); a.bubble.position.y = 9.7; inner.add(a.bubble);
-  a.group = g; a.inner = inner; a.pos = g.position; a.baseY = 4.2; a.walk = 0;
+  a.group = g; a.inner = inner; a.pos = g.position; a.baseY = 4.2; a.walk = 0; a.s = 1; a.lift = a.baseY;
+  a.top = function () { return a.lift + 6.4 * a.s; };
+  a.halo = this.makeHalo(R.COL.hw);
   this.scene.add(g);
   return a;
+};
+
+/* the camera distance at which the whole machine fits the part of the view the panels leave free */
+R.Scene.prototype.fitR = function () {
+  var c = this.cam, w = this.vw, h = this.vh, fr = this.free, b = this.box;
+  if (!w || !fr || fr.r - fr.l < 60 || fr.b - fr.t < 60) return 330;
+  var key = [c.th.toFixed(3), c.ph.toFixed(3), w, h, fr.l, fr.t, fr.r, fr.b].join();
+  if (key === this._fitKey) return this._fitR;
+  var cam = this.camera.clone(), v = new THREE.Vector3(), t = this._ov, sp = Math.sin(c.ph), cp = Math.cos(c.ph), lo = 40, hi = 3000, i, mid;
+  var fits = function (r) {
+    cam.position.set(t.x + r * sp * Math.sin(c.th), t.y + r * cp, t.z + r * sp * Math.cos(c.th)); cam.lookAt(t); cam.updateMatrixWorld();
+    for (var k = 0; k < 8; k++) {
+      v.set(k & 1 ? b.x1 : b.x0, k & 2 ? b.y1 : b.y0, k & 4 ? b.z1 : b.z0).project(cam);
+      var px = (v.x + 1) / 2 * w, py = (1 - v.y) / 2 * h;
+      if (v.z > 1 || px < fr.l + 10 || px > fr.r - 10 || py < fr.t + 16 || py > fr.b - 12) return false;
+    }
+    return true;
+  };
+  for (i = 0; i < 20; i++) { mid = (lo + hi) / 2; if (fits(mid)) hi = mid; else lo = mid; }
+  this._fitKey = key; this._fitR = hi;
+  return hi;
+};
+
+/* a ring on the floor under each character, in the character's colour */
+R.Scene.prototype.makeHalo = function (color) {
+  var ring = new THREE.Mesh(new THREE.RingGeometry(2.3, 3.1, 36), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2; this.scene.add(ring); return ring;
+};
+
+/* ---- speech bubbles. They are DOM elements placed over the canvas, so the text keeps one
+   readable size at every camera distance. Each bubble carries the character's name. */
+R.Scene.prototype.makeBubble = function (a, id, tailId) {
+  var self = this, el = document.getElementById(id), tail = document.getElementById(tailId);
+  var b = { el: el, tail: tail, svg: tail && tail.parentNode, text: el && el.querySelector('.btext'), cls: el ? el.className.replace(/ quiet/g, '') : '', tcls: tailId === 'tailHw' ? 'tail-hw' : 'tail-kernel',
+            actor: a, t: '', dirty: true, w: 0, h: 0, px: 0, py: 0, x: 0, y: 0, side: 0, on: false, last: '' };
+  b.setText = function (t) { t = t || ''; if (t) self.spoke = b; if (t === b.t) return; b.t = t; b.dirty = true; };
+  this.bubbles.push(b);
+  return b;
+};
+R.Scene.prototype.layoutBubbles = function () {
+  var bs = this.bubbles, w = this.vw, h = this.vh, i, b, o, v = this._bv || (this._bv = new THREE.Vector3());
+  if (bs.length < 2 || !bs[0].el || !bs[1].el || !w) return;
+  var fr = this.free || { l: 8, t: 8, r: w - 8, b: h - 8 };
+  var cl = function (x, lo, hi) { return hi < lo ? lo : Math.max(lo, Math.min(hi, x)); };
+  for (i = 0; i < 2; i++) {
+    b = bs[i];
+    if (b.dirty) {
+      b.text.textContent = b.t; b.el.className = b.cls + (b.t ? '' : ' quiet');
+      b.tail.setAttribute('class', 'tail ' + b.tcls + (b.t ? '' : ' quiet'));
+      b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; b.dirty = false;
+    }
+    v.set(b.actor.pos.x, b.actor.top(), b.actor.pos.z).project(this.camera);
+    b.on = v.z > -1 && v.z < 1; b.px = (v.x + 1) / 2 * w; b.py = (1 - v.y) / 2 * h;
+  }
+  /* the character further left gets a bubble that grows to the left, the other one to the right */
+  var d = bs[0].px - bs[1].px;
+  if (!this._side) this._side = d <= 0 ? -1 : 1; else if (d < -50) this._side = -1; else if (d > 50) this._side = 1;
+  bs[0].side = this._side; bs[1].side = -this._side;
+  for (i = 0; i < 2; i++) {
+    b = bs[i];
+    b.x = cl(b.side < 0 ? b.px + 26 - b.w : b.px - 26, fr.l, fr.r - b.w);
+    b.y = cl(b.py - 30 - b.h, fr.t, fr.b - b.h);
+  }
+  /* if the two overlap, the one that spoke last keeps its place */
+  var keep = this.spoke === bs[0] ? bs[0] : bs[1], mv = keep === bs[0] ? bs[1] : bs[0], g = 8;
+  if (keep.on && mv.on && mv.x < keep.x + keep.w + g && keep.x < mv.x + mv.w + g && mv.y < keep.y + keep.h + g && keep.y < mv.y + mv.h + g) {
+    var sx = mv.side > 0 ? keep.x + keep.w + g : keep.x - g - mv.w;
+    if (sx >= fr.l && sx + mv.w <= fr.r && Math.abs(sx - mv.x) < 200) mv.x = sx;
+    else if (keep.y - g - mv.h >= fr.t) mv.y = keep.y - g - mv.h;
+    else if (keep.y + keep.h + g + mv.h <= fr.b) mv.y = keep.y + keep.h + g;
+    else mv.y = fr.t;
+  }
+  /* the bubble that spoke last is drawn over the other one's tail */
+  if (this._front !== keep) { this._front = keep; keep.el.style.zIndex = 3; keep.svg.style.zIndex = 4; mv.el.style.zIndex = 1; mv.svg.style.zIndex = 2; }
+  for (i = 0; i < 2; i++) {
+    b = bs[i];
+    var tx = cl(b.px, fr.l - 4, fr.r + 4), ty = cl(b.py - 3, fr.t - 30, fr.b + 4), x = Math.round(b.x), y = Math.round(b.y), m = 24, hw = 9, ins = 3.5, bx, by, path = '';
+    if (ty > y + b.h) { bx = cl(tx, x + m, x + b.w - m); by = y + b.h - ins; path = 'M' + (bx - hw) + ' ' + by + 'L' + tx.toFixed(1) + ' ' + ty.toFixed(1) + 'L' + (bx + hw) + ' ' + by; }
+    else if (ty < y) { bx = cl(tx, x + m, x + b.w - m); by = y + ins; path = 'M' + (bx - hw) + ' ' + by + 'L' + tx.toFixed(1) + ' ' + ty.toFixed(1) + 'L' + (bx + hw) + ' ' + by; }
+    else if (tx < x) { by = cl(ty, y + m, y + b.h - m); bx = x + ins; path = 'M' + bx + ' ' + (by - hw) + 'L' + tx.toFixed(1) + ' ' + ty.toFixed(1) + 'L' + bx + ' ' + (by + hw); }
+    else if (tx > x + b.w) { by = cl(ty, y + m, y + b.h - m); bx = x + b.w - ins; path = 'M' + bx + ' ' + (by - hw) + 'L' + tx.toFixed(1) + ' ' + ty.toFixed(1) + 'L' + bx + ' ' + (by + hw); }
+    var op = !b.on ? 0 : (b.t && this.spoke && this.spoke !== b) ? 0.6 : 1;
+    o = x + ',' + y + ',' + op + ',' + path;
+    if (o !== b.last) {
+      b.last = o;
+      b.el.style.transform = 'translate(' + x + 'px,' + y + 'px)'; b.el.style.opacity = op; b.el.style.visibility = op ? 'visible' : 'hidden';
+      b.tail.setAttribute('d', path || 'M0 0'); b.tail.style.opacity = path ? op : 0;
+    }
+  }
 };
 
 /* ---- temp objects that fly around */
@@ -597,19 +716,33 @@ R.Scene.prototype.update = function (dt, time) {
   a = this.kernel; a.walk = Math.max(0, a.walk - dt * 4);
   a.legs[0].position.z = Math.sin(time * 16) * 0.7 * Math.min(1, a.walk); a.legs[1].position.z = -a.legs[0].position.z;
   a.group.position.y = Math.abs(Math.sin(time * 16)) * 0.25 * Math.min(1, a.walk);
-  a = this.robot; a.inner.position.y = a.baseY + Math.sin(time * 3.1) * 0.35;
-  a.flame.scale.y = 0.8 + Math.sin(time * 31) * 0.2;
   var c = this.cam;
+  /* the further the camera, the larger the characters, so they stay findable in Overview.
+     What they carry keeps its true size. */
+  var s = Math.max(1, Math.min(4.5, c.r / 150)), ls = Math.max(1, Math.min(2.4, c.r / 150));
+  for (i = 0; i < this.labels.length; i++) { e = this.labels[i]; e.o.scale.set(e.x * ls, e.y * ls, 1); }
+  this.scene.fog.near = Math.max(260, c.r * 0.9); this.scene.fog.far = Math.max(720, c.r * 2.6);
+  a.s = s; a.group.scale.setScalar(s); a.hands.scale.setScalar(1 / s);
+  a.halo.position.set(a.pos.x, 1.3, a.pos.z); a.halo.scale.setScalar(s);
+  a = this.robot; a.s = s; a.lift = a.baseY + (s - 1) * 1.6;
+  a.inner.scale.setScalar(s); a.hands.scale.setScalar(1 / s);
+  a.inner.position.y = a.lift + Math.sin(time * 3.1) * 0.35;
+  a.flame.scale.y = 0.8 + Math.sin(time * 31) * 0.2;
+  a.halo.position.set(a.pos.x, 1.3, a.pos.z); a.halo.scale.setScalar(s);
   if (c.mode === 'follow') { c.target.lerp(this.focus, Math.min(1, dt * 4.2)); c.r += (c.followR - c.r) * Math.min(1, dt * 2); }
-  if (c.mode === 'overview') { c.target.lerp(this._ov || (this._ov = new THREE.Vector3(0, 0, 4)), Math.min(1, dt * 3)); c.r += (330 - c.r) * Math.min(1, dt * 3); }
+  if (c.mode === 'overview') { c.target.lerp(this._ov, Math.min(1, dt * 3)); c.r += (this.fitR() - c.r) * Math.min(1, dt * 3); }
   var sp = Math.sin(c.ph), cp = Math.cos(c.ph);
   this.camera.position.set(c.target.x + c.r * sp * Math.sin(c.th), c.target.y + c.r * cp, c.target.z + c.r * sp * Math.cos(c.th));
   this.camera.lookAt(c.target);
+  this.camera.updateMatrixWorld();
   this.renderer.render(this.scene, this.camera);
+  this.layoutBubbles();
 };
 R.Scene.prototype.resize = function (w, h) {
   this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
   this.cam.followR = w < 700 ? 150 : 105;
+  this.vw = w; this.vh = h;
+  if (this.bubbles) this.bubbles.forEach(function (b) { b.dirty = true; });
 };
 R.Scene.prototype.dispose = function () {
   this.renderer.dispose();
@@ -735,7 +868,7 @@ R.Stage = function (scene, model) {
     return [call(function () { x.c = S.temp('card', color, false); x.c.position.copy(from()); }),
       fly(function () { return x.c; }, to, 0.28, 4), call(function () { S.drop(x.c); })];
   }
-  var robotTop = function () { return new V(RB.pos.x, RB.baseY + 5, RB.pos.z); };
+  var robotTop = function () { return new V(RB.pos.x, RB.lift + 3.2 * RB.s, RB.pos.z); };
 
   this.intro = function (last) {
     KN.bubble.setText(''); RB.bubble.setText('');
@@ -777,7 +910,7 @@ R.Stage = function (scene, model) {
         var txt = ev.op + (ev.desc.handle !== undefined ? ' handle=' + hx(ev.desc.handle) : ' ' + (ev.desc.chunks || []).length + ' chunks in descriptor');
         if (ev.op === 'INIT') txt = 'INIT first_free=' + hx(ev.desc.handle);
         return [say(KN, 'submit ' + txt), move(KN, DESK)].concat(card(C.kernel, function () { return DESKTOP.clone(); }, robotTop),
-          [call(function () { apply(); RB.bubble.setText(ev.op); S.pulse(new V(RB.pos.x, RB.baseY + 2, RB.pos.z), C.hw, false, 3); }), wait(0.08)]);
+          [call(function () { apply(); RB.bubble.setText(ev.op); S.pulse(new V(RB.pos.x, RB.lift + 2 * RB.s, RB.pos.z), C.hw, false, 3); }), wait(0.08)]);
       case 'chunk':
         chunks = ev.chunks; n = chunks.length;
         if (ev.op === 'pop') {
@@ -845,7 +978,7 @@ R.Stage = function (scene, model) {
   var $ = function (id) { return document.getElementById(id); };
   var hx = R.hex, clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
   var runs = JSON.parse($('replay-data').textContent).runs;
-  var A = { vi: 0, si: 0, ei: 0, intro: false, playing: true, speed: 1, skip: true, stepMode: false, stepDone: false, ended: false, cam: 'follow' };
+  var A = { vi: 0, si: 0, ei: 0, intro: false, playing: true, speed: 1, skip: true, stepMode: false, stepDone: false, ended: false, cam: 'overview' };
   var run, kinds, model, scene, stage, dir = new R.Director(), stepEls = [];
   var NAMES = { baseline: 'Baseline (hardware-leaning)', software: 'Software-leaning variant' };
   var el = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -1027,6 +1160,9 @@ R.Stage = function (scene, model) {
       var pr = $('panel').getBoundingClientRect(), br = $('bar').getBoundingClientRect(), tr = $('top').getBoundingClientRect();
       var side = pr.left > w * 0.4, ox = side ? (w - pr.left) / 2 : 0, oy = ((h - (side ? br.top : pr.top)) - tr.bottom) / 2;
       scene.camera.setViewOffset(w, h, Math.round(ox), Math.round(oy), w, h);
+      /* the speech bubbles stay inside the same free area */
+      var sr = st.getBoundingClientRect();
+      scene.free = { l: 8, t: tr.bottom - sr.top + 6, r: (side ? pr.left - sr.left : w) - 8, b: (side ? br.top : pr.top) - sr.top - 8 };
     }
     if (kinds) drawTimeline();
   }
@@ -1082,7 +1218,7 @@ R.Stage = function (scene, model) {
   function zoom(f) {
     var c = scene.cam;
     if (c.mode === 'follow') { c.followR = clamp(c.followR * f, 22, 620); A.zoomed = true; }
-    else { setCam('free'); c.r = clamp(c.r * f, 22, 720); }
+    else { setCam('free'); c.r = clamp(c.r * f, 22, 2400); }
   }
   function pan(dx, dy) {
     var c = scene.cam, s = c.r * 0.0016; setCam('free');
@@ -1108,12 +1244,12 @@ R.Stage = function (scene, model) {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) A.playing = false;
   load(0, 0); setPlaying(A.playing);
   if (window.ResizeObserver) new ResizeObserver(resize).observe(st); else window.addEventListener('resize', resize);
-  var lastT = performance.now();
+  var lastT = performance.now(), PACE = 0.7;   /* 1x is 70% of the first version's pace */
   (function frame(now) {
     requestAnimationFrame(frame);
     var dt = Math.min(0.05, Math.max(0, ((now || lastT) - lastT) / 1000)); lastT = now || lastT;
     if (scene) {
-      if (A.playing) { var left = dt * A.speed, g = 0; while (left > 0 && g++ < 80) { if (!dir.busy() && !advance()) break; left = dir.tick(left); } }
+      if (A.playing) { var left = dt * A.speed * PACE, g = 0; while (left > 0 && g++ < 80) { if (!dir.busy() && !advance()) break; left = dir.tick(left); } }
       scene.update(dt, lastT / 1000);
     }
   })();
