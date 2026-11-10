@@ -367,9 +367,12 @@ R.Model.prototype.apply = function (ev) {
   }
 };
 
-/* Replay scene: the machine as a place. Left: frame cache with the COT wall behind it.
-   Right: chunk pool with the bitmap wall (software) behind it. Middle: job ring, LZ4 press,
-   SRAM stack tower (baseline). Front: the user programs that the rest works for.
+/* Replay scene: the machine as a place, seen from the memory side. Nothing tall stands in the
+   foreground. From near to far: the two ledgers lying on the floor (COT on the left, chunk
+   bitmap on the right in the software variant), the memory itself (frame cache left, chunk pool
+   right) with the LZ4 press and the SRAM stack tower (baseline) in the aisle between them, the
+   job ring where KERNEL SW and LZ4 HW meet, the access gate, and at the far end the user
+   programs that all of it works for.
    Units: one chunk slot = 1. */
 R.COL = { ro: 0x35b56f, rw: 0x3d8bff, zero: 0xe8edf2, bg: 0x0b1118, floor: 0x101923,
           free: 0x1b2632, sram: 0x1f6670, listed: 0x232f3d, list: 0xd9a23a, reserved: 0x36d6e7,
@@ -431,8 +434,10 @@ R.Scene = function (model, canvas) {
   this.poolCols = 128; this.poolRows = Math.ceil(m.pool_chunks / 128);
   this.frameCols = 32; this.frameRows = Math.ceil(m.frames / 32);
   this.cotCols = 128; this.cotRows = Math.ceil(m.pages / 128);
-  this.zCot = -this.frameRows * 2 - 7;
-  this.zBit = -this.poolRows / 2 - 5;
+  /* far edge of the two ledgers on the floor, in front of the frame cache and the chunk pool */
+  this.zCot = this.frameRows * 2 + 14;
+  this.zBit = this.poolRows / 2 + 14;
+  this.zRing = 18; this.zTower = this.poolRows / 2 + 13; this.xTower = 40;
   this.hatch = R.hatchTexture();
   this.effects = [];
   this.temps = [];
@@ -452,44 +457,44 @@ R.Scene = function (model, canvas) {
   for (i = 0; i < m.frames; i++) { d.position.copy(this.framePos(i)); d.scale.set(1, 1, 1); d.updateMatrix(); this.slots.setMatrixAt(i, d.matrix); this.slots.setColorAt(i, col); }
   for (i = 0; i < m.pool_chunks; i++) { d.position.copy(this.chunkPos(i)); d.updateMatrix(); this.tiles.setMatrixAt(i, d.matrix); }
 
-  /* COT wall */
+  /* COT ledger: flat on the floor, entry 0 at the far left corner */
   this.cotCv = document.createElement('canvas'); this.cotCv.width = this.cotCols * 8; this.cotCv.height = this.cotRows * 8;
   this.cotTex = new THREE.CanvasTexture(this.cotCv); this.cotTex.generateMipmaps = false; this.cotTex.minFilter = THREE.LinearFilter; this.cotTex.magFilter = THREE.NearestFilter;
   var wall = new THREE.Mesh(new THREE.PlaneGeometry(this.cotCols, this.cotRows), new THREE.MeshBasicMaterial({ map: this.cotTex }));
-  wall.position.set(-76, 3 + this.cotRows / 2, this.zCot); this.scene.add(wall);
-  var back = new THREE.Mesh(new THREE.BoxGeometry(this.cotCols + 3, this.cotRows + 3, 0.6), new L({ color: 0x1a2531 }));
-  back.position.set(-76, 3 + this.cotRows / 2, this.zCot - 0.4); this.scene.add(back);
+  wall.rotation.x = -Math.PI / 2; wall.position.set(-76, 0.24, this.zCot + this.cotRows / 2); this.scene.add(wall);
+  var back = new THREE.Mesh(new THREE.BoxGeometry(this.cotCols + 3, 0.3, this.cotRows + 3), new L({ color: 0x1a2531 }));
+  back.position.set(-76, 0.02, this.zCot + this.cotRows / 2); this.scene.add(back);
 
-  /* bitmap wall (software variant) */
+  /* chunk bitmap ledger (software variant): flat on the floor, half a unit per row */
   if (model.variant === 'software') {
     this.bitCv = document.createElement('canvas'); this.bitCv.width = this.poolCols * 4; this.bitCv.height = this.poolRows * 4;
     this.bitTex = new THREE.CanvasTexture(this.bitCv); this.bitTex.generateMipmaps = false; this.bitTex.minFilter = THREE.LinearFilter; this.bitTex.magFilter = THREE.NearestFilter;
     var bw = new THREE.Mesh(new THREE.PlaneGeometry(this.poolCols, this.poolRows / 2), new THREE.MeshBasicMaterial({ map: this.bitTex }));
-    bw.position.set(76, 2 + this.poolRows / 4, this.zBit); this.scene.add(bw);
-    var bb = new THREE.Mesh(new THREE.BoxGeometry(this.poolCols + 3, this.poolRows / 2 + 3, 0.6), new L({ color: 0x1a2531 }));
-    bb.position.set(76, 2 + this.poolRows / 4, this.zBit - 0.4); this.scene.add(bb);
+    bw.rotation.x = -Math.PI / 2; bw.position.set(76, 0.24, this.zBit + this.poolRows / 4); this.scene.add(bw);
+    var bb = new THREE.Mesh(new THREE.BoxGeometry(this.poolCols + 3, 0.3, this.poolRows / 2 + 3), new L({ color: 0x1a2531 }));
+    bb.position.set(76, 0.02, this.zBit + this.poolRows / 4); this.scene.add(bb);
   } else {
     /* SRAM stack tower (baseline) */
-    this.towerH = 26;
+    this.towerH = 26; var zt = this.zTower, xt = this.xTower;
     var tube = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, this.towerH, 24, 1, true),
       new THREE.MeshBasicMaterial({ color: 0x9fb4c8, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }));
-    tube.position.set(0, this.towerH / 2, -22); this.scene.add(tube);
+    tube.position.set(xt, this.towerH / 2, zt); this.scene.add(tube);
     this.towerFill = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, 1, 24), new L({ color: C.sram, emissive: 0x0d3a40 }));
-    this.towerFill.position.set(0, 0, -22); this.scene.add(this.towerFill);
+    this.towerFill.position.set(xt, 0, zt); this.scene.add(this.towerFill);
     [m.refill_below, m.spill_above].forEach(function (v) {
       var ring = new THREE.Mesh(new THREE.TorusGeometry(2.75, 0.09, 8, 32), new THREE.MeshBasicMaterial({ color: C.list }));
-      ring.rotation.x = Math.PI / 2; ring.position.set(0, self.towerH * v / m.sram_cap, -22); self.scene.add(ring);
-      var t = R.makeText(String(v), { h: 1.5, color: '#d9a23a' }); t.position.set(4.6, self.towerH * v / m.sram_cap, -22); self.scene.add(t);
+      ring.rotation.x = Math.PI / 2; ring.position.set(xt, self.towerH * v / m.sram_cap, zt); self.scene.add(ring);
+      var t = R.makeText(String(v), { h: 1.5, color: '#d9a23a' }); t.position.set(xt + 4.6, self.towerH * v / m.sram_cap, zt); self.scene.add(t);
     });
-    this.towerText = R.makeText('', { h: 1.9, color: '#8fe3ee' }); this.towerText.position.set(0, this.towerH + 2.2, -22); this.scene.add(this.towerText);
-    this.listText = R.makeText('', { h: 1.6, color: '#d9a23a' }); this.listText.position.set(0, this.towerH + 4.4, -22); this.scene.add(this.listText);
+    this.towerText = R.makeText('', { h: 1.9, color: '#8fe3ee' }); this.towerText.position.set(xt, this.towerH + 2.2, zt); this.scene.add(this.towerText);
+    this.listText = R.makeText('', { h: 1.6, color: '#d9a23a' }); this.listText.position.set(xt, this.towerH + 4.4, zt); this.scene.add(this.listText);
   }
 
   /* job ring and press */
   var desk = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.8, 1.6, 28), new L({ color: 0x2a3848 }));
-  desk.position.set(0, 0.8, 18); this.scene.add(desk);
+  desk.position.set(0, 0.8, this.zRing); this.scene.add(desk);
   var ringM = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.22, 8, 32), new THREE.MeshBasicMaterial({ color: C.kernel }));
-  ringM.rotation.x = Math.PI / 2; ringM.position.set(0, 1.7, 18); this.scene.add(ringM);
+  ringM.rotation.x = Math.PI / 2; ringM.position.set(0, 1.7, this.zRing); this.scene.add(ringM);
   var base = new THREE.Mesh(new THREE.BoxGeometry(6, 1, 6), new L({ color: 0x3a3350 })); base.position.set(0, 0.5, 0); this.scene.add(base);
   [-2.7, 2.7].forEach(function (x) { var p = new THREE.Mesh(new THREE.BoxGeometry(0.5, 7, 0.5), new L({ color: 0x4a4266 })); p.position.set(x, 3.5, -2.7); self.scene.add(p); });
   this.plate = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.6, 5.4), new L({ color: 0x8d74d6, emissive: 0x241a44 }));
@@ -498,25 +503,26 @@ R.Scene = function (model, canvas) {
 
   /* station labels */
   this.labels = [];
-  var lab = function (t, x, y, z, h, color) { var s = R.makeText(t, { h: h || 2.6, color: color || '#8ea2b6' }); s.position.set(x, y, z); self.scene.add(s); self.labels.push({ o: s, x: s.scale.x, y: s.scale.y }); return s; };
-  lab('FRAME CACHE  ' + m.frames + ' frames x 4096 B  (uncompressed)', -76, 0.4, this.frameRows * 2 + 5);
-  lab('CHUNK POOL  ' + m.pool_chunks.toLocaleString() + ' chunks x 512 B  (hatched = compressed)', 76, 0.4, this.poolRows / 2 + 5);
-  lab('COT  ' + m.pages.toLocaleString() + ' entries x 32 B   written by: ' + (model.variant === 'software' ? 'KERNEL' : 'HARDWARE (RW) / build tool (RO)'), -76, 5.5 + this.cotRows, this.zCot);
-  if (model.variant === 'software') lab('CHUNK BITMAP  1 bit per chunk  (kernel)', 76, 4.5 + this.poolRows / 2, this.zBit, 2.6, '#f4d35e');
-  else lab('FREE STACK  SRAM top (hardware)', 0, this.towerH + 6.8, -22, 1.8, '#b48cff');
-  lab('JOB RING  descriptors and completions', 0, 0.4, 24.5, 1.5); lab('LZ4 ENGINE', 0, 9, -3, 1.7, '#b48cff');
+  var lab = function (t, x, y, z, h, color) { var s = R.makeText(t, { h: h || 2.6, color: color || '#8ea2b6', depthTest: y > 1 }); s.position.set(x, y, z); self.scene.add(s); self.labels.push({ o: s, x: s.scale.x, y: s.scale.y }); return s; };
+  lab('FRAME CACHE  ' + m.frames + ' frames x 4096 B  (uncompressed)', -76, 0.4, this.frameRows * 2 + 6.5);
+  lab('CHUNK POOL  ' + m.pool_chunks.toLocaleString() + ' chunks x 512 B  (hatched = compressed)', 76, 0.4, this.poolRows / 2 + 6.5);
+  lab('COT  ' + m.pages.toLocaleString() + ' entries x 32 B   written by: ' + (model.variant === 'software' ? 'KERNEL' : 'HARDWARE (RW) / build tool (RO)'), -76, 0.4, this.zCot + this.cotRows + 5.5);
+  if (model.variant === 'software') lab('CHUNK BITMAP  1 bit per chunk  (kernel)', 76, 0.4, this.zBit + this.poolRows / 2 + 5.5, 2.6, '#f4d35e');
+  else lab('FREE STACK  SRAM top (hardware)', this.xTower, this.towerH + 6.8, this.zTower, 1.8, '#b48cff');
+  lab('JOB RING  descriptors and completions', 0, 0.4, this.zRing + 6.5, 1.5); lab('LZ4 ENGINE', 0, 9, -3, 1.7, '#b48cff');
 
-  /* user SW lane: the programs that everything else works for stand in front */
-  this.zUser = Math.max(this.frameRows * 2, this.poolRows / 2, 24) + 26;
+  /* user SW lane: the programs that everything else works for stand at the far end, where they
+     cover nothing; they look over the gate at the machine */
+  this.zUser = -(Math.max(this.frameRows * 2, this.poolRows / 2, 24) + 30);
   var lane = new THREE.Mesh(new THREE.PlaneGeometry(290, 22), new L({ color: 0x172432 }));
-  lane.rotation.x = -Math.PI / 2; lane.position.set(0, 0.06, this.zUser - 1); this.scene.add(lane);
-  lab('USER SW  the programs that use the memory  (KERNEL SW and LZ4 HW work for them)', 0, 0.4, this.zUser + 12, 2.2, '#c9d6e2');
+  lane.rotation.x = -Math.PI / 2; lane.position.set(0, 0.06, this.zUser + 1); this.scene.add(lane);
+  lab('USER SW  the programs that use the memory  (KERNEL SW and LZ4 HW work for them)', 0, 0.4, this.zUser - 13, 2.2, '#c9d6e2');
   this.users = (model.clients || []).map(function (c, i, all) { return self.makeUser(i, c, all.length); });
 
   /* the access gate: MMU and page table. Every access of every user program arrives at this one
      place. A valid PTE lets it through to its frame without the kernel; an invalid one stops it
      here, the request stays on the counter and KERNEL SW is called. */
-  var gz = this.zGate = this.zUser - 17, GM = new L({ color: 0x9fb4cc, emissive: 0x1c2733 }), G = this.gateG = new THREE.Group(), part;
+  var gz = this.zGate = this.zUser + 17, GM = new L({ color: 0x9fb4cc, emissive: 0x1c2733 }), G = this.gateG = new THREE.Group(), part;
   G.position.set(0, 0, gz); this.scene.add(G);
   part = new THREE.Mesh(new THREE.BoxGeometry(28, 2.2, 3.4), new L({ color: 0x4a6078 })); part.position.set(0, 1.1, 0); G.add(part);
   [-14.6, 14.6].forEach(function (x) { var p = new THREE.Mesh(new THREE.BoxGeometry(1.3, 14, 1.3), GM); p.position.set(x, 7, 0); G.add(p); });
@@ -527,17 +533,23 @@ R.Scene = function (model, canvas) {
   this.lamp = new THREE.Mesh(new THREE.SphereGeometry(1.9, 20, 14), new THREE.MeshBasicMaterial({ color: R.GATE.idle }));
   this.lamp.position.set(0, 17.4, 0); G.add(this.lamp);
   this.ticket = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.22, 2.6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-  this.ticket.position.set(0, 2.45, 0.2); this.ticket.visible = false; G.add(this.ticket);
-  lab('ACCESS GATE  MMU + page table: every access of every user SW arrives here', 0, 0.4, gz - 8, 1.5);
-  this.gate = { pos: new THREE.Vector3(0, 0, gz), tray: new THREE.Vector3(0, 2.6, gz), mid: new THREE.Vector3(0, 8, gz), css: '#9fb4cc', k: 1,
+  this.ticket.position.set(0, 2.45, -0.2); this.ticket.visible = false; G.add(this.ticket);
+  lab('ACCESS GATE  MMU + page table: every access of every user SW arrives here', 0, 0.4, gz + 9, 1.5);
+  this.gate = { pos: new THREE.Vector3(0, 0, gz), tray: new THREE.Vector3(0, 2.6, gz), mid: new THREE.Vector3(0, 8, gz), css: '#9fb4cc', k: 1, wr: 0.78,
                 top: function () { return 20 * this.k; } };
 
   this.kernel = this.makeKernel(); this.robot = this.makeRobot();
-  this.kernel.pos.set(-6, 0, 18); this.robot.pos.set(5, 0, 5);
+  this.kernel.pos.set(-6, 0, this.zRing); this.robot.pos.set(5, 0, 5);
   /* what Overview has to keep in view */
-  var top = Math.max(7 + this.cotRows, model.variant === 'software' ? 5 + this.poolRows / 2 : this.towerH + 8);
-  this.box = { x0: -143, x1: 143.5, y0: 0, y1: top, z0: Math.min(this.zCot, this.zBit) - 2, z1: this.zUser + 13 };
+  var soft = model.variant === 'software', top = soft ? 12 : this.towerH + 8;
+  this.box = { x0: -143, x1: 143.5, y0: 0, y1: top, z0: this.zUser - 14, z1: Math.max(this.zCot + this.cotRows, soft ? this.zBit + this.poolRows / 2 : 0) + 9 };
   this._ov = new THREE.Vector3((this.box.x0 + this.box.x1) / 2, 0, (this.box.z0 + this.box.z1) / 2);
+  var bx = this.box, zc = this.zCot + this.cotRows + 9, zp = soft ? this.zBit + this.poolRows / 2 + 9 : this.poolRows / 2 + 7;
+  this.fitPts = [bx.x0, 0, bx.z0, bx.x1, 0, bx.z0, bx.x0, bx.y1, bx.z0, bx.x1, bx.y1, bx.z0,
+                 bx.x0, 0, zc, -10, 0, zc, 10, 0, zp, bx.x1, 0, zp, bx.x0, 6, this.frameRows * 2, bx.x1, 2, this.poolRows / 2];
+  if (!soft) this.fitPts.push(this.xTower, this.towerH + 8, this.zTower, this.xTower, 0, this.zTower + 6);
+  /* the memory itself: speech bubbles try to stay off it */
+  this.mem = [{ x0: -140, x1: -12, z0: -this.frameRows * 2, z1: this.frameRows * 2, wt: 0.055 }, { x0: 12, x1: 140, z0: -this.poolRows / 2, z1: this.poolRows / 2, wt: 0.03 }];
   this.bubbles = []; this.spoke = null; this._seq = 0;
   Array.prototype.slice.call(document.querySelectorAll('#bubbles .dyn')).forEach(function (e) { e.parentNode.removeChild(e); });
   this.kernel.bubble = this.makeBubble(this.kernel, 'bubKernel', 'tailKernel');
@@ -551,8 +563,8 @@ R.Scene = function (model, canvas) {
 
 R.Scene.prototype.framePos = function (f) { return new THREE.Vector3(-140 + 2 + (f % this.frameCols) * 4, 0, -this.frameRows * 2 + 2 + Math.floor(f / this.frameCols) * 4); };
 R.Scene.prototype.chunkPos = function (c) { return new THREE.Vector3(12.5 + (c % this.poolCols), 0, -this.poolRows / 2 + 0.5 + Math.floor(c / this.poolCols)); };
-R.Scene.prototype.cotPos = function (h) { return new THREE.Vector3(-140 + 0.5 + (h % this.cotCols), 3 + this.cotRows - 0.5 - Math.floor(h / this.cotCols), this.zCot + 0.1); };
-R.Scene.prototype.bitPos = function (c) { return new THREE.Vector3(12.5 + (c % this.poolCols), 2 + (this.poolRows - 0.5 - Math.floor(c / this.poolCols)) / 2, this.zBit + 0.1); };
+R.Scene.prototype.cotPos = function (h) { return new THREE.Vector3(-140 + 0.5 + (h % this.cotCols), 0.4, this.zCot + 0.5 + Math.floor(h / this.cotCols)); };
+R.Scene.prototype.bitPos = function (c) { return new THREE.Vector3(12.5 + (c % this.poolCols), 0.4, this.zBit + (0.5 + Math.floor(c / this.poolCols)) / 2); };
 R.Scene.prototype.centroid = function (chunks) { var v = new THREE.Vector3(); for (var i = 0; i < chunks.length; i++) v.add(this.chunkPos(chunks[i])); return chunks.length ? v.multiplyScalar(1 / chunks.length) : v; };
 R.Scene.prototype.pageColor = function (h) { return this.model.isRO(h) ? R.COL.ro : R.COL.rw; };
 
@@ -641,7 +653,7 @@ R.Scene.prototype.makeUser = function (i, client, n) {
   a.group = g; a.pos = g.position; a.walk = 0; a.k = 0.95; a.active = false; a.idx = i; a.name = client.name; a.color = color; a.css = R.userCss(i);
   /* half of the programs stand left of the access gate, half right; the middle stays free */
   var nl = Math.ceil(n / 2), lf = i < nl, nm = lf ? nl : n - nl, ni = lf ? i : i - nl;
-  a.home = new T.Vector3((lf ? -140 : 46) + 94 * (ni + 0.5) / nm, 0, this.zUser); a.front = a.home.clone(); a.front.z -= 7; a.goal = a.home;
+  a.home = new T.Vector3((lf ? -140 : 46) + 94 * (ni + 0.5) / nm, 0, this.zUser); a.front = a.home.clone(); a.front.z += 7; a.goal = a.home;
   a.pos.copy(a.home);
   a.top = function () { return hgt * a.k; };
   a.halo = this.makeHalo(color);
@@ -678,17 +690,29 @@ R.Scene.prototype.fitR = function () {
   if (!w || !fr || fr.r - fr.l < 60 || fr.b - fr.t < 60) return 330;
   var key = [c.th.toFixed(3), c.ph.toFixed(3), w, h, fr.l, fr.t, fr.r, fr.b].join();
   if (key === this._fitKey) return this._fitR;
-  var cam = this.camera.clone(), v = new THREE.Vector3(), t = this._ov, sp = Math.sin(c.ph), cp = Math.cos(c.ph), lo = 40, hi = 3000, i, mid;
+  var cam = this.camera.clone(), v = new THREE.Vector3(), t = this._ov, gz = this.zGate, uz = this.zUser, sp = Math.sin(c.ph), cp = Math.cos(c.ph), lo = 40, hi = 3000, i, mid;
+  var vo = this.vo || { x: 0, y: 0 }, top, bot, H = fr.b - fr.t, self = this;
+  cam.setViewOffset(w, h, vo.x, vo.y, w, h);
   var fits = function (r) {
     cam.position.set(t.x + r * sp * Math.sin(c.th), t.y + r * cp, t.z + r * sp * Math.cos(c.th)); cam.lookAt(t); cam.updateMatrixWorld();
-    for (var k = 0; k < 8; k++) {
-      v.set(k & 1 ? b.x1 : b.x0, k & 2 ? b.y1 : b.y0, k & 4 ? b.z1 : b.z0).project(cam);
+    top = 1e9; bot = -1e9;
+    for (var k = 0, P = self.fitPts; k < P.length; k += 3) {
+      v.set(P[k], P[k + 1], P[k + 2]).project(cam);
       var px = (v.x + 1) / 2 * w, py = (1 - v.y) / 2 * h;
-      if (v.z > 1 || px < fr.l + 10 || px > fr.r - 10 || py < fr.t + 16 || py > fr.b - 12) return false;
+      if (v.z > 1 || px < fr.l + 10 || px > fr.r - 10) return false;
+      top = Math.min(top, py - 16); bot = Math.max(bot, py + 12);
     }
-    return true;
+    /* the gate and the user programs stand at the far end, so they come out near the top of the
+       view: keep room above them for what they say */
+    var cs = Math.max(1, Math.min(4.5, r / 150)), room = Math.min(92, H * 0.2);
+    v.set(0, 20 * Math.max(1, Math.min(2.4, cs * 0.75)), gz).project(cam); top = Math.min(top, (1 - v.y) / 2 * h - room);
+    v.set(b.x1 - 26, 9 * cs, uz).project(cam); top = Math.min(top, (1 - v.y) / 2 * h - room);
+    /* only the height counts here: the picture is moved down afterwards */
+    return bot - top <= H;
   };
   for (i = 0; i < 20; i++) { mid = (lo + hi) / 2; if (fits(mid)) hi = mid; else lo = mid; }
+  /* height that is left over goes mostly above the far end, where the bubbles are */
+  fits(hi); this._fitDy = Math.round(fr.b - (H - (bot - top)) * 0.15 - bot);
   this._fitKey = key; this._fitR = hi;
   return hi;
 };
@@ -744,6 +768,19 @@ R.Scene.prototype.layoutBubbles = function () {
     }
     v.set(b.actor.pos.x, b.actor.top(), b.actor.pos.z).project(this.camera);
     b.on = v.z > -1 && v.z < 1; b.px = (v.x + 1) / 2 * w; b.py = (1 - v.y) / 2 * h;
+    /* the place the character itself takes on screen: from its top down to its feet */
+    v.set(b.actor.pos.x, 0, b.actor.pos.z).project(this.camera);
+    b.fy = (1 - v.y) / 2 * h; b.hw = Math.max(12, (b.fy - b.py) * (b.actor.wr || 0.36));
+    b.wt = b.t || b.actor.active || (b.actor === this.gate && this.gateState && this.gateState !== 'idle') ? 0.6 : 0.25;
+  }
+  /* where the frame cache and the chunk pool are on screen */
+  var mem = this.mem, M = mem.length, m;
+  for (i = 0; i < M; i++) {
+    m = mem[i]; m.l = 1e9; m.t = 1e9; m.r = -1e9; m.b = -1e9;
+    for (j = 0; j < 4; j++) {
+      v.set(j & 1 ? m.x1 : m.x0, 1, j & 2 ? m.z1 : m.z0).project(this.camera);
+      m.l = Math.min(m.l, (v.x + 1) / 2 * w); m.r = Math.max(m.r, (v.x + 1) / 2 * w); m.t = Math.min(m.t, (1 - v.y) / 2 * h); m.b = Math.max(m.b, (1 - v.y) / 2 * h);
+    }
   }
   /* of the kernel and the accelerator, the one further left gets a bubble that grows to the left.
      A user program's bubble grows towards the middle of the view. */
@@ -770,30 +807,55 @@ R.Scene.prototype.layoutBubbles = function () {
     }
     return a;
   };
+  /* how much of it would lie over the characters and the gate: the ones in the story count most */
+  var hide = function (p, x, y) {
+    for (var k = 0, a = 0; k < N; k++) {
+      var r = bs[k]; if (!r.on) continue;
+      var ox = Math.min(x + p.w, r.px + r.hw) - Math.max(x, r.px - r.hw), oy = Math.min(y + p.h, r.fy) - Math.max(y, r.py - 4);
+      if (ox > 0 && oy > 0) a += ox * oy * r.wt;
+    }
+    for (k = 0; k < M; k++) {
+      r = mem[k]; ox = Math.min(x + p.w, r.r) - Math.max(x, r.l); oy = Math.min(y + p.h, r.b) - Math.max(y, r.t);
+      if (ox > 0 && oy > 0) a += ox * oy * r.wt;
+    }
+    return a;
+  };
+  /* a place costs: far more than anything else if it covers a bubble, then what it hides of the
+     characters, then how far it is from the usual place above the speaker */
+  var cost = function (p, x, y, upto, x0, y0) {
+    var o = over(p, x, y, upto), far = Math.hypot(x - x0, y - y0);
+    /* a long tail across the scene is worse than its length alone */
+    return (o ? 1e6 + o * 10 : 0) + (p.s ? hide(p, x, y) * 0.2 : 0) + far + Math.max(0, far - 170);
+  };
   var cs = this._cs || (this._cs = []);
   for (i = 0; i < N; i++) {
     b = ord[i]; if (!b.on) continue;
-    var x0 = b.x, y0 = b.y, cx, cy, best = -1, bs0 = 0, sc;
-    /* a bubble that had to move stays where it went for as long as that place is free */
-    if (b.keep) { cx = cl(b.px + b.kx, fr.l, fr.r - b.w); cy = cl(b.py + b.ky, fr.t, fr.b - b.h); if (!over(b, cx, cy, i)) { b.x = cx; b.y = cy; continue; } }
-    b.keep = false;
-    if (!i || !over(b, x0, y0, i)) continue;
-    /* candidates: the other side of the character, under it, and every side of each bubble already placed */
+    var x0 = b.x, y0 = b.y, cx, cy, best = -1, bs0 = 0, sc, kc = -1;
+    if (b.keep) { b.x = cl(b.px + b.kx, fr.l, fr.r - b.w); b.y = cl(b.py + b.ky, fr.t, fr.b - b.h); kc = cost(b, b.x, b.y, i, x0, y0); }
+    if (cost(b, x0, y0, i, x0, y0) < 1) { if (kc < 0 || kc >= 1e6) { b.keep = false; b.x = x0; b.y = y0; } continue; }
+    /* candidates: the usual place, the other side of the character, under it, and around every
+       bubble already placed and every character */
     cs.length = 0;
-    cs.push(x0, y0, b.side < 0 ? b.px - 26 : b.px + 26 - b.w, y0, x0, b.py + 70);
+    cs.push(x0, y0, b.side < 0 ? b.px - 26 : b.px + 26 - b.w, y0, x0, b.fy + 16, b.px - b.hw - 14 - b.w, b.py, b.px + b.hw + 14, b.py);
     for (j = 0; j < i; j++) {
       q = ord[j]; if (!q.on) continue;
       cs.push(q.x - g - b.w, y0, q.x + q.w + g, y0, x0, q.y - g - b.h, x0, q.y + q.h + g, q.x - g - b.w, q.y, q.x + q.w + g, q.y);
     }
+    if (b.s) for (j = 0; j < N; j++) {
+      q = bs[j]; if (!q.on) continue;
+      cs.push(q.px - q.hw - g - b.w, y0, q.px + q.hw + g, y0, x0, q.py - 4 - g - b.h, x0, q.fy + g);
+    }
+    if (b.s) for (j = 0; j < M; j++) { m = mem[j]; cs.push(x0, m.t - g - b.h, x0, m.b + g, m.l - g - b.w, y0, m.r + g, y0, b.px + b.hw + 14, m.b + g, b.px - b.hw - 14 - b.w, m.b + g, m.r + g, b.fy + 16); }
     for (j = 0; j < cs.length; j += 2) {
       cx = cl(cs[j], fr.l, fr.r - b.w); cy = cl(cs[j + 1], fr.t, fr.b - b.h);
       /* a quiet name chip stays near its character: better half covered than far away on a long tail */
       if (!b.s && Math.hypot(cx - x0, cy - y0) > 56) continue;
-      o = over(b, cx, cy, i);
-      sc =(o ? 1e6 + o * 10 : 0) + Math.hypot(cx - x0, cy - y0);
+      sc = cost(b, cx, cy, i, x0, y0);
       if (best < 0 || sc < bs0) { best = j; bs0 = sc; b.x = cx; b.y = cy; }
     }
-    b.keep = true; b.kx = b.x - b.px; b.ky = b.y - b.py;
+    /* a bubble that had to move stays where it went until another place is clearly better */
+    if (kc >= 0 && kc <= bs0 + 60) { b.x = cl(b.px + b.kx, fr.l, fr.r - b.w); b.y = cl(b.py + b.ky, fr.t, fr.b - b.h); }
+    else { b.keep = true; b.kx = b.x - b.px; b.ky = b.y - b.py; }
   }
   /* the later a bubble spoke, the further in front it is drawn; each tail sits over its own bubble */
   for (i = 0; i < N; i++) key += ord[i].i;
@@ -826,9 +888,10 @@ R.Scene.prototype.drop = function (o) {
   var i = this.temps.indexOf(o); if (i >= 0) this.temps.splice(i, 1);
   o.geometry.dispose(); o.material.dispose();
 };
-R.Scene.prototype.pulse = function (pos, color, vertical, size) {
+/* a ring that spreads and fades; onLedger: the spot is an entry of a ledger lying on the floor */
+R.Scene.prototype.pulse = function (pos, color, onLedger, size) {
   var ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.8, 24), new THREE.MeshBasicMaterial({ color: color, transparent: true, side: THREE.DoubleSide, depthTest: false }));
-  ring.position.copy(pos); if (!vertical) { ring.rotation.x = -Math.PI / 2; ring.position.y += 1.3; }
+  ring.position.copy(pos); ring.rotation.x = -Math.PI / 2; if (!onLedger) ring.position.y += 1.3;
   this.scene.add(ring); this.effects.push({ o: ring, t: 0, d: 0.55, s: size || 4 });
 };
 
@@ -947,6 +1010,11 @@ R.Scene.prototype.update = function (dt, time) {
   }
   if (c.mode === 'follow') { c.target.lerp(this.focus, Math.min(1, dt * 4.2)); c.r += (c.followR - c.r) * Math.min(1, dt * 2); }
   if (c.mode === 'overview') { c.target.lerp(this._ov, Math.min(1, dt * 3)); c.r += (this.fitR() - c.r) * Math.min(1, dt * 3); }
+  /* Overview moves the picture down by what fitR found; the other views keep the plain centre */
+  var wantDy = c.mode === 'overview' ? this._fitDy || 0 : 0, vo = this.vo;
+  if (this._dy === undefined || this._dy === null) this._dy = wantDy;
+  this._dy += (wantDy - this._dy) * Math.min(1, dt * 3); if (Math.abs(wantDy - this._dy) < 0.5) this._dy = wantDy;
+  if (vo && this.vw && Math.round(this._dy) !== this._dyOn) { this._dyOn = Math.round(this._dy); this.camera.setViewOffset(this.vw, this.vh, vo.x, vo.y - this._dyOn, this.vw, this.vh); }
   var sp = Math.sin(c.ph), cp = Math.cos(c.ph);
   this.camera.position.set(c.target.x + c.r * sp * Math.sin(c.th), c.target.y + c.r * cp, c.target.z + c.r * sp * Math.cos(c.th));
   this.camera.lookAt(c.target);
@@ -1031,23 +1099,23 @@ R.Stage = function (scene, model) {
   var nearFrame = function (f) { var p = S.framePos(f); return new V(p.x, 0, p.z + 2.6); };
   var overFrame = function (f) { var p = S.framePos(f); return new V(p.x, 0, p.z - 3.0); };
   var overChunks = function (ch) { var p = S.centroid(ch); return new V(p.x, 0, p.z - 3.0); };
-  var cotStand = function (h) { return new V(S.cotPos(h).x, 0, S.zCot + 4.2); };
-  var bitStand = function (c) { return new V(S.bitPos(c).x, 0, S.zBit + 2.6); };
+  var cotStand = function (h) { return new V(S.cotPos(h).x, 0, S.zCot - 3.4); };   /* at the far edge of the ledger, which stays in view */
+  var bitStand = function (c) { return new V(S.bitPos(c).x, 0, S.zBit - 3.4); };
   var PRESS = new V(0, 0, -3.0);
   /* where the two stand at the job ring: further apart the larger they are drawn */
-  var kStand = function () { return new V(-5 - 2.6 * (KN.s - 1), 0, 18); };
-  var rStand = function () { return new V(5.5 + 2.6 * (KN.s - 1), 0, 18); };
+  var kStand = function () { return new V(-5 - 2.6 * (KN.s - 1), 0, S.zRing); };
+  var rStand = function () { return new V(5.5 + 2.6 * (KN.s - 1), 0, S.zRing); };
   /* the kernel's place beside the access gate, and points on the gate */
   var GT = S.gate, gTray = function () { return GT.tray.clone(); };
-  var gStand = function () { return new V(-(17.5 * GT.k + 3.2 * KN.s), 0, S.zGate - 2); };
-  var kHome = function () { return new V(-6 - 2.6 * (KN.s - 1), 0, 18); };
+  var gStand = function () { return new V(-(17.5 * GT.k + 3.2 * KN.s), 0, S.zGate + 2); };
+  var kHome = function () { return new V(-6 - 2.6 * (KN.s - 1), 0, S.zRing); };
   var kHands = function () { return new V(KN.pos.x + 1.2 * KN.s, 4.6 * KN.s, KN.pos.z); };
-  var uHands = function (u) { return function () { return new V(u.pos.x, u.top() * 0.6, u.pos.z - 1.5 * u.k); }; };
+  var uHands = function (u) { return function () { return new V(u.pos.x, u.top() * 0.6, u.pos.z + 1.5 * u.k); }; };
   var userOf = function (h) { return S.users[M.clientOf(h)] || null; };
   var nameOf = function (h) { var u = userOf(h); return u ? u.name : ''; };
   var rw = function (ev) { return (ev.w ? 'write' : 'read') + ' page ' + pg(ev.h); };
   var lines = function (L) { return L[0] + L.slice(1).map(function (t) { return '\n\u00b7 ' + t; }).join(''); };
-  var towerTop = function () { return new V(0, Math.max(1, S.towerH * M.sram.size / M.meta.sram_cap), -22); };
+  var towerTop = function () { return new V(S.xTower, Math.max(1, S.towerH * M.sram.size / M.meta.sram_cap), S.zTower); };
   var pg = function (h) { return hx(h) + (M.isRO(h) ? ' (RO)' : ' (RW)'); };
   var SW = M.variant === 'software';
 
@@ -1534,7 +1602,8 @@ R.Stage = function (scene, model) {
       /* centre the action in the part of the view the panels leave free */
       var pr = $('panel').getBoundingClientRect(), br = $('bar').getBoundingClientRect(), tr = $('top').getBoundingClientRect();
       var side = pr.left > w * 0.4, ox = side ? (w - pr.left) / 2 : 0, oy = ((h - (side ? br.top : pr.top)) - tr.bottom) / 2;
-      scene.camera.setViewOffset(w, h, Math.round(ox), Math.round(oy), w, h);
+      scene.vo = { x: Math.round(ox), y: Math.round(oy) }; scene._dyOn = null; scene._fitKey = null;
+      scene.camera.setViewOffset(w, h, scene.vo.x, scene.vo.y, w, h);
       /* the speech bubbles stay inside the same free area */
       var sr = st.getBoundingClientRect();
       scene.free = { l: 8, t: tr.bottom - sr.top + 6, r: (side ? pr.left - sr.left : w) - 8, b: (side ? br.top : pr.top) - sr.top - 8 };
@@ -1550,7 +1619,7 @@ R.Stage = function (scene, model) {
     try { scene = new R.Scene(model, cv); } catch (e) { $('err').hidden = false; $('err').textContent = 'This page needs WebGL, which is not available here. ' + e.message; return; }
     stage = new R.Stage(scene, model); dir = new R.Director();
     scene.cam.th = th; scene.cam.ph = ph; A.zoomed = false; resize(); setCam(A.cam);
-    var snap = function () { if (A.cam === 'overview') { scene.cam.r = scene.fitR(); scene.cam.target.copy(scene._ov); } };
+    var snap = function () { if (A.cam === 'overview') { scene.cam.r = scene.fitR(); scene.cam.target.copy(scene._ov); scene._dy = scene._fitDy; } };
     A.si = 0; A.ei = 0; A.intro = false; A.ended = false;
     $('scrub').max = run.scenes.length - 1;
     Array.prototype.forEach.call($('variants').children, function (b, i) {
