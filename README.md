@@ -6,6 +6,8 @@
 - English edition: <https://datochuang.github.io/dram-compression-tutorial/en/>
 - English, Part C only (the whole SoC, Sections 9 to 15 and the appendix): <https://datochuang.github.io/dram-compression-tutorial/en/soc/>
 - 3D replay of one simulator run (small machine, both design variants): <https://datochuang.github.io/dram-compression-tutorial/replay/>
+  - Opens in the SW-leaning design: <https://datochuang.github.io/dram-compression-tutorial/replay/software/>
+  - Opens in the HW-leaning design: <https://datochuang.github.io/dram-compression-tutorial/replay/hardware/>
 
 學習 SoC 上的 DRAM compression：一個 LZ4 的圖解說明，加上一個假想的 SoC（硬體 LZ4 加速器、CPU MMU、LZ4 MMU），
 目標是省容量：所有 client 經過同一層壓縮，HRT 的記憶體不壓縮。

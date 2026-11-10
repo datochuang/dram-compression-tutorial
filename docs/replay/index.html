@@ -42,7 +42,16 @@ html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); 
 h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: 0.01em; }
 #machine { color: var(--dim); font-size: 12px; font-family: var(--mono); }
 .seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
-.seg.single { display: none; }
+#design { display: inline-flex; align-items: center; gap: 8px; }
+#design > span { font: 800 11px/1 var(--mono); letter-spacing: 0.1em; color: var(--dim); }
+#variants { border-width: 2px; border-color: #4a6078; padding: 3px; }
+#variants button { min-height: 38px; padding: 0 14px; font-weight: 700; font-size: 15px; color: #b9c6d3; }
+#variants button.on { color: #10161d; }
+#variants button.on.v-baseline { background: var(--hw); }
+#variants button.on.v-software { background: var(--kernel); }
+#variants.single button { cursor: default; }
+#designNote { flex-basis: 100%; margin: -2px 0 0; font-size: 13px; color: #c9d6e2; }
+#designNote b { font-weight: 700; color: var(--ink); }
 button, select { font: inherit; color: var(--ink); background: #1a2633; border: 1px solid var(--line); border-radius: 8px; min-height: 38px; padding: 0 12px; cursor: pointer; }
 button:hover { background: #223244; }
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--resv); outline-offset: 1px; }
@@ -84,9 +93,12 @@ pre { margin: 0; font: 11.5px/1.5 var(--mono); color: #c9d6e2; white-space: pre-
 #pos { font-family: var(--mono); color: var(--dim); font-size: 12px; margin-left: auto; }
 label.chk { display: inline-flex; gap: 6px; align-items: center; min-height: 38px; color: var(--dim); font-size: 13px; }
 #hint { color: #6f8296; font-size: 11.5px; margin-top: 6px; }
+@media (max-width: 1100px) { #machine { display: none; } }
 @media (max-width: 820px) {
   #hud { grid-template: "top" auto "gap" minmax(0, 1fr) "panel" auto "bar" auto / minmax(0, 1fr); gap: 8px; padding-top: 10px; }
-  h1 { font-size: 14px; flex-basis: 100%; } #machine { display: none; } #cams { margin-left: 0; }
+  h1 { display: none; } #machine { display: none; } #cams { margin-left: auto; }
+  #variants button { padding: 0 10px; font-size: 14px; } #designNote { font-size: 12px; }
+  @media (max-width: 480px) { #design > span { display: none; } #top { column-gap: 8px; } #variants button { padding: 0 8px; } }
   #panel { max-height: 46vh; }
   #panelToggle { display: block; }
   #panel:not(.open) #steps li:not(.on), #panel:not(.open) #detail, #panel:not(.open) #counters, #panel:not(.open) #legend { display: none; }
@@ -108,11 +120,12 @@ label.chk { display: inline-flex; gap: 6px; align-items: center; min-height: 38p
   <div id="hud">
     <div id="top">
       <h1>LZ4 DRAM compression replay</h1>
-      <div id="variants" class="seg" role="group" aria-label="Design variant"></div>
+      <div id="design"><span>DESIGN</span><div id="variants" class="seg" role="group" aria-label="Design"></div></div>
       <span id="machine"></span>
       <div id="cams" class="seg" role="group" aria-label="Camera">
         <button type="button" id="camFollow">Follow</button><button type="button" id="camOverview">Overview</button>
       </div>
+      <p id="designNote"></p>
     </div>
     <section id="panel" aria-label="Current access">
       <div id="phead">
@@ -977,10 +990,25 @@ R.Stage = function (scene, model) {
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var hx = R.hex, clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
-  var runs = JSON.parse($('replay-data').textContent).runs;
+  var DATA = JSON.parse($('replay-data').textContent), runs = DATA.runs;
   var A = { vi: 0, si: 0, ei: 0, intro: false, playing: true, speed: 1, skip: true, stepMode: false, stepDone: false, ended: false, cam: 'overview' };
   var run, kinds, model, scene, stage, dir = new R.Director(), stepEls = [];
-  var NAMES = { baseline: 'Baseline (hardware-leaning)', software: 'Software-leaning variant' };
+  var NAMES = { baseline: 'HW-leaning', software: 'SW-leaning' };
+  var NOTES = {
+    baseline: ['HW-leaning design: ', 'LZ4 HW keeps the free-chunk stack and writes the COT entries of RW pages. The kernel only submits handles.'],
+    software: ['SW-leaning design: ', 'KERNEL SW keeps the COT and the chunk bitmap. LZ4 HW is stateless: every address comes in the descriptor.'] };
+  var ALIAS = { baseline: 'baseline', hw: 'baseline', hardware: 'baseline', software: 'software', sw: 'software' };
+  /* which design to open: ?design=software (or ?variant=, or #software) in the URL, else the exporter's choice */
+  function startIndex() {
+    var want = DATA.start || '', q = '';
+    try { q = (location.search || '') + '&' + (location.hash || '').replace(/^#/, ''); } catch (e) {}
+    q.replace(/^\?/, '').split('&').forEach(function (kv) {
+      var p = kv.split('='), k = decodeURIComponent(p[0] || '').toLowerCase(), v = decodeURIComponent(p[1] || '').toLowerCase();
+      if ((k === 'design' || k === 'variant') && ALIAS[v]) want = ALIAS[v]; else if (p.length === 1 && ALIAS[k]) want = ALIAS[k];
+    });
+    for (var i = 0; i < runs.length; i++) if (runs[i].meta.variant === want) return i;
+    return 0;
+  }
   var el = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
   var num = function (v) { return Number(v).toLocaleString('en-US'); };
 
@@ -1177,7 +1205,11 @@ R.Stage = function (scene, model) {
     scene.cam.th = th; scene.cam.ph = ph; A.zoomed = false; resize(); setCam(A.cam);
     A.si = 0; A.ei = 0; A.intro = false; A.ended = false;
     $('scrub').max = run.scenes.length - 1;
-    Array.prototype.forEach.call($('variants').children, function (b, i) { b.className = i === vi ? 'on' : ''; });
+    Array.prototype.forEach.call($('variants').children, function (b, i) {
+      b.className = 'v-' + runs[i].meta.variant + (i === vi ? ' on' : ''); b.setAttribute('aria-pressed', i === vi ? 'true' : 'false'); });
+    var note = NOTES[run.meta.variant] || ['', ''], dn = $('designNote');
+    dn.textContent = ''; dn.appendChild(el('b', '', note[0])); dn.appendChild(document.createTextNode(note[1]));
+    resize();
     $('machine').textContent = num(model.meta.frames) + ' frames, ' + num(model.meta.pool_chunks) + ' chunks, ' + num(model.meta.pages) + ' pages, seed ' + model.meta.seed;
     document.body.setAttribute('data-variant', run.meta.variant);
     drawTimeline();
@@ -1186,7 +1218,7 @@ R.Stage = function (scene, model) {
 
   /* ---- controls */
   runs.forEach(function (r, i) {
-    var b = el('button', '', NAMES[r.meta.variant] || r.meta.variant); b.type = 'button';
+    var b = el('button', '', NAMES[r.meta.variant] || r.meta.variant); b.type = 'button'; b.title = (NOTES[r.meta.variant] || ['', ''])[1];
     b.onclick = function () { if (i !== A.vi) load(i, A.si); };
     $('variants').appendChild(b);
   });
@@ -1242,7 +1274,7 @@ R.Stage = function (scene, model) {
 
   /* ---- go */
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) A.playing = false;
-  load(0, 0); setPlaying(A.playing);
+  load(startIndex(), 0); setPlaying(A.playing);
   if (window.ResizeObserver) new ResizeObserver(resize).observe(st); else window.addEventListener('resize', resize);
   var lastT = performance.now(), PACE = 0.7;   /* 1x is 70% of the first version's pace */
   (function frame(now) {
