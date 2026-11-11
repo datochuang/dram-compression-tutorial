@@ -1,0 +1,169 @@
+<title>LZ4 Replay 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root { color-scheme: dark; --bg: #0b1118; --panel: rgba(13, 20, 28, 0.88); --line: #263546; --ink: #dfe8f1; --dim: #8ea2b6;
+  --kernel: #f4d35e; --hw: #b48cff; --ro: #35b56f; --rw: #3d8bff; --sram: #1f6670; --list: #d9a23a; --resv: #36d6e7;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); overflow: hidden;
+  font: 14px/1.4 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; }
+* { box-sizing: border-box; }
+#app { position: relative; height: 100%; min-height: 440px; overflow: hidden; background: var(--bg); }
+#stage { position: absolute; inset: 0; touch-action: none; cursor: grab; }
+#stage:active { cursor: grabbing; }
+#cv { display: block; width: 100%; height: 100%; }
+#bubbles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.bub { position: absolute; left: 0; top: 0; visibility: hidden; width: max-content; max-width: min(330px, 70vw); background: #f7f9fc; color: #10161d;
+  border: 3px solid var(--kernel); border-radius: 14px; padding: 7px 11px 8px; font-size: 16px; line-height: 1.28; font-weight: 650;
+  overflow-wrap: anywhere; box-shadow: 0 5px 16px rgba(0, 0, 0, 0.5); }
+.bname { display: block; width: max-content; font: 800 12px/1.5 var(--mono); letter-spacing: 0.06em; color: #141a22; background: var(--kernel);
+  border-radius: 999px; padding: 0 8px; margin: 0 0 4px -2px; white-space: nowrap; }
+.btext { white-space: pre-line; }
+.bub-hw { border-color: var(--hw); } .bub-hw .bname { background: var(--hw); }
+.bub-user { border-color: var(--c); } .bub-user .bname { background: var(--c); }
+.bub.quiet { padding: 0; border: 0; background: none; box-shadow: none; }
+.bub.quiet .btext { display: none; }
+.bub.quiet .bname { margin: 0; font-size: 13px; padding: 3px 10px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5); }
+.tails { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tail { fill: #f7f9fc; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.tail-kernel { stroke: var(--kernel); } .tail-hw { stroke: var(--hw); }
+.tail-kernel.quiet { fill: var(--kernel); } .tail-hw.quiet { fill: var(--hw); }
+.tail-user { stroke: var(--c); } .tail-user.quiet { fill: var(--c); }
+#err { position: absolute; inset: 30% 16px auto; text-align: center; color: #ffb4b4; }
+#hud { position: absolute; inset: 0; display: grid; pointer-events: none; gap: 10px;
+  grid-template: "top top" auto "gap panel" minmax(0, 1fr) "bar bar" auto / minmax(0, 1fr) 348px;
+  padding: 12px max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+#hud > * { pointer-events: auto; }
+#top { grid-area: top; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; pointer-events: none; }
+#top > * { pointer-events: auto; }
+h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: 0.01em; }
+#machine { color: var(--dim); font-size: 12px; font-family: var(--mono); }
+#lessons { color: var(--dim); font: 600 12px var(--mono); text-underline-offset: 3px; white-space: nowrap; } #lessons:hover, #lessons:focus-visible { color: var(--ink); }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
+#design { display: inline-flex; align-items: center; gap: 8px; }
+#design > span { font: 800 11px/1 var(--mono); letter-spacing: 0.1em; color: var(--dim); }
+#variants { border-width: 2px; border-color: #4a6078; padding: 3px; }
+#variants button { min-height: 38px; padding: 0 14px; font-weight: 700; font-size: 15px; color: #b9c6d3; }
+#variants button.on { color: #10161d; }
+#variants button.on.v-baseline { background: var(--hw); }
+#variants button.on.v-software { background: var(--kernel); }
+#variants.single button { cursor: default; }
+#designNote { flex-basis: 100%; margin: -2px 0 0; font-size: 13px; color: #c9d6e2; }
+#designNote b { font-weight: 700; color: var(--ink); }
+button, select { font: inherit; color: var(--ink); background: #1a2633; border: 1px solid var(--line); border-radius: 8px; min-height: 38px; padding: 0 12px; cursor: pointer; }
+button:hover { background: #223244; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--resv); outline-offset: 1px; }
+.seg button { border: 0; background: transparent; min-height: 34px; border-radius: 7px; color: var(--dim); }
+.seg button.on { background: #2b3d52; color: var(--ink); }
+#cams { margin-left: auto; }
+#panel { grid-area: panel; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+#phead { padding: 10px 12px 8px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
+#sceneNo { color: var(--dim); font-size: 12px; }
+#sceneTitle { font-family: var(--mono); font-weight: 600; font-size: 15px; grid-column: 1; }
+.uchip { display: inline-block; font: 800 11px/1.7 var(--mono); letter-spacing: 0.05em; color: #141a22; border-radius: 999px; padding: 0 8px; margin-right: 7px; vertical-align: 1px; }
+.res { grid-column: 2; grid-row: 1 / span 2; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 4px 8px; border-radius: 999px; background: #223244; white-space: nowrap; }
+.res-fault { background: #5a2a2a; color: #ffc9c9; } .res-first { background: #3a4654; } .res-lost { background: #ff5d5d; color: #1a0b0b; } .res-hit { color: var(--dim); }
+#panelToggle { display: none; grid-column: 1 / -1; min-height: 32px; margin-top: 6px; }
+#steps { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1 1 120px; min-height: 64px; position: relative; }
+#steps li { display: flex; gap: 8px; align-items: baseline; padding: 3px 6px; border-radius: 7px; color: var(--dim); font-size: 13px; }
+#steps li.done { color: #b9c6d3; }
+#steps li.on { background: rgba(255, 255, 255, 0.09); color: var(--ink); }
+.who { flex: none; width: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font: 700 10px/1.7 var(--mono); border-radius: 4px; color: #141a22; }
+.who-kernel { background: var(--kernel); } .who-hw { background: var(--hw); } .who-app { background: #9fb0c0; }
+#detail { border-top: 1px solid var(--line); padding: 8px 12px; overflow-y: auto; flex: 0 1 auto; max-height: 38%; min-height: 0; font-size: 12px; }
+#detail:empty { display: none; }
+.dhead { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin: 2px 0 4px; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; margin: 0 0 6px; font-family: var(--mono); }
+dt { color: var(--dim); } dd { margin: 0; overflow-wrap: anywhere; }
+pre { margin: 0; font: 11.5px/1.5 var(--mono); color: #c9d6e2; white-space: pre-wrap; }
+#counters { border-top: 1px solid var(--line); padding: 8px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 12px; }
+#counters div { display: flex; flex-direction: column; } #counters .wide { grid-column: 1 / -1; } #counters span { color: var(--dim); font-size: 11px; } #counters b { font: 600 12.5px var(--mono); }
+#legend { border-top: 1px solid var(--line); padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--dim); }
+#legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.hatch { background: repeating-linear-gradient(135deg, #dfe8f1 0 2px, #5b6672 2px 4px); }
+[data-variant="software"] .only-base, [data-variant="baseline"] .only-sw { display: none; }
+#bar { grid-area: bar; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px 10px;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+#tl { display: block; width: 100%; height: 20px; border-radius: 4px; }
+#scrub { display: block; width: 100%; margin: 2px 0 6px; accent-color: var(--resv); height: 22px; }
+#ctl { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+#play { min-width: 76px; background: #2b3d52; font-weight: 650; }
+#pos { font-family: var(--mono); color: var(--dim); font-size: 12px; margin-left: auto; }
+label.chk { display: inline-flex; gap: 6px; align-items: center; min-height: 38px; color: var(--dim); font-size: 13px; }
+#hint { color: #6f8296; font-size: 11.5px; margin-top: 6px; }
+@media (max-width: 1100px) { #machine { display: none; } }
+@media (max-width: 820px) {
+  #hud { grid-template: "top" auto "gap" minmax(0, 1fr) "panel" auto "bar" auto / minmax(0, 1fr); gap: 8px; padding-top: 10px; }
+  h1 { display: none; } #machine { display: none; } #cams { margin-left: auto; }
+  #variants button { padding: 0 10px; font-size: 14px; } #designNote { font-size: 12px; }
+  @media (max-width: 480px) { #design > span { display: none; } #top { column-gap: 8px; } #variants button { padding: 0 8px; } }
+  #panel { max-height: 46vh; }
+  #panelToggle { display: block; }
+  #panel:not(.open) #steps li:not(.on), #panel:not(.open) #detail, #panel:not(.open) #counters, #panel:not(.open) #legend { display: none; }
+  #panel:not(.open) #steps { min-height: 0; flex: none; }
+  #hint, #pos { display: none; } button, select { padding: 0 9px; font-size: 13px; }
+  .bub { font-size: 14px; max-width: min(260px, 68vw); }
+}
+</style>
+<div id="app">
+  <div id="stage"><canvas id="cv"></canvas>
+    <div id="bubbles" aria-hidden="true">
+      <div class="bub bub-kernel" id="bubKernel"><b class="bname">KERNEL SW</b><span class="btext"></span></div>
+      <div class="bub bub-hw" id="bubHw"><b class="bname">LZ4 HW</b><span class="btext"></span></div>
+      <svg class="tails"><path id="tailKernel" class="tail tail-kernel" d="M0 0"/></svg>
+      <svg class="tails"><path id="tailHw" class="tail tail-hw" d="M0 0"/></svg>
+    </div>
+  </div>
+  <div id="err" hidden></div>
+  <div id="hud">
+    <div id="top">
+      <h1>LZ4 DRAM compression replay</h1>
+      <div id="design"><span>DESIGN</span><div id="variants" class="seg" role="group" aria-label="Design"></div></div>
+      <span id="machine"></span>
+      <a id="lessons" href="https://datochuang.github.io/dram-compression-tutorial/lesson/">Lessons</a>
+      <div id="cams" class="seg" role="group" aria-label="Camera">
+        <button type="button" id="camFollow">Follow</button><button type="button" id="camOverview">Overview</button>
+      </div>
+      <p id="designNote"></p>
+    </div>
+    <section id="panel" aria-label="Current access">
+      <div id="phead">
+        <div id="sceneNo"></div><div id="sceneRes" class="res"></div>
+        <div id="sceneTitle"></div>
+        <button type="button" id="panelToggle">Details</button>
+      </div>
+      <ol id="steps"></ol>
+      <div id="detail"></div>
+      <div id="counters"></div>
+      <div id="legend">
+        <span><i style="background:var(--ro)"></i>RO page</span>
+        <span><i style="background:var(--rw)"></i>RW page</span>
+        <span><i class="hatch"></i>hatched: compressed</span>
+        <span class="only-base"><i style="background:var(--sram)"></i>free, number in SRAM</span>
+        <span class="only-base"><i style="background:var(--list)"></i>list chunk</span>
+        <span class="only-sw"><i style="background:var(--resv)"></i>reserved for a job</span>
+        <span><i style="background:var(--kernel)"></i>KERNEL SW</span>
+        <span><i style="background:var(--hw)"></i>LZ4 HW</span>
+      </div>
+    </section>
+    <div id="bar">
+      <canvas id="tl" aria-hidden="true"></canvas>
+      <input id="scrub" type="range" min="0" max="0" value="0" step="1" aria-label="Access number">
+      <div id="ctl">
+        <button type="button" id="prevFault" title="Previous access that is not a hit">&laquo; Fault</button>
+        <button type="button" id="prev" title="Previous access">&lsaquo; Prev</button>
+        <button type="button" id="play">Pause</button>
+        <button type="button" id="stepEv" title="Play one trace event, then pause">Step</button>
+        <button type="button" id="next" title="Next access">Next &rsaquo;</button>
+        <button type="button" id="nextFault" title="Next access that is not a hit">Fault &raquo;</button>
+        <select id="speed" aria-label="Playback speed">
+          <option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option>
+          <option value="4">4x</option><option value="8">8x</option><option value="16">16x</option>
+        </select>
+        <label class="chk"><input type="checkbox" id="skip" checked> skip plain hits</label>
+        <span id="pos"></span>
+      </div>
+      <div id="hint">Timeline: grey first touch, green RO fault, blue RW fault, amber cap when reclaim ran. Drag to orbit, wheel or pinch to zoom, shift-drag or two fingers to pan. Keys: space, arrows, n, f.</div>
+    </div>
+  </div>
+</div>
