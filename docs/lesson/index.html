@@ -66,13 +66,13 @@ dd { margin: 0; font-family: var(--mono); }
 
   <section>
     <h2>先看全貌 · Address space view</h2>
-    <p class="dim">這一頁是 2D 的，沒有角色，兩種設計共用。看的是 symbol 在哪裡，不是誰寫了哪個 byte。</p>
+    <p class="dim">這一頁沒有角色，兩種設計共用。看的是 symbol 在哪裡、三張表怎麼跟著變，不是誰寫了哪個 byte。</p>
 
     <a class="lesson" href="../addrspace/">
       <div>
-        <div class="tags"><span class="chip view">2D</span><span class="mono dim">兩種設計共用</span></div>
+        <div class="tags"><span class="chip view">3D</span><span class="mono dim">兩種設計共用</span></div>
         <h3>一個 symbol，在兩個 address space 裡的樣子</h3>
-        <p>程式看到的 symbol 是一段連續的 logical address。到了 DRAM，它被切成 page，有的在 hot region 的 frame 裡，有的壓縮後散在 cold region 的 chunk 裡。六個場景逐步看一次 access 讓它們怎麼搬動，也可以點 symbol 自己發 access。</p>
+        <p>程式看到的 symbol 是一段連續的 logical address。到了 DRAM，它被切成 page，有的在 hot region 的 frame 裡，有的壓縮後散在 cold region 的 chunk 裡。六個場景逐步看一次 access 讓 PTE、kernel page state、COT entry 哪一格被改寫，資料在 frame、LZ4 HW 與 chunk 之間怎麼流。也可以點 symbol 自己發 access。</p>
         <span class="go">打開這一頁</span>
       </div>
       <dl>

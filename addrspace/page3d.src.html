@@ -1,0 +1,82 @@
+<title>LZ4 Address Space 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* layout: one column. Scene tabs and the step caption sit above one 3D stage: a tilted board at the back (symbols, page table, kernel state, COT), DRAM flat in front (hot frames, LZ4 HW, cold chunks). State table last. */
+/*INCLUDE common.css*/
+.view { position: relative; height: clamp(380px, calc(100vh - 300px), 700px); border-bottom: 1px solid var(--line); }
+.view canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; outline-offset: -2px; }
+.view canvas.drag { cursor: grabbing; }
+.hint { margin: 0; padding: 7px 14px 0; font-size: 12.5px; color: var(--muted); }
+.view .reset { position: absolute; right: 10px; bottom: 8px; border: 1px solid var(--line); background: var(--paper); border-radius: 6px; padding: 4px 12px; font-family: var(--disp); font-weight: 700; font-size: 13px; cursor: pointer; }
+.view .nogl { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; color: var(--muted); text-align: center; }
+.legend i.flow { border: 0; height: 8px; background: repeating-linear-gradient(90deg, var(--rw) 0 6px, transparent 6px 10px); }
+.legend i.chg { background: var(--flash); border-color: var(--ink); }
+td.pte b { font-weight: 600; } td.pte.inv { color: var(--warn); }
+@media (max-width: 560px) { .view { height: 340px; } }
+</style>
+<!--BODY-->
+<main class="wrap">
+  <header>
+    <h1>一個 symbol，在兩個 address space 裡的樣子</h1>
+    <p class="lede">後面那塊斜板是程式這一側：symbol、每個 page 的 PTE、kernel 記的 page 狀態、COT entry。前面平放的是 DRAM：hot region 的 frame、LZ4 HW、cold region 的 chunk。選一個場景，一步一步看哪一格表被改寫，資料往哪裡流。</p>
+  </header>
+
+  <nav class="scenes" id="scenes" aria-label="場景"></nav>
+
+  <section class="stage" aria-label="動畫">
+    <div class="cap" aria-live="polite">
+      <span class="count" id="count"></span>
+      <span class="who" id="who"></span>
+      <p id="text"></p>
+    </div>
+    <div class="ctl">
+      <button type="button" id="back">上一步</button>
+      <button type="button" id="next" class="go">下一步</button>
+      <button type="button" id="play">自動播放</button>
+      <span class="sp"></span>
+      <span class="rwsel">點斜板上的 symbol 自己發 access：
+        <button type="button" id="kread" aria-pressed="true">read</button>
+        <button type="button" id="kwrite" aria-pressed="false">write</button>
+      </span>
+    </div>
+    <div class="view" id="view">
+      <canvas id="gl" tabindex="0" role="img" aria-label="3D 場景：後方斜板是 logical address space 的 symbol、page table、kernel page state 與 COT，前方是 DRAM 的 hot region、LZ4 HW 與 cold region。資料以流動的小方塊表示。"></canvas>
+      <button type="button" class="reset" id="reset">回到預設視角</button>
+      <div class="nogl" id="nogl">這個瀏覽器無法啟動 WebGL，3D 場景畫不出來。下方的表格仍然會跟著每一步更新。</div>
+    </div>
+    <p class="hint">拖曳旋轉 · 雙指或 Ctrl 加滾輪縮放 · Shift 加拖曳平移</p>
+    <div class="legend" aria-hidden="true">
+      <span><i class="ro"></i>RO</span><span><i class="rw"></i>RW</span><span><i class="hz"></i>壓縮後的資料</span>
+      <span><i class="flow"></i>流動中的資料</span><span><i class="chg"></i>這一步被改寫的表格</span>
+      <span><i class="ot"></i>圖上沒畫的其他 page</span><span><i class="fr"></i>空的</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>三張表，每個 page 各一格</h2>
+    <p class="lede" style="margin-bottom:10px">PTE 是 CPU MMU 唯一會讀的東西。Kernel 的 page 狀態只有 kernel 自己看。COT entry 告訴 LZ4 HW 壓縮後的 stream 在哪幾個 chunk。這一步有變動的格子會標色。</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Logical page</th><th>這個 page 上的 symbol</th><th>PTE</th><th>Kernel page state</th><th>COT entry：chunk 依 stream 順序</th><th>壓縮後大小</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+  </section>
+
+  <section class="notes">
+    <p>圖只畫出可壓縮區段裡的一小段：3 個 RO page、5 個 RW page、7 個 frame 和 48 個 chunk。一個 frame 的面積等於 8 個 chunk。</p>
+    <p>PTE 只畫 valid bit 和 frame 號碼。Invalid 的 PTE 對 CPU MMU 來說沒有其他內容，page 是在 cold region 還是根本沒配置，要看 kernel 自己的 page 狀態。</p>
+    <p>壓縮後的大小是用 simulator 裡同一套 LZ4 對範例內容逐頁壓縮得到的。</p>
+    <p>COT 由誰讀寫、空 chunk 由誰管理，HW-leaning 和 SW-leaning 兩種設計不同，這一頁不區分，標成 KERNEL / LZ4 HW。逐 byte 的過程見 <a href="https://datochuang.github.io/dram-compression-tutorial/lesson/">3D 課程</a>。</p>
+    <p>這一頁等到 frame 用完才回收。實際的 kernel 在空 frame 低於門檻時就開始回收。</p>
+  </section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const D = /*DATA*/null;
+/*INCLUDE sim.js*/
+/*INCLUDE scene3d_core.js*/
+/*INCLUDE scene3d_board.js*/
+/*INCLUDE scene3d_dram.js*/
+/*INCLUDE scene3d_flow.js*/
+/*INCLUDE scene3d_ui.js*/
+</script>

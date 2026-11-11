@@ -1,12 +1,15 @@
 """Build the address-space view.
 
-    python3 build.py OUT.html [--fragment]
+    python3 build.py OUT.html [--fragment] [--3d]
 
-Reads page.src.html, puts the example data from example_data.py in place of the
-DATA marker and writes one self-contained page. --fragment leaves out the
-document skeleton, which is the form the Artifact tool wants.
+Reads page.src.html (or page3d.src.html with --3d), puts the example data from
+example_data.py in place of the DATA marker, pastes every /*INCLUDE name.js*/
+file in place and writes one self-contained page. sim.js is the part both pages
+share. --fragment leaves out the document skeleton, which is the form the
+Artifact tool wants.
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -15,8 +18,9 @@ from example_data import build
 HERE = Path(__file__).resolve().parent
 
 
-def render(fragment=False):
-    src = (HERE / 'page.src.html').read_text(encoding='utf-8')
+def render(fragment=False, name='page.src.html'):
+    src = (HERE / name).read_text(encoding='utf-8')
+    src = re.sub(r'/\*INCLUDE ([\w.]+)\*/', lambda m: (HERE / m.group(1)).read_text(encoding='utf-8'), src)
     marker = '/*DATA*/null'
     assert src.count(marker) == 1
     src = src.replace(marker, json.dumps(build(), separators=(',', ':')))
@@ -31,5 +35,5 @@ def render(fragment=False):
 if __name__ == '__main__':
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     out = Path(args[0])
-    out.write_text(render('--fragment' in sys.argv), encoding='utf-8')
+    out.write_text(render('--fragment' in sys.argv, 'page3d.src.html' if '--3d' in sys.argv else 'page.src.html'), encoding='utf-8')
     print(f'[addrspace] wrote {out} ({out.stat().st_size} B)')
