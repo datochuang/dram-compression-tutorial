@@ -44,6 +44,7 @@ html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); 
 #top > * { pointer-events: auto; }
 h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: 0.01em; }
 #machine { color: var(--dim); font-size: 12px; font-family: var(--mono); }
+#lessons { color: var(--dim); font: 600 12px var(--mono); text-underline-offset: 3px; white-space: nowrap; } #lessons:hover, #lessons:focus-visible { color: var(--ink); }
 .seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
 #design { display: inline-flex; align-items: center; gap: 8px; }
 #design > span { font: 800 11px/1 var(--mono); letter-spacing: 0.1em; color: var(--dim); }
@@ -126,6 +127,7 @@ label.chk { display: inline-flex; gap: 6px; align-items: center; min-height: 38p
       <h1>LZ4 DRAM compression replay</h1>
       <div id="design"><span>DESIGN</span><div id="variants" class="seg" role="group" aria-label="Design"></div></div>
       <span id="machine"></span>
+      <a id="lessons" href="https://datochuang.github.io/dram-compression-tutorial/lesson/">Lessons</a>
       <div id="cams" class="seg" role="group" aria-label="Camera">
         <button type="button" id="camFollow">Follow</button><button type="button" id="camOverview">Overview</button>
       </div>
