@@ -30,6 +30,7 @@ section { display: flex; flex-direction: column; gap: 12px; }
 .chip.hw { background: var(--hw); }
 .chip.sw { background: var(--kernel); }
 .chip.soon { background: transparent; color: var(--dim); border: 1px solid var(--line); }
+.chip.view { background: var(--note); }
 .lesson { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 14px 24px; padding: 18px 20px;
   background: var(--card); border: 1px solid var(--line); border-radius: 10px; color: inherit; text-decoration: none; }
 a.lesson:hover { border-color: var(--hw); }
@@ -62,6 +63,26 @@ dd { margin: 0; font-family: var(--mono); }
     <p>每一課只講一個場景，貼近到每個 byte。<b>USER SW</b> 是被服務的程式，<b>KERNEL SW</b> 與 <b>LZ4 HW</b> 是兩個角色，job descriptor、COT entry 與 completion 都攤開成一格一個 byte 的板子，逐步看是誰寫的、誰讀過。</p>
     <p class="dim">給第一次接觸這個主題的人。所有數字都來自 simulator 的同一次執行（seed 1），不是編的例子。按 <span class="mono">Next</span> 一步一步看，舞台可以拖曳旋轉。</p>
   </header>
+
+  <section>
+    <h2>先看全貌 · Address space view</h2>
+    <p class="dim">這一頁是 2D 的，沒有角色，兩種設計共用。看的是 symbol 在哪裡，不是誰寫了哪個 byte。</p>
+
+    <a class="lesson" href="../addrspace/">
+      <div>
+        <div class="tags"><span class="chip view">2D</span><span class="mono dim">兩種設計共用</span></div>
+        <h3>一個 symbol，在兩個 address space 裡的樣子</h3>
+        <p>程式看到的 symbol 是一段連續的 logical address。到了 DRAM，它被切成 page，有的在 hot region 的 frame 裡，有的壓縮後散在 cold region 的 chunk 裡。六個場景逐步看一次 access 讓它們怎麼搬動，也可以點 symbol 自己發 access。</p>
+        <span class="go">打開這一頁</span>
+      </div>
+      <dl>
+        <dt>場景</dt><dd>6</dd>
+        <dt>symbol</dt><dd>7</dd>
+        <dt>frame</dt><dd>7</dd>
+        <dt>chunk</dt><dd>48</dd>
+      </dl>
+    </a>
+  </section>
 
   <section>
     <h2>偏硬體的設計 · HW-leaning</h2>

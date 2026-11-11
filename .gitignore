@@ -4,3 +4,4 @@ shots/
 .DS_Store
 src/*.png
 src/*.html.tmp
+__pycache__/
