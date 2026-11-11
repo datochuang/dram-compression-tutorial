@@ -1,0 +1,1351 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>LZ4 Lesson Decompress SW</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root { color-scheme: dark; --bg: #0b1118; --panel: #0e161f; --card: #121c27; --line: #263546; --ink: #dfe8f1; --dim: #8ea2b6;
+  --kernel: #f4d35e; --hw: #b48cff; --user: #ff8fb1; --note: #7ee2a8; --ro: #35b56f; --rw: #3d8bff; --bad: #ff5d5d; --slot: #18222d;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); overflow: hidden;
+  font: 15px/1.55 "IBM Plex Sans", "PingFang TC", "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; }
+* { box-sizing: border-box; }
+#app { height: 100%; min-height: 460px; display: grid; background: var(--bg);
+  grid-template: "top top" auto "stage panel" minmax(0, 1fr) "bar panel" auto / minmax(0, 1fr) 420px; }
+#top { grid-area: top; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; border-bottom: 1px solid var(--line);
+  padding: 9px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); }
+h1 { font-size: 16px; margin: 0; font-weight: 650; }
+#scene { color: var(--dim); font-size: 13px; }
+.chip { font: 700 11px/1.7 var(--mono); letter-spacing: 0.06em; border-radius: 999px; padding: 0 9px; color: #10161d; background: var(--dim); white-space: nowrap; }
+#design { background: var(--hw); }
+#stage { grid-area: stage; position: relative; min-height: 0; overflow: hidden; touch-action: none; cursor: grab; }
+#stage:active { cursor: grabbing; }
+#cv { display: block; width: 100%; height: 100%; }
+#bubbles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.bub { position: absolute; left: 0; top: 0; visibility: hidden; width: max-content; max-width: min(300px, 62%); background: #f7f9fc; color: #10161d;
+  border: 3px solid var(--c); border-radius: 14px; padding: 7px 11px 8px; font-size: 16px; line-height: 1.28; font-weight: 650;
+  overflow-wrap: anywhere; box-shadow: 0 5px 16px rgba(0, 0, 0, 0.5); }
+.bname { display: block; width: max-content; font: 800 12px/1.5 var(--mono); letter-spacing: 0.06em; color: #141a22; background: var(--c);
+  border-radius: 999px; padding: 0 8px; margin: 0 0 4px -2px; white-space: nowrap; }
+.btext { white-space: pre-line; }
+.bub.quiet { padding: 0; border: 0; background: none; box-shadow: none; }
+.bub.quiet .btext { display: none; }
+.bub.quiet .bname { margin: 0; font-size: 12px; padding: 2px 9px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5); }
+#tails { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+#tails path { fill: #f7f9fc; stroke-width: 3; stroke-linejoin: round; }
+#camReset { position: absolute; right: 10px; bottom: 10px; z-index: 3; min-height: 34px; font-size: 12px; }
+#err { position: absolute; inset: 30% 16px auto; text-align: center; color: #ffb4b4; }
+button { font: inherit; color: var(--ink); background: #1a2633; border: 1px solid var(--line); border-radius: 9px; min-height: 40px; padding: 0 14px; cursor: pointer; }
+button:hover { background: #223244; }
+button:focus-visible, #dots button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+button:disabled { opacity: 0.4; cursor: default; }
+#bar { grid-area: bar; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center;
+  padding: 8px 12px max(8px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+#play { min-width: 92px; background: #2b3d52; font-weight: 650; }
+#pos { font: 12px var(--mono); color: var(--dim); }
+#dots { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 200px; }
+#dots button { width: 18px; min-height: 18px; height: 18px; padding: 0; border-radius: 5px; border: 0; background: var(--c); opacity: 0.32; }
+#dots button.seen { opacity: 0.6; } #dots button.on { opacity: 1; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px #fff; }
+#panel { grid-area: panel; border-left: 1px solid var(--line); background: var(--panel); overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch;
+  padding: 14px max(16px, env(safe-area-inset-right, 0px)) 18px 16px; }
+#stepHead { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+#stepNo { font: 12px var(--mono); color: var(--dim); }
+#who { background: var(--c); }
+h2 { font-size: 19px; line-height: 1.3; margin: 2px 0 8px; font-weight: 700; }
+#text p { margin: 0 0 8px; }
+#text b { color: #fff; font-weight: 650; }
+code, .m { font-family: var(--mono); font-size: 0.92em; }
+#text code { background: var(--slot); border-radius: 4px; padding: 0 4px; white-space: nowrap; }
+.k { color: var(--kernel); } .h { color: var(--hw); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px 10px; margin-top: 12px; }
+.card h3 { font: 700 11.5px/1.4 var(--mono); letter-spacing: 0.07em; color: var(--dim); margin: 0 0 6px; text-transform: uppercase; }
+.card h3 span { text-transform: none; letter-spacing: 0; font-weight: 500; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th { text-align: left; font: 600 10.5px var(--mono); color: var(--dim); letter-spacing: 0.04em; padding: 2px 6px 4px 0; white-space: nowrap; }
+td { padding: 3px 6px 3px 0; border-top: 1px solid #1c2836; vertical-align: top; font-family: var(--mono); }
+td.t { font-family: inherit; }
+tr.hot td { background: #1d2c3d; color: #fff; } tr.hot td:first-child { box-shadow: inset 3px 0 0 #fff; padding-left: 6px; }
+tr.off td { color: #5d6f82; }
+.by { display: inline-block; min-width: 1.75em; text-align: center; border-radius: 3px; margin: 0 1px 1px 0; padding: 0 2px; background: var(--slot); color: #6f8296; }
+.by.k { background: var(--kernel); color: #10161d; font-weight: 600; } .by.h { background: var(--hw); color: #10161d; font-weight: 600; }
+.wr { display: inline-block; border-radius: 3px; padding: 0 5px; font: 700 11px/1.6 var(--mono); color: #10161d; }
+.wr.k { background: var(--kernel); } .wr.h { background: var(--hw); } .wr.n { background: none; color: #5d6f82; font-weight: 500; }
+#ledger td:first-child { font-family: inherit; }
+#ledger td.c { text-align: center; width: 84px; } #ledger th.c { text-align: center; }
+#ledger tr.new td { background: #1d2c3d; }
+#clock { margin-top: 8px; font: 12px var(--mono); color: var(--dim); }
+#clock b { color: var(--ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--dim); margin-top: 8px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.hatch { background: repeating-linear-gradient(135deg, #dfe8f1 0 2px, #5b6672 2px 4px); }
+.tick { background: linear-gradient(225deg, #fff 0 50%, var(--slot) 50%); }
+@media (max-width: 820px) {
+  #app { grid-template: "top" auto "stage" minmax(200px, 42%) "panel" minmax(0, 1fr) "bar" auto / minmax(0, 1fr); }
+  #panel { border-left: 0; border-top: 1px solid var(--line); padding-left: max(16px, env(safe-area-inset-left, 0px)); }
+  #scene { display: none; } h2 { font-size: 17px; } .bub { font-size: 14px; max-width: min(240px, 66%); }
+  #dots { order: 5; flex-basis: 100%; } #dots button { width: 11px; height: 14px; min-height: 14px; border-radius: 3px; gap: 3px; }
+  #bar { padding-right: max(16px, env(safe-area-inset-right, 0px)); } #pos { margin-left: auto; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+<div id="app">
+  <header id="top">
+    <h1 id="title">LZ4 lesson</h1><span class="chip" id="design"></span><span id="scene"></span>
+  </header>
+  <div id="stage"><canvas id="cv" aria-label="3D stage of the lesson"></canvas>
+    <div id="bubbles" aria-hidden="true"><svg id="tails"></svg></div>
+    <button type="button" id="camReset" title="Back to this step's view">Reset view</button>
+    <div id="err" hidden></div>
+  </div>
+  <aside id="panel" aria-live="polite">
+    <div id="stepHead"><span id="stepNo"></span><span class="chip" id="who"></span></div>
+    <h2 id="stepTitle"></h2>
+    <div id="text"></div>
+    <div id="focus"></div>
+    <div class="card"><h3>Who touched what <span>(R = read, W = write)</span></h3>
+      <table id="ledger"></table>
+      <div id="clock"></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--kernel)"></i>written by KERNEL SW</span>
+      <span><i style="background:var(--hw)"></i>written by LZ4 HW</span>
+      <span><i class="tick"></i>corner mark: who read it</span>
+      <span><i style="background:var(--rw)"></i>RW page data</span>
+      <span><i class="hatch"></i>compressed data</span>
+    </div>
+  </aside>
+  <nav id="bar" aria-label="Steps">
+    <button type="button" id="prev" aria-label="Previous step">&#9664; Prev</button>
+    <button type="button" id="play">&#9654; Play</button>
+    <button type="button" id="next" aria-label="Next step">Next &#9654;</button>
+    <span id="pos"></span>
+    <div id="dots" role="group" aria-label="Jump to a step"></div>
+  </nav>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="application/json" id="lesson-data">{"scene":"decompress-sw","variant":"software","meta":{"seed":1,"accesses":3000,"page":4096,"chunk":512,"pages":1792,"rw_pages":1280,"frames":512,"pool_chunks":8192,"cot_base":2150629376,"pool_base":2151677952,"fc_base":2155872256,"fc_low":16,"fc_high":48,"limit":3584,"sram_cap":512,"dram_ns":100.0,"comp_ns":4096.0,"clients":["UI","MEDIA","NET","LOG"],"kernel_job_ns":300.0,"kernel_fault_ns":3000.0,"decomp_ns":1024.0,"decomp_bytes_per_cycle":4.0,"bitmap_words":128,"bitmap_bytes":1024,"run_accesses":27000},"req":{"h":1269,"w":0,"client":3,"name":"LOG","kind":"fault","access_no":11519,"ro":false,"lat_ns":4624,"kernel_ns":3000.0},"pg":{"h":1269,"client":3,"name":"LOG","frame":169,"frame_pa":2156564480,"entry_pa":2150669984},"before":{"frame":403,"frame_pa":2157522944,"access_no":2997,"accesses_ago":8522},"frames":{"free_before":31,"free_after":30,"total":512},"desc":{"hex":"0204001000908a80920700001a18dc58f50400005b0d005c0d005d0d005e0d0000000000000000000000000000000000","opcode":2,"op_name":"DECOMPRESS","count":4,"limit":4096,"frame_pa":2156564480,"comp_len":1938,"flags":0,"checksum":1490819098,"tag":1269,"chunks":[3419,3420,3421,3422]},"done":{"hex":"000000101a18dc58f504000000000000","status":0,"status_name":"OK","flags":0,"length":4096,"checksum":1490819098,"tag":1269,"aux":0,"lat_ns":1324,"dram_accesses":3},"page":{"head":"ad6f6e6626fc30a599938a7d64fb12c5","crc":3060430107},"stream":{"len":1938,"head":"ffffcdad6f6e6626fc30a599938a7d64","count":4,"sizes":[512,512,512,402]},"chunks":[{"n":3419,"pa":2153428480,"bytes":512,"head":"ffffcdad6f6e6626"},{"n":3420,"pa":2153428992,"bytes":512,"head":"79b4d60a6f5a9080"},{"n":3421,"pa":2153429504,"bytes":512,"head":"94f7fa64088ae6b0"},{"n":3422,"pa":2153430016,"bytes":402,"head":"dc8d0007d4252879"}],"cot":{"before":"010492071a18dc585b0d005c0d005d0d005e0d00000000000000000000000000","after":"0000000000000000000000000000000000000000000000000000000000000000","flags":1,"count":4,"comp_len":1938,"checksum":1490819098,"chunks":[3419,3420,3421,3422]},"bitmap":{"word":53,"first_chunk":3392,"nwords":128,"before":"fe107f07ff07c107","after":"fe107f078707c107","free_before":3691,"free_after":3695,"released":[3419,3420,3421,3422]},"hw":{"h":1269,"access_no":11519,"chunks":[2886,2887,2888,2944],"desc_bytes":16,"lat_ns":1424,"dram_accesses":4,"jobs":2,"lat2_ns":300,"dram2_accesses":3,"access_ns":4724,"compress_access_no":2997,"same":true}}</script>
+<script>
+/* The look that the replay and the lessons share: colours, text sprites, the hatch that marks
+   compressed data, and the characters. KERNEL SW, LZ4 HW and the user programs are built here
+   once, so they are the same figures on every page. A builder returns the figure only; the page
+   that uses it puts it in its scene and adds what it needs (halo, bubble, places to stand). */
+var R = (typeof R === 'object' && R) || {};
+
+R.COL = { ro: 0x35b56f, rw: 0x3d8bff, zero: 0xe8edf2, bg: 0x0b1118, floor: 0x101923,
+          free: 0x1b2632, sram: 0x1f6670, listed: 0x232f3d, list: 0xd9a23a, reserved: 0x36d6e7,
+          under: 0x121a23, slot: 0x18222d, kernel: 0xf4d35e, hw: 0xb48cff, bad: 0xff5d5d, ok: 0x7ee2a8 };
+/* the lamp on the access gate: nothing asked, let through, stopped */
+R.GATE = { idle: 0x5a6b7c, pass: 0x7ee2a8, stop: 0xff5d5d };
+/* user software: one look per program. The shape tells them apart first, the colour second;
+   none of these colours means anything else in the scene. */
+R.USER_LOOK = [['screen', 0xff8fb1], ['phones', 0xff9950], ['dish', 0xeef2f6], ['stack', 0xb9e04f],
+               ['screen', 0xe36bd6], ['phones', 0x9ad0ff], ['dish', 0xffd0a8], ['stack', 0xc9b8ff]];
+R.userCss = function (i) { return '#' + R.USER_LOOK[i % R.USER_LOOK.length][1].toString(16).padStart(6, '0'); };
+
+R.makeText = function (text, o) {
+  o = o || {};
+  var cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+  var tex = new THREE.CanvasTexture(cv);
+  tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;
+  var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: o.depthTest !== false, depthWrite: false }));
+  var h = o.h || 2.2, px = 44, font = '600 ' + px + 'px "IBM Plex Mono", ui-monospace, Menlo, monospace';
+  sp.setText = function (t) {
+    sp.visible = !!t; if (!t) return;
+    ctx.font = font;
+    var w = Math.ceil(ctx.measureText(t).width) + 36;
+    cv.width = w; cv.height = px + 28;
+    ctx.font = font;
+    if (o.bg) { ctx.fillStyle = o.bg; ctx.beginPath(); ctx.rect(0, 0, w, cv.height); ctx.fill(); }
+    ctx.fillStyle = o.color || '#dfe8f1'; ctx.textBaseline = 'middle';
+    ctx.fillText(t, 18, cv.height / 2 + 2);
+    tex.needsUpdate = true;
+    sp.scale.set(h * w / cv.height, h, 1);
+  };
+  sp.setText(text);
+  return sp;
+};
+
+R.hatchTexture = function () {
+  var cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  var c = cv.getContext('2d');
+  c.fillStyle = '#ffffff'; c.fillRect(0, 0, 64, 64);
+  c.strokeStyle = '#5b6672'; c.lineWidth = 9;
+  for (var i = -64; i < 128; i += 21) { c.beginPath(); c.moveTo(i, 64); c.lineTo(i + 64, 0); c.stroke(); }
+  var t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+};
+
+/* ---- characters */
+R.chars = {};
+R.chars.kernel = function () {
+  var g = new THREE.Group(), L = THREE.MeshLambertMaterial, a = {};
+  var body = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.7, 3.6, 16), new L({ color: R.COL.kernel })); body.position.y = 3.4; g.add(body);
+  var vest = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.52, 0.42, 16), new L({ color: 0xffffff })); vest.position.y = 3.6; g.add(vest);
+  var head = new THREE.Mesh(new THREE.SphereGeometry(1.2, 18, 14), new L({ color: 0xf6dcc0 })); head.position.y = 6.3; g.add(head);
+  var hat = new THREE.Mesh(new THREE.SphereGeometry(1.32, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), new L({ color: R.COL.kernel })); hat.position.y = 6.55; g.add(hat);
+  var brim = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.75, 0.14, 18), new L({ color: R.COL.kernel })); brim.position.y = 6.6; g.add(brim);
+  [-0.45, 0.45].forEach(function (x) { var e = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), new THREE.MeshBasicMaterial({ color: 0x1a1a1a })); e.position.set(x, 6.2, 1.08); g.add(e); });
+  a.legs = [-0.6, 0.6].map(function (x) { var l = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.7, 0.8), new L({ color: 0x3b4758 })); l.position.set(x, 0.85, 0); g.add(l); return l; });
+  var board = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.7, 0.14), new L({ color: 0x8b6b43 })); board.position.set(1.7, 3.6, 0.9); board.rotation.x = -0.5; g.add(board);
+  a.hands = new THREE.Object3D(); a.hands.position.set(0, 4.2, 2.3); g.add(a.hands);
+  a.group = g; a.pos = g.position; a.walk = 0; a.baseY = 0; a.s = 1;
+  a.top = function () { return 7.9 * a.s; };
+  return a;
+};
+
+R.chars.robot = function () {
+  var g = new THREE.Group(), L = THREE.MeshLambertMaterial, a = {}, inner = new THREE.Group();
+  g.add(inner);
+  var body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.6, 2.6), new L({ color: 0x8d74d6 })); body.position.y = 1.6; inner.add(body);
+  var chest = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.9, 0.2), new THREE.MeshBasicMaterial({ color: 0xefe8ff })); chest.position.set(0, 1.7, 1.35); inner.add(chest);
+  var head = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.6, 2), new L({ color: R.COL.hw })); head.position.y = 3.9; inner.add(head);
+  var visor = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 0.2), new THREE.MeshBasicMaterial({ color: 0x5ff1ff })); visor.position.set(0, 4.0, 1.0); inner.add(visor);
+  var ant = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.2, 6), new L({ color: 0xc3cad8 })); ant.position.y = 5.3; inner.add(ant);
+  var tip = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 8), new THREE.MeshBasicMaterial({ color: R.COL.hw })); tip.position.y = 5.95; inner.add(tip);
+  [-2, 2].forEach(function (x) { var arm = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 2.6), new L({ color: 0x6a55b0 })); arm.position.set(x, 1.4, 1.2); inner.add(arm); });
+  a.flame = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.2, 12), new THREE.MeshBasicMaterial({ color: 0x8d74ff, transparent: true, opacity: 0.75 }));
+  a.flame.rotation.x = Math.PI; a.flame.position.y = -0.8; inner.add(a.flame);
+  a.hands = new THREE.Object3D(); a.hands.position.set(0, 1.2, 3.0); inner.add(a.hands);
+  /* the descriptor of the job in hand, shown as a sheet on the shoulder until the completion is reported */
+  a.order = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.1, 0.14), new THREE.MeshBasicMaterial({ color: R.COL.kernel }));
+  a.order.position.set(2.3, 4.6, 0.4); a.order.rotation.z = -0.25; a.order.visible = false; inner.add(a.order);
+  a.group = g; a.inner = inner; a.pos = g.position; a.baseY = 4.2; a.walk = 0; a.s = 1; a.lift = a.baseY;
+  a.top = function () { return a.lift + 6.4 * a.s; };
+  return a;
+};
+
+/* A user program. Four shapes: a monitor for a head, headphones, a dish antenna, a pile of discs. */
+R.chars.user = function (i, name) {
+  var look = R.USER_LOOK[i % R.USER_LOOK.length], shape = look[0], color = look[1], T = THREE;
+  var g = new T.Group(), L = T.MeshLambertMaterial, B = T.MeshBasicMaterial, a = {}, hgt, o;
+  var add = function (geo, mat, x, y, z) { var m = new T.Mesh(geo, mat); m.position.set(x || 0, y || 0, z || 0); g.add(m); return m; };
+  var main = new L({ color: color }), ink = new L({ color: 0x2a3644 }), eye = new B({ color: 0x10161d }), skin = new L({ color: 0xf6dcc0 });
+  var eyes = function (dx, y, z, r) { [-dx, dx].forEach(function (x) { add(new T.SphereGeometry(r || 0.16, 8, 8), eye, x, y, z); }); };
+  if (shape === 'screen') {
+    [-0.65, 0.65].forEach(function (x) { add(new T.BoxGeometry(0.75, 1.5, 0.85), ink, x, 0.75, 0); });
+    add(new T.BoxGeometry(2.5, 2.5, 1.5), main, 0, 2.75, 0);
+    add(new T.BoxGeometry(0.55, 0.6, 0.55), ink, 0, 4.2, 0);
+    add(new T.BoxGeometry(4.2, 2.9, 0.7), ink, 0, 5.9, 0);
+    add(new T.BoxGeometry(3.7, 2.4, 0.12), new B({ color: color }), 0, 5.9, 0.38);
+    [-0.85, 0.85].forEach(function (x) { add(new T.BoxGeometry(0.5, 0.8, 0.1), eye, x, 6.1, 0.46); });
+    hgt = 7.6;
+  } else if (shape === 'phones') {
+    add(new T.SphereGeometry(1.95, 18, 14), main, 0, 2.3, 0);
+    add(new T.SphereGeometry(1.25, 18, 14), skin, 0, 5.2, 0);
+    add(new T.TorusGeometry(1.45, 0.22, 8, 20, Math.PI), ink, 0, 5.25, 0);
+    [-1.5, 1.5].forEach(function (x) { o = add(new T.CylinderGeometry(0.68, 0.68, 0.55, 14), main, x, 5.1, 0); o.rotation.z = Math.PI / 2; });
+    eyes(0.42, 5.3, 1.14);
+    o = add(new T.ConeGeometry(0.7, 1.05, 3), new B({ color: 0xffffff }), 0.1, 2.5, 1.9); o.rotation.z = -Math.PI / 2; o.scale.z = 0.2;
+    hgt = 7.2;
+  } else if (shape === 'dish') {
+    add(new T.CylinderGeometry(0.55, 1.95, 4.2, 16), main, 0, 2.1, 0);
+    add(new T.SphereGeometry(1.05, 16, 12), main, 0, 4.9, 0);
+    eyes(0.38, 5.0, 0.95);
+    add(new T.CylinderGeometry(0.1, 0.1, 1.5, 6), ink, 0, 6.5, 0);
+    o = add(new T.SphereGeometry(1.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new L({ color: color, side: T.DoubleSide }), 0, 8.5, 0); o.rotation.x = Math.PI - 0.55;
+    add(new T.SphereGeometry(0.24, 8, 8), new B({ color: 0x10161d }), 0, 8.3, 0.5);
+    hgt = 8.9;
+  } else {
+    [0.7, 1.95, 3.2].forEach(function (y, k) { add(new T.CylinderGeometry(2.05, 2.05, 0.95, 20), k === 1 ? new L({ color: 0xffffff }) : main, 0, y, 0); });
+    add(new T.CylinderGeometry(1.15, 1.15, 1.6, 18), skin, 0, 4.6, 0);
+    eyes(0.4, 4.75, 1.08);
+    add(new T.CylinderGeometry(1.55, 1.55, 0.2, 18), main, 0, 5.5, 0);
+    o = add(new T.CylinderGeometry(0.16, 0.16, 3.4, 6), new L({ color: 0xffffff }), 2.3, 4.4, 0); o.rotation.z = -0.3;
+    hgt = 6.3;
+  }
+  a.hands = new T.Object3D(); a.hands.position.set(0, 3.6, 2.4); g.add(a.hands);
+  a.group = g; a.pos = g.position; a.walk = 0; a.k = 0.95; a.active = false; a.idx = i; a.name = name; a.color = color; a.css = R.userCss(i);
+  a.top = function () { return hgt * a.k; };
+  return a;
+};
+
+/* Lesson kit: what every lesson scene is built from.
+
+   A lesson shows one job close up. The kit gives the scene a small 3D stage, the shared
+   characters with speech bubbles, "byte slabs" (a structure drawn byte by byte, every byte
+   coloured by who wrote it and marked when the other side has read it), and a stepper.
+   The scene file supplies the places, the steps and the state after each step. */
+(function () {
+'use strict';
+var T = THREE;
+var WHO = { k: '#f4d35e', h: '#b48cff' };
+var MONO = '"IBM Plex Mono", ui-monospace, Menlo, monospace';
+
+R.hx = function (v, w) { var s = (v >>> 0).toString(16).toUpperCase(); while (s.length < (w || 0)) s = '0' + s; return '0x' + s; };
+R.b2 = function (v) { return (v < 16 ? '0' : '') + v.toString(16).toUpperCase(); };
+R.bytes = function (hex) { var o = [], i; for (i = 0; i < hex.length; i += 2) o.push(parseInt(hex.substr(i, 2), 16)); return o; };
+R.clone = function (o) { return JSON.parse(JSON.stringify(o)); };
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+/* ------------------------------------------------------------------ stage */
+R.Kit = function (stage) {
+  this.stage = stage; this.cv = stage.querySelector('canvas');
+  this.bubBox = stage.querySelector('#bubbles'); this.tails = stage.querySelector('#tails');
+  this.renderer = new T.WebGLRenderer({ canvas: this.cv, antialias: true });
+  this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  this.scene = new T.Scene(); this.scene.background = new T.Color(R.COL.bg);
+  this.fov = 36; this.camera = new T.PerspectiveCamera(this.fov, 1, 1, 1200);
+  this.scene.add(new T.HemisphereLight(0xffffff, 0x2a3848, 1.0));
+  var sun = new T.DirectionalLight(0xffffff, 0.5); sun.position.set(40, 90, 60); this.scene.add(sun);
+  var floor = new T.Mesh(new T.PlaneGeometry(600, 600), new T.MeshLambertMaterial({ color: R.COL.floor }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -0.03; this.scene.add(floor);
+  this.cam = { t: new T.Vector3(), r: 130, th: 0, ph: 0.8 };
+  this.goal = null; this.view = null;
+  this.actors = []; this.fx = []; this.slabs = []; this.timers = [];
+  this.w = 1; this.h = 1; this.hatch = R.hatchTexture();
+  this.reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  this._controls();
+};
+var K = R.Kit.prototype;
+
+K.resize = function () {
+  var w = this.stage.clientWidth, h = this.stage.clientHeight; if (!w || !h) return;
+  this.w = w; this.h = h; this.renderer.setSize(w, h, false);
+  this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
+  if (this.goal && this.view) this.goal.r = this._fit(this.view);
+  this.actors.forEach(function (a) { a.bub.dirty = true; });
+};
+/* a view is { t: [x, y, z], w: world width to show, v: apparent height to show, th, ph } */
+K._fit = function (f) {
+  var tv = Math.tan(this.fov * Math.PI / 360), th = tv * this.w / this.h;
+  return Math.max(f.w / (2 * th), f.v / (2 * tv)) * 1.05;
+};
+K.focus = function (f, instant) {
+  this.view = f;
+  this.goal = { t: new T.Vector3(f.t[0], f.t[1], f.t[2]), r: this._fit(f), th: f.th || 0, ph: f.ph || 0.8 };
+  if (instant || this.reduced) { var c = this.cam, g = this.goal; c.t.copy(g.t); c.r = g.r; c.th = g.th; c.ph = g.ph; }
+};
+K._controls = function () {
+  var self = this, st = this.stage, ptrs = {}, gest = null;
+  var count = function () { return Object.keys(ptrs).length; };
+  var two = function () { var k = Object.keys(ptrs), a = ptrs[k[0]], b = ptrs[k[1]]; return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
+  var pan = function (dx, dy) {
+    var c = self.cam, k = c.r * 0.0016, sx = Math.cos(c.th), sz = Math.sin(c.th);
+    c.t.x -= (dx * sx + dy * sz) * k; c.t.z -= (-dx * sz + dy * sx) * k;
+  };
+  st.addEventListener('pointerdown', function (e) {
+    if (e.target.closest && e.target.closest('button')) return;
+    ptrs[e.pointerId] = { x: e.clientX, y: e.clientY }; try { st.setPointerCapture(e.pointerId); } catch (x) {}
+    gest = count() === 2 ? two() : null;
+  });
+  st.addEventListener('pointermove', function (e) {
+    var p = ptrs[e.pointerId]; if (!p) return;
+    var dx = e.clientX - p.x, dy = e.clientY - p.y, c = self.cam; p.x = e.clientX; p.y = e.clientY;
+    self.goal = null;
+    if (count() === 1) {
+      if (e.shiftKey || e.buttons === 2) pan(dx, dy);
+      else { c.th -= dx * 0.005; c.ph = clamp(c.ph - dy * 0.005, 0.1, 1.45); }
+    } else if (count() === 2 && gest) { var g = two(); c.r = clamp(c.r * gest.d / g.d, 14, 420); pan(g.x - gest.x, g.y - gest.y); gest = g; }
+  });
+  var up = function (e) { delete ptrs[e.pointerId]; gest = null; };
+  st.addEventListener('pointerup', up); st.addEventListener('pointercancel', up);
+  st.addEventListener('wheel', function (e) { e.preventDefault(); self.goal = null; self.cam.r = clamp(self.cam.r * Math.exp(e.deltaY * 0.0012), 14, 420); }, { passive: false });
+  st.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+};
+
+/* ---- timers and effects that belong to the step on show; leaving the step cancels them */
+K.after = function (ms, fn) { var self = this, id = setTimeout(function () { self.timers.splice(self.timers.indexOf(id), 1); fn(); }, ms); this.timers.push(id); };
+K.cancel = function () {
+  var i; this.timers.forEach(clearTimeout); this.timers = [];
+  for (i = 0; i < this.fx.length; i++) this._drop(this.fx[i]);
+  this.fx = [];
+};
+K._drop = function (e) { this.scene.remove(e.o); e.o.geometry.dispose(); e.o.material.dispose(); };
+K.fly = function (from, to, o) {
+  o = o || {};
+  var s = o.size || [2.4, 0.7, 2.4];
+  var m = new T.Mesh(new T.BoxGeometry(s[0], s[1], s[2]), new T.MeshBasicMaterial({ color: o.color || 0xffffff, map: o.hatch ? this.hatch : null }));
+  m.position.copy(from); this.scene.add(m);
+  this.fx.push({ kind: 'fly', o: m, a: from.clone(), b: to.clone(), t: 0, d: (o.ms || 700) / 1000, up: o.up === undefined ? 5 : o.up, done: o.done });
+};
+K.ping = function (pos, color, big) {
+  var m = new T.Mesh(new T.RingGeometry(1.6, 2.2, 40), new T.MeshBasicMaterial({ color: color, transparent: true, opacity: 1, side: T.DoubleSide, depthTest: false }));
+  m.rotation.x = -Math.PI / 2; m.position.copy(pos); m.position.y += 0.4; this.scene.add(m);
+  this.fx.push({ kind: 'ping', o: m, t: 0, d: 0.9, s: big || 2.2 });
+};
+
+/* ---- things on the stage */
+K.box = function (w, h, d, color, x, y, z, basic) {
+  var m = new T.Mesh(new T.BoxGeometry(w, h, d), basic ? new T.MeshBasicMaterial({ color: color }) : new T.MeshLambertMaterial({ color: color }));
+  m.position.set(x, y, z); this.scene.add(m); return m;
+};
+K.label = function (text, x, y, z, h, color) {
+  var sp = R.makeText(text, { h: h || 1.6, color: color || '#8ea2b6', depthTest: false });
+  sp.position.set(x, y, z); sp.renderOrder = 5; this.scene.add(sp); return sp;
+};
+/* a canvas you draw on, lying flat (text reads from the near side) or standing up */
+K.plate = function (o) {
+  var cv = document.createElement('canvas'); cv.width = o.pw; cv.height = o.ph;
+  var tex = new T.CanvasTexture(cv); tex.anisotropy = 8; tex.minFilter = T.LinearFilter; tex.generateMipmaps = false;
+  var d = o.w * o.ph / o.pw, g = new T.Group();
+  var face = new T.Mesh(new T.PlaneGeometry(o.w, d), new T.MeshBasicMaterial({ map: tex }));
+  if (!o.upright) { face.rotation.x = -Math.PI / 2; face.position.y = 0.26; } else face.position.z = 0.16;
+  var base = new T.Mesh(o.upright ? new T.BoxGeometry(o.w + 0.5, d + 0.5, 0.3) : new T.BoxGeometry(o.w + 0.5, 0.5, d + 0.5), new T.MeshLambertMaterial({ color: 0x2a3a4c }));
+  g.add(base); g.add(face); g.position.set(o.x, o.y === undefined ? 0.25 : o.y, o.z); if (o.tilt) g.rotation.x = o.tilt;
+  this.scene.add(g);
+  return { group: g, cv: cv, ctx: cv.getContext('2d'), W: o.pw, H: o.ph, w: o.w, d: d, done: function () { tex.needsUpdate = true; } };
+};
+
+/* ---- byte slab. rows: [[{ n: name, off, len }, ...], ...]; state: { b, w, r, vals, hot } */
+K.slab = function (o) {
+  var self = this, W = 1024, cell = o.cell, M = 30, GAP = 14, TH = 62, NAME = 36, CH = 78, VAL = 38, RG = 10;
+  var RH = NAME + CH + VAL + RG, H = TH + o.rows.length * RH + 8;
+  var p = this.plate({ w: o.w, pw: W, ph: H, x: o.x, y: o.y, z: o.z, tilt: o.tilt });
+  var fields = [], ctx = p.ctx;
+  o.rows.forEach(function (row, ri) {
+    var x = M; row.forEach(function (f) { fields.push({ n: f.n, off: f.off, len: f.len, x: x, y: TH + ri * RH + NAME, wpx: f.len * cell }); x += f.len * cell + GAP; });
+  });
+  var s = { b: [], w: [], r: [], vals: {}, hot: [], title: o.title }, last = null, flash = {}, flashing = false;
+  function fit(text, max, px, weight) {
+    ctx.font = weight + ' ' + px + 'px ' + MONO;
+    var w = ctx.measureText(text).width; if (w > max) { px = Math.max(15, Math.floor(px * max / w)); ctx.font = weight + ' ' + px + 'px ' + MONO; }
+  }
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function draw(now) {
+    var live = false;
+    ctx.fillStyle = '#0f1822'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#3a5068'; ctx.lineWidth = 6; ctx.strokeRect(3, 3, W - 6, H - 6);
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    fit(s.title || '', W - 2 * M, 30, 600); ctx.fillStyle = '#9fb4cc'; ctx.fillText(s.title || '', M, 44);
+    fields.forEach(function (f) {
+      var hot = s.hot.indexOf(f.n) >= 0, i, idx, bx, wr, v, rd, k, a;
+      fit(f.n, f.wpx + GAP - 6, 26, 600); ctx.fillStyle = hot ? '#ffffff' : '#8ea2b6'; ctx.fillText(f.n, f.x + 3, f.y - 10);
+      for (i = 0; i < f.len; i++) {
+        idx = f.off + i; bx = f.x + i * cell; wr = s.w[idx]; v = s.b[idx]; rd = s.r[idx] || '';
+        rr(bx + 2, f.y, cell - 4, CH, 7); ctx.fillStyle = wr ? WHO[wr] : '#18222d'; ctx.fill();
+        if (!wr) { ctx.strokeStyle = '#2a3a4c'; ctx.lineWidth = 2; ctx.stroke(); }
+        ctx.font = '600 ' + Math.round(cell * 0.44) + 'px ' + MONO; ctx.textAlign = 'center';
+        ctx.fillStyle = wr ? '#10161d' : '#5d6f82'; ctx.fillText(v === null || v === undefined ? '--' : R.b2(v), bx + cell / 2, f.y + CH / 2 + cell * 0.16);
+        ctx.textAlign = 'left';
+        for (k = 0; k < rd.length; k++) {
+          ctx.beginPath(); ctx.moveTo(bx + cell - 2, f.y); ctx.lineTo(bx + cell - 2, f.y + 24); ctx.lineTo(bx + cell - 26, f.y); ctx.closePath();
+          ctx.fillStyle = WHO[rd[k]]; ctx.fill(); ctx.strokeStyle = '#10161d'; ctx.lineWidth = 2; ctx.stroke();
+        }
+        if (flash[idx] !== undefined) {
+          a = 1 - (now - flash[idx]) / 1100;
+          if (a > 0) { live = true; rr(bx + 2, f.y, cell - 4, CH, 7); ctx.fillStyle = 'rgba(255,255,255,' + (a * 0.85).toFixed(3) + ')'; ctx.fill(); } else delete flash[idx];
+        }
+      }
+      if (hot) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5; rr(f.x - 2, f.y - 4, f.wpx + 4, CH + 8, 9); ctx.stroke(); }
+      v = s.vals[f.n];
+      if (v) { fit(v, f.wpx + GAP - 6, 27, 500); ctx.fillStyle = hot ? '#ffffff' : '#dfe8f1'; ctx.fillText(v, f.x + 3, f.y + CH + 29); }
+    });
+    flashing = live; p.done();
+  }
+  var slab = {
+    group: p.group, w: p.w, d: p.d,
+    set: function (ns, doFlash) {
+      var i, now = performance.now();
+      if (last && doFlash && !self.reduced) for (i = 0; i < ns.b.length; i++) if (last.b[i] !== ns.b[i] || last.w[i] !== ns.w[i] || (last.r[i] || '') !== (ns.r[i] || '')) flash[i] = now;
+      if (!doFlash) flash = {};
+      s = { b: ns.b, w: ns.w, r: ns.r, vals: ns.vals || {}, hot: ns.hot || [], title: ns.title || o.title };
+      last = { b: ns.b.slice(), w: ns.w.slice(), r: ns.r.slice() };
+      draw(now);
+    },
+    tick: function (now) { if (flashing) draw(now); },
+    /* where a field is in the world, for pointing at it */
+    at: function (name) {
+      var f = null, i; for (i = 0; i < fields.length; i++) if (fields[i].n === name) f = fields[i];
+      var cx = f ? f.x + f.wpx / 2 : W / 2, cy = f ? f.y + CH / 2 : H / 2;
+      p.group.updateMatrixWorld();
+      return p.group.localToWorld(new T.Vector3((cx / W - 0.5) * p.w, 0.5, (cy / H - 0.5) * p.d));
+    }
+  };
+  this.slabs.push(slab);
+  return slab;
+};
+
+/* ---- characters */
+K.addActor = function (a, o) {
+  var self = this;
+  a.kind = o.kind; a.name = o.name; a.css = o.css; a.sc = o.scale || 1.4; a.goal = a.pos.clone(); a.chip = o.chip !== false; a.fixed = !!o.fixed;
+  a.s = a.sc; a.k = a.sc;
+  if (a.group) { a.group.scale.setScalar(a.sc); this.scene.add(a.group); }
+  if (!a.fixed) {
+    a.halo = new T.Mesh(new T.RingGeometry(2.3, 3.0, 36), new T.MeshBasicMaterial({ color: new T.Color(o.css), transparent: true, opacity: 0.85, side: T.DoubleSide }));
+    a.halo.rotation.x = -Math.PI / 2; a.halo.scale.setScalar(a.sc); this.scene.add(a.halo);
+  }
+  var el = document.createElement('div'), NS = 'http://www.w3.org/2000/svg', tail = document.createElementNS(NS, 'path');
+  el.className = 'bub quiet'; el.style.setProperty('--c', o.css);
+  el.innerHTML = '<b class="bname"></b><span class="btext"></span>'; el.firstChild.textContent = o.name;
+  tail.setAttribute('stroke', o.css); tail.setAttribute('d', 'M0 0');
+  this.bubBox.appendChild(el); this.tails.appendChild(tail);
+  a.bub = { el: el, tail: tail, text: el.lastChild, t: '', dirty: true, w: 0, h: 0, x: null, y: null, pick: 0 };
+  a.say = function (t) { t = t || ''; if (t === a.bub.t) return; a.bub.t = t; a.bub.text.textContent = t; el.className = 'bub' + (t ? '' : ' quiet'); a.bub.dirty = true; a.bub.x = null; };
+  a.go = function (x, z, snap) { a.goal.set(x, 0, z); if (snap || self.reduced) { a.pos.x = x; a.pos.z = z; } };
+  this.actors.push(a);
+  return a;
+};
+K._project = function (x, y, z) {
+  var v = new T.Vector3(x, y, z).project(this.camera);
+  return { x: (v.x * 0.5 + 0.5) * this.w, y: (-v.y * 0.5 + 0.5) * this.h, ok: v.z < 1 };
+};
+/* bubbles: DOM boxes over the canvas. A bubble sits near its speaker's head and may not cover
+   a character or another bubble if any of five places avoids it. */
+K._bubbles = function (dt) {
+  var self = this, W = this.w, H = this.h, placed = [], bodies = [], order;
+  this.actors.forEach(function (a) {
+    var top = a.pos.y + a.top(), hd = self._project(a.pos.x, top, a.pos.z), ft = self._project(a.pos.x, a.pos.y, a.pos.z);
+    a._hd = hd; a._ft = ft;
+    if (!a.fixed) { var hw = Math.max(14, (ft.y - hd.y) * 0.3); bodies.push({ a: a, x0: hd.x - hw, x1: hd.x + hw, y0: hd.y, y1: ft.y }); }
+  });
+  /* keep: what the current step is about, as groups of world points; a bubble stays off their screen box */
+  var keeps = (this.keep || []).map(function (pts) {
+    var r = { x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9 };
+    pts.forEach(function (q) { var s = self._project(q[0], q[1], q[2]); r.x0 = Math.min(r.x0, s.x); r.x1 = Math.max(r.x1, s.x); r.y0 = Math.min(r.y0, s.y); r.y1 = Math.max(r.y1, s.y); });
+    return r;
+  });
+  order = this.actors.slice().sort(function (a, b) { return (b.bub.t ? 1 : 0) - (a.bub.t ? 1 : 0); });
+  function over(x, y, w, h, r) { var ox = Math.min(x + w, r.x1) - Math.max(x, r.x0), oy = Math.min(y + h, r.y1) - Math.max(y, r.y0); return ox > 0 && oy > 0 ? ox * oy : 0; }
+  order.forEach(function (a) {
+    var b = a.bub, hd = a._hd, show = hd.ok && hd.x > -40 && hd.x < W + 40 && hd.y > -40 && hd.y < H + 60 && (b.t || a.chip);
+    if (!show) { b.el.style.visibility = 'hidden'; b.tail.setAttribute('d', 'M0 0'); return; }
+    if (b.dirty) { b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; b.dirty = false; }
+    var w = b.w, h = b.h, c, best = null, i, x, y, cost, k;
+    if (!b.t) {   /* a name chip: above the head, moved up past chips and bubbles already there */
+      x = clamp(hd.x - w / 2, 4, W - w - 4); b.tail.setAttribute('d', 'M0 0');
+      for (i = 0; i < 4; i++) {
+        y = clamp(hd.y - h - 6 - i * (h + 3), 4, H - h - 4); cost = i;
+        for (k = 0; k < placed.length; k++) cost += over(x, y, w, h, placed[k]);
+        if (!best || cost < best.cost) best = { cost: cost, y: y };
+      }
+      y = best.y; placed.push({ x0: x, x1: x + w, y0: y, y1: y + h });
+    } else {
+      var fy = a._ft.y;
+      c = [[hd.x - w / 2, hd.y - h - 18], [hd.x + 16, hd.y - h - 8], [hd.x - w - 16, hd.y - h - 8], [hd.x + 34, hd.y - h * 0.3], [hd.x - w - 34, hd.y - h * 0.3],
+           [hd.x - w / 2, hd.y - h - 90], [hd.x + 70, hd.y - h - 50], [hd.x - w - 70, hd.y - h - 50], [hd.x - w / 2, fy + 18]];
+      for (i = 0; i < c.length; i++) {
+        x = clamp(c[i][0], 6, W - w - 6); y = clamp(c[i][1], 6, H - h - 6);
+        cost = Math.abs(x - c[i][0]) * 30 + Math.abs(y - c[i][1]) * 30 + i * 60 - (i === b.pick ? 900 : 0);
+        for (k = 0; k < placed.length; k++) cost += over(x, y, w, h, placed[k]) * 4;
+        for (k = 0; k < bodies.length; k++) cost += over(x, y, w, h, bodies[k]) * (bodies[k].a.bub.t || bodies[k].a === a ? 3 : 1);
+        for (k = 0; k < keeps.length; k++) cost += over(x, y, w, h, keeps[k]) * 2.5;
+        if (!best || cost < best.cost) best = { cost: cost, x: x, y: y, i: i };
+      }
+      b.pick = best.i; x = best.x; y = best.y;
+      placed.push({ x0: x, x1: x + w, y0: y, y1: y + h });
+    }
+    if (b.x === null || self.reduced) { b.x = x; b.y = y; } else { var q = Math.min(1, dt * 10); b.x += (x - b.x) * q; b.y += (y - b.y) * q; }
+    b.el.style.transform = 'translate(' + Math.round(b.x) + 'px,' + Math.round(b.y) + 'px)'; b.el.style.visibility = 'visible';
+    b.el.style.zIndex = b.t ? 2 : 1;
+    if (b.t) {
+      var qx = clamp(hd.x, b.x + 14, b.x + w - 14), qy = clamp(hd.y - 4, b.y + 10, b.y + h - 10), horiz = !(hd.y - 4 > b.y + h || hd.y - 4 < b.y);
+      var dist = Math.hypot(hd.x - qx, hd.y - 4 - qy);
+      if (dist < 8) b.tail.setAttribute('d', 'M0 0');
+      else if (horiz) b.tail.setAttribute('d', 'M' + qx + ' ' + (qy - 8) + 'L' + hd.x + ' ' + (hd.y - 4) + 'L' + qx + ' ' + (qy + 8) + 'Z');
+      else b.tail.setAttribute('d', 'M' + (qx - 9) + ' ' + qy + 'L' + hd.x + ' ' + (hd.y - 4) + 'L' + (qx + 9) + ' ' + qy + 'Z');
+    }
+  });
+};
+
+K.update = function (dt, time) {
+  var i, e, k, a, c = this.cam, g = this.goal, now = performance.now();
+  if (g) { k = 1 - Math.exp(-dt * 3.0); c.t.lerp(g.t, k); c.r += (g.r - c.r) * k; c.th += (g.th - c.th) * k; c.ph += (g.ph - c.ph) * k; }
+  for (i = 0; i < this.actors.length; i++) {
+    a = this.actors[i]; if (a.fixed) continue;
+    var dx = a.goal.x - a.pos.x, dz = a.goal.z - a.pos.z, dist = Math.hypot(dx, dz), go = Math.min(dist, dt * 24);
+    if (dist > 0.05) { a.pos.x += dx / dist * go; a.pos.z += dz / dist * go; a.walk = 1; } else a.walk = Math.max(0, a.walk - dt * 4);
+    if (a.kind === 'hw') {
+      a.inner.position.y = 2.4 + Math.sin(time * 3.1) * 0.3; a.lift = a.inner.position.y * a.sc; a.flame.scale.y = 0.8 + Math.sin(time * 31) * 0.2;
+    } else if (a.kind === 'kernel') {
+      a.legs[0].position.z = Math.sin(time * 16) * 0.7 * Math.min(1, a.walk); a.legs[1].position.z = -a.legs[0].position.z;
+      a.pos.y = Math.abs(Math.sin(time * 16)) * 0.3 * Math.min(1, a.walk);
+    } else a.pos.y = Math.abs(Math.sin(time * 14 + i)) * 0.5 * Math.min(1, a.walk) + (a.bub.t ? Math.abs(Math.sin(time * 5.5)) * 0.3 : 0);
+    a.halo.position.set(a.pos.x, 0.12, a.pos.z);
+    a.halo.material.opacity = a.bub.t ? 0.95 : 0.4;
+  }
+  for (i = this.fx.length - 1; i >= 0; i--) {
+    e = this.fx[i]; e.t += dt; k = Math.min(1, e.t / e.d);
+    if (e.kind === 'fly') { var q = k * k * (3 - 2 * k); e.o.position.lerpVectors(e.a, e.b, q); e.o.position.y += Math.sin(q * Math.PI) * e.up; }
+    else { e.o.scale.setScalar(1 + k * e.s); e.o.material.opacity = 1 - k; }
+    if (k >= 1) { this._drop(e); this.fx.splice(i, 1); if (e.done) e.done(); }
+  }
+  for (i = 0; i < this.slabs.length; i++) this.slabs[i].tick(now);
+  var sp = Math.sin(c.ph), cp = Math.cos(c.ph);
+  this.camera.position.set(c.t.x + c.r * sp * Math.sin(c.th), c.t.y + c.r * cp, c.t.z + c.r * sp * Math.cos(c.th));
+  this.camera.lookAt(c.t); this.camera.updateMatrixWorld();
+  this.renderer.render(this.scene, this.camera);
+  this._bubbles(dt);
+};
+
+/* ------------------------------------------------------------------ stepper
+   o: { kit, steps, init, pose(S, snap), show(S, flash), card(S, step), ledger: [[id, label]], who: { key: [label, css] } }
+   A step: { who, title, text, cam, apply(S), fx(done), delay }. The state after step i is
+   init with apply of steps 0..i; going to a step shows the state before it, lets the
+   characters move, then shows the state after it. */
+R.Lesson = function (o) {
+  var kit = o.kit, steps = o.steps, n = steps.length, states = [], S = R.clone(o.init), i;
+  for (i = 0; i < n; i++) { S = R.clone(S); S.say = {}; steps[i].apply(S); states.push(S); }
+  var $ = function (id) { return document.getElementById(id); };
+  var cur = -1, playing = false, seen = [], autoT = null, dots = $('dots'), self = this;
+  steps.forEach(function (st, k) {
+    var b = document.createElement('button'); b.type = 'button'; b.style.setProperty('--c', o.who[st.who][1]);
+    b.setAttribute('aria-label', 'Step ' + (k + 1) + ': ' + st.title); b.title = (k + 1) + '. ' + st.title;
+    b.addEventListener('click', function () { setPlaying(false); go(k); }); dots.appendChild(b);
+  });
+  function ledger(Sn, Sp) {
+    var h = '<tr><th>structure</th><th class="c">KERNEL SW</th><th class="c">LZ4 HW</th></tr>';
+    o.ledger.forEach(function (r) {
+      var a = Sn.led[r[0]] || {}, p = (Sp && Sp.led[r[0]]) || {}, fresh = (a.k || '') !== (p.k || '') || (a.h || '') !== (p.h || '');
+      var cell = function (v, w) { return '<td class="c">' + (v ? '<span class="wr ' + w + '">' + v + '</span>' : '<span class="wr n">' + (Sn.final ? 'never' : '·') + '</span>') + '</td>'; };
+      h += '<tr' + (fresh && Sp ? ' class="new"' : '') + '><td>' + r[1] + '</td>' + cell(a.k, 'k') + cell(a.h, 'h') + '</tr>';
+    });
+    $('ledger').innerHTML = h;
+  }
+  function panel(k) {
+    var st = steps[k], Sn = states[k], Sp = k ? states[k - 1] : null, w = o.who[st.who];
+    $('stepNo').textContent = 'STEP ' + (k + 1) + ' / ' + n;
+    $('who').textContent = w[0]; $('who').style.setProperty('--c', w[1]);
+    $('stepTitle').textContent = st.title; $('text').innerHTML = st.text;
+    $('focus').innerHTML = o.card(Sn, st, Sp) || '';
+    ledger(Sn, Sp); $('clock').innerHTML = o.clock(Sn);
+    $('pos').textContent = (k + 1) + ' / ' + n;
+    $('prev').disabled = k === 0; $('next').disabled = k === n - 1;
+    Array.prototype.forEach.call(dots.children, function (b, j) { b.className = (j === k ? 'on ' : '') + (seen[j] ? 'seen' : ''); if (j === k) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+    $('panel').scrollTop = 0;
+  }
+  function go(k, instant) {
+    k = clamp(k, 0, n - 1); kit.cancel(); clearTimeout(autoT);
+    var st = steps[k], Sn = states[k], Sp = k ? states[k - 1] : o.init, quick = instant || kit.reduced;
+    cur = k; seen[k] = true;
+    kit.keep = st.keep || [];
+    o.show(Sp, false); o.pose(Sp, true);
+    panel(k); kit.focus(st.cam, quick);
+    o.pose(Sn, quick);
+    var done = function () { o.show(Sn, !quick); };
+    if (quick) done(); else if (st.fx) st.fx(done); else kit.after(st.delay === undefined ? 900 : st.delay, done);
+    if (playing) arm();
+  }
+  function arm() {
+    clearTimeout(autoT); if (cur >= n - 1) { setPlaying(false); return; }
+    var len = steps[cur].text.replace(/<[^>]+>/g, '').length;
+    autoT = setTimeout(function () { go(cur + 1); }, clamp(3200 + len * 95, 5000, 22000));
+  }
+  function setPlaying(p) {
+    playing = p; $('play').innerHTML = p ? '&#10074;&#10074; Pause' : '&#9654; Play'; $('play').setAttribute('aria-pressed', p ? 'true' : 'false');
+    if (p) { if (cur >= n - 1) go(0); else arm(); } else clearTimeout(autoT);
+  }
+  $('prev').addEventListener('click', function () { setPlaying(false); go(cur - 1); });
+  $('next').addEventListener('click', function () { setPlaying(false); go(cur + 1); });
+  $('play').addEventListener('click', function () { setPlaying(!playing); });
+  $('camReset').addEventListener('click', function () { kit.focus(steps[cur].cam); });
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'ArrowRight') { setPlaying(false); go(cur + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft') { setPlaying(false); go(cur - 1); e.preventDefault(); }
+    else if (e.key === ' ' && !(e.target && e.target.tagName === 'BUTTON')) { setPlaying(!playing); e.preventDefault(); }
+  });
+  var resize = function () { kit.resize(); };
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(kit.stage); else window.addEventListener('resize', resize);
+  kit.resize(); go(0, true);
+  var lastT = performance.now();
+  (function frame(t) { var dt = Math.min(0.05, (t - lastT) / 1000); lastT = t; kit.update(dt * 0.7, t / 1000); requestAnimationFrame(frame); })(lastT);
+  this.go = go; this.states = states; this.at = function () { return cur; }; this.setPlaying = setPlaying;
+};
+})();
+
+/* The part of the stage that every lesson scene has, whichever design it shows: the access gate,
+   the PTE and the user programs at the far end; the two ring slots (job descriptor, completion)
+   with DOORBELL, IRQ, KERNEL SW and LZ4 HW; the frame, the LZ4 engine, the stream and the chunk
+   tiles; the COT entry nearest to the viewer. It also draws the panel cards.
+
+   What differs between the designs is added by the stage file of the design: stage_hw.js puts
+   the free-chunk stack of LZ4 HW on it, stage_sw.js the free-chunk bitmap of KERNEL SW. A stage
+   file calls R.stage(o) with its formats and, where its structures need other room, places.
+   Every number comes from lesson-data, which the exporter took from one real simulator job. */
+(function () {
+'use strict';
+var T = THREE, hx = R.hx;
+var MONO = '"IBM Plex Mono", ui-monospace, Menlo, monospace';
+var D = JSON.parse(document.getElementById('lesson-data').textContent), V = D.victim || D.pg;
+R.LD = { D: D, M: D.meta, V: V, H: hx(V.h) };
+
+/* o: { F: { desc } and, to replace the common ones, cot and done; each { title, cell, rows: [[[name, off, len], ...], ...] },
+        tiles: chunks drawn as tiles (default D.chunks), tileW, zcot,
+        desc / done / cot: { x, w, y, tilt } of the slabs, bellX, irqX,
+        P, VIEW: places and views added to or replacing the defaults (functions of the layout),
+        chunkTaken: [line 1, line 2, colour] of a chunk tile in state 1, freeText: text of state 0 } */
+R.stage = function (o) {
+  var M = D.meta, H = R.LD.H;
+  /* the COT entry and the completion have one format in both designs; the descriptor does not */
+  var F = {
+    desc: o.F.desc,
+    cot: o.F.cot || { title: 'COT[' + H + '] @' + hx(V.entry_pa) + ' · 32 B · the entry of page ' + H, cell: 74,
+           rows: [[['flags', 0, 1], ['count', 1, 1], ['comp_len', 2, 2], ['checksum', 4, 4]],
+                  [0, 1, 2, 3].map(function (i) { return ['chunk[' + i + ']', 8 + 3 * i, 3]; }),
+                  [4, 5, 6, 7].map(function (i) { return ['chunk[' + i + ']', 8 + 3 * i, 3]; })] },
+    done: o.F.done || { title: 'COMPLETION · 16 B · one slot of the completion ring', cell: 104,
+            rows: [[['status', 0, 1], ['flags', 1, 1], ['length', 2, 2], ['checksum', 4, 4]], [['tag', 8, 4], ['aux', 12, 4]]] }
+  };
+  var kit = new R.Kit(document.getElementById('stage'));
+  var TILES = o.tiles || D.chunks, NT = TILES.length, NCH = D.chunks.length, TW = o.tileW || 7.6;
+  var dsc = o.desc || { x: -16, w: 26, y: 3.5, tilt: 0.7 }, dne = o.done || { x: 16, w: 26, y: 3.5, tilt: 0.7 }, ct = o.cot || { x: 0, w: 34 };
+  var BX = o.bellX === undefined ? -4 : o.bellX, IX = o.irqX === undefined ? 4 : o.irqX;
+  var TAKEN = o.chunkTaken || ['taken by LZ4 HW', '', '#b48cff'];
+
+  /* ---- formats */
+  Object.keys(F).forEach(function (k) {
+    var f = F[k]; f.fields = []; f.n = 0;
+    f.rows.forEach(function (r) { r.forEach(function (x) { f.fields.push(x); f.n = Math.max(f.n, x[1] + x[2]); }); });
+  });
+  function slabOf(k, s) {
+    s.title = F[k].title; s.cell = F[k].cell;
+    s.rows = F[k].rows.map(function (r) { return r.map(function (x) { return { n: x[0], off: x[1], len: x[2] }; }); });
+    return kit.slab(s);
+  }
+
+  /* ---- places */
+  var CX = [], x0 = 5;
+  TILES.forEach(function (c, i) { if (i) x0 += TW + 1 + (c.n === TILES[i - 1].n + 1 ? 0 : 2.6); CX.push(x0); });
+  var ZROW = 7, ZDESK = -15, ZGATE = -36, ZCOT = o.zcot || 30, XS = CX[NT - 1] + 9.5;
+  var P = {
+    k_home: [-35, -11], k_call: [-17, -33], k_gate: [28.5, -31], k_frame: [-27, -3.5], k_desc: [-33, ZDESK], k_bell: [-9, -22], k_done: [-1.5, ZDESK],
+    h_home: [XS - 8, -12.5], h_desc: [1.5, ZDESK], h_frame: [-27, -3.5], h_engine: [-9, -2.5], h_cot: [ct.x, ZCOT - 15], h_done: [33, ZDESK],
+    ui_home: [-11, -45], ui_gate: [-4.5, -40.5], log: [16, -45.5], media: [-25, -47], net: [36, -47]
+  };
+  TILES.forEach(function (c, i) { P['h_ch' + i] = [CX[i], ZROW - 7.5]; });
+  var VIEW = {
+    all: { t: [4, 0, -3], w: 94, v: 86, ph: 0.72 },
+    far: { t: [3, 3, -33], w: 62, v: 36, ph: 0.98 },
+    pte: { t: [14, 4, -36], w: 42, v: 26, ph: 1.0 },
+    frame: { t: [-18, 1, -6], w: 50, v: 42, ph: 0.8 },
+    desc: { t: [-18.5, 3, ZDESK - 1], w: 37, v: 27, ph: 0.74 },
+    desk: { t: [0, 3, ZDESK - 2], w: 78, v: 36, ph: 0.8 },
+    read: { t: [-13, 3, ZDESK - 1], w: 40, v: 27, ph: 0.74 },
+    kread: { t: [13, 3, ZDESK - 1], w: 40, v: 27, ph: 0.74 },
+    engine: { t: [-13, 1, 4], w: 50, v: 32, ph: 0.7 },
+    work: { t: [2, 0, 4], w: 80, v: 40, ph: 0.68 },
+    chunks: { t: [(CX[0] + XS) / 2, 1, 1], w: XS - CX[0] + 18, v: 40, ph: 0.72 },
+    gather: { t: [(CX[NCH - 1] - 16) / 2, 1, ZROW], w: CX[NCH - 1] + 16 + 14, v: 36, ph: 0.72 },
+    cot: { t: [ct.x, 1, ZCOT - 3.5], w: 40, v: 37, ph: 0.5 },
+    done: { t: [17.5, 3, ZDESK - 1], w: 40, v: 27, ph: 0.74 }
+  };
+  var lay = { CX: CX, XS: XS, ZROW: ZROW, ZDESK: ZDESK, ZGATE: ZGATE, ZCOT: ZCOT }, k, more;
+  more = o.P ? o.P(lay) : {}; for (k in more) P[k] = more[k];
+  more = o.VIEW ? o.VIEW(lay) : {}; for (k in more) VIEW[k] = more[k];
+
+  /* ---- far end: the gate, the PTE, the user programs */
+  var GM = new T.MeshLambertMaterial({ color: 0x9fb4cc, emissive: 0x1c2733 }), G = new T.Group(), part;
+  G.position.set(0, 0, ZGATE); kit.scene.add(G);
+  part = new T.Mesh(new T.BoxGeometry(13, 1.2, 2.4), new T.MeshLambertMaterial({ color: 0x4a6078 })); part.position.y = 0.6; G.add(part);
+  [-6.4, 6.4].forEach(function (x) { var p = new T.Mesh(new T.BoxGeometry(1, 9, 1), GM); p.position.set(x, 4.5, 0); G.add(p); });
+  part = new T.Mesh(new T.BoxGeometry(13.8, 1.2, 1.2), GM); part.position.y = 9.4; G.add(part);
+  var pane = new T.Mesh(new T.PlaneGeometry(11.8, 7.6), new T.MeshBasicMaterial({ color: R.GATE.idle, transparent: true, opacity: 0.22, side: T.DoubleSide, depthWrite: false }));
+  pane.position.y = 5; G.add(pane);
+  var lamp = new T.Mesh(new T.SphereGeometry(1.2, 18, 12), new T.MeshBasicMaterial({ color: R.GATE.idle })); lamp.position.y = 11.1; G.add(lamp);
+  kit.label('ACCESS GATE', 0, 0.7, ZGATE + 3.2, 1.3);
+  var A = {};
+  A.gate = kit.addActor({ pos: new T.Vector3(0, 0, ZGATE), top: function () { return 12.6; } }, { kind: 'gate', name: 'MMU · PAGE TABLE', css: '#9fb4cc', fixed: true });
+  var pte = kit.plate({ w: 17, pw: 624, ph: 250, x: 16, y: 4.2, z: ZGATE + 0.5, upright: true, tilt: -0.12 });
+
+  var names = M.clients, uKeys = {};
+  (function () {
+    var free = ['media', 'net', 'ui_home', 'log'], used = {}, i;
+    used[D.req.client] = 'ui_home'; if (V.client !== D.req.client) used[V.client] = 'log';
+    for (i = 0; i < names.length; i++) {
+      var place = used[i] || free.filter(function (p) { return Object.keys(used).every(function (k) { return used[k] !== p; }); })[0];
+      used[i] = place;
+      var key = i === D.req.client ? 'req' : i === V.client ? 'own' : 'u' + i;
+      var a = R.chars.user(i, names[i]); a.pos.set(P[place][0], 0, P[place][1]);
+      A[key] = kit.addActor(a, { kind: 'user', name: 'USER SW · ' + names[i], css: a.css, scale: 1.15 });
+      uKeys[key] = place;
+    }
+  })();
+
+  /* ---- middle: the two ring slots, doorbell and IRQ, the two characters */
+  var S_desc = slabOf('desc', { w: dsc.w, x: dsc.x, y: dsc.y, z: ZDESK, tilt: dsc.tilt });
+  var S_done = slabOf('done', { w: dne.w, x: dne.x, y: dne.y, z: ZDESK, tilt: dne.tilt });
+  function post(x, text) {
+    kit.box(0.9, 5, 0.9, 0x51657c, x, 2.5, -25);
+    var m = new T.Mesh(new T.SphereGeometry(1.25, 18, 12), new T.MeshBasicMaterial({ color: 0x33404e })); m.position.set(x, 6, -25); kit.scene.add(m);
+    kit.label(text, x, 8.3, -25, 1.25, '#c5d2df');
+    return m;
+  }
+  var bell = post(BX, 'DOORBELL'), irq = post(IX, 'IRQ');
+  A.kernel = kit.addActor(R.chars.kernel(), { kind: 'kernel', name: 'KERNEL SW', css: '#f4d35e' });
+  A.hw = kit.addActor(R.chars.robot(), { kind: 'hw', name: 'LZ4 HW', css: '#b48cff' });
+
+  /* ---- near: frame, engine, stream, chunks */
+  var frameP = kit.plate({ w: 12, pw: 512, ph: 560, x: -27, z: ZROW });
+  kit.label('frame ' + V.frame + '  @' + hx(V.frame_pa), -27, 0.7, ZROW + 8.1, 1.25);
+  var freeLab = kit.label('', -27, 0.7, ZROW + 10.4, 1.25, '#f4d35e');
+  kit.box(9, 3, 7, 0x4a3c7a, -9, 1.5, ZROW - 1);
+  var engLamp = kit.box(7.4, 0.5, 1.2, 0x2a2244, -9, 3.2, ZROW + 1.4, true);
+  kit.label('LZ4 ENGINE', -9, 4.6, ZROW - 1, 1.3, '#d9c8ff');
+  var SEG = 3.3, segs = [], sx = -15.6;
+  D.stream.sizes.forEach(function (b) {
+    var w = SEG * b / M.chunk, m = new T.Mesh(new T.BoxGeometry(w - 0.14, 0.8, 2.4), new T.MeshBasicMaterial({ map: kit.hatch }));
+    m.position.set(sx + w / 2, 0.5, ZROW + 6.3); kit.scene.add(m); segs.push(m); sx += w;
+  });
+  var streamLab = kit.label('', -9, 0.7, ZROW + 8.7, 1.25, '#dfe8f1');
+  var tiles = TILES.map(function (c, i) { return kit.plate({ w: TW, pw: 300, ph: 300, x: CX[i], z: ZROW }); });
+  kit.label('CHUNK POOL  ' + M.chunk + ' B per chunk', (CX[0] + CX[NT - 1]) / 2, 0.7, ZROW + TW / 2 + 1.8, 1.25);
+
+  /* ---- nearest: the COT entry */
+  var S_cot = slabOf('cot', { w: ct.w, x: ct.x, z: ZCOT });
+
+  /* ---- drawing the plates */
+  function txt(p, s, x, y, px, color, weight, align) { p.ctx.font = (weight || 600) + ' ' + px + 'px ' + MONO; p.ctx.fillStyle = color; p.ctx.textAlign = align || 'left'; p.ctx.fillText(s, x, y); }
+  function hatchFill(c, x, y, w, h) {
+    c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip(); c.fillStyle = '#f2f5f8'; c.fillRect(x, y, w, h);
+    c.strokeStyle = '#5b6672'; c.lineWidth = 5; var i; for (i = -h; i < w + h; i += 13) { c.beginPath(); c.moveTo(x + i, y + h); c.lineTo(x + i + h, y); c.stroke(); }
+    c.restore();
+  }
+  function drawPte(S) {
+    var p = pte, c = p.ctx, ok = S.pte.valid;
+    c.fillStyle = '#0f1822'; c.fillRect(0, 0, p.W, p.H);
+    c.strokeStyle = S.pte.hot ? '#ffffff' : '#3a5068'; c.lineWidth = 6; c.strokeRect(3, 3, p.W - 6, p.H - 6);
+    txt(p, 'PTE of page ' + H + '  (' + V.name + ')', 22, 44, 28, '#9fb4cc');
+    c.fillStyle = S.pte.w ? '#f4d35e' : '#18222d'; c.fillRect(22, 62, 250, 76);
+    txt(p, 'valid = ' + ok, 36, 116, 44, S.pte.w ? '#10161d' : '#dfe8f1', 700);
+    txt(p, ok ? 'access goes on' : 'access stops here,', 290, 96, 25, ok ? '#7ee2a8' : '#ff8a8a');
+    txt(p, ok ? 'to frame ' + V.frame : 'KERNEL SW is called', 290, 130, 25, ok ? '#7ee2a8' : '#ff8a8a');
+    txt(p, "kernel's note: page is", 22, 190, 25, '#8ea2b6', 500);
+    txt(p, S.pte.st, 22, 228, 30, '#f4d35e', 700);
+    p.done();
+  }
+  function drawFrame(S) {
+    /* st: 'free', 'taken' (the kernel set it aside for the page, nothing written yet) or 'present' */
+    var p = frameP, c = p.ctx, st = S.frame.st, i, j, free = st === 'free', taken = st === 'taken', busy = S.frame.hot === 'read' || S.frame.hot === 'write';
+    c.fillStyle = '#0f1822'; c.fillRect(0, 0, p.W, p.H);
+    c.strokeStyle = S.frame.hot ? '#ffffff' : taken ? '#f4d35e' : '#3a5068'; c.lineWidth = 8; c.strokeRect(4, 4, p.W - 8, p.H - 8);
+    txt(p, free ? 'FREE FRAME' : taken ? 'taken for page ' + H : 'page ' + H + ' of ' + V.name, 24, 52, 34, free ? '#7ee2a8' : taken ? '#f4d35e' : '#dfe8f1');
+    txt(p, free ? 'ready for the next page' : taken ? 'nothing written yet' : M.page + ' B, not compressed', 24, 92, 26, '#8ea2b6', 500);
+    for (i = 0; i < 8; i++) for (j = 0; j < 8; j++) {
+      c.fillStyle = free || taken ? '#18222d' : (busy ? '#7db2ff' : '#3d8bff'); c.fillRect(24 + j * 58.5, 116 + i * 53, 53, 47);
+    }
+    p.done();
+  }
+  function drawChunk(i, S) {
+    /* st: 0 free, 1 taken for this job (by whoever hands out chunks in this design), 2 holds stream bytes,
+       3 holds stream bytes that LZ4 HW has read back, 4 given back during this lesson */
+    var p = tiles[i], c = p.ctx, st = S.ch[i], ch = TILES[i], bw = 256 * ch.bytes / M.chunk, full = st === 2 || st === 3;
+    c.fillStyle = '#0f1822'; c.fillRect(0, 0, p.W, p.H);
+    c.strokeStyle = st === 1 ? TAKEN[2] : S.chHot === i ? '#ffffff' : '#3a5068'; c.lineWidth = 8; c.strokeRect(4, 4, p.W - 8, p.H - 8);
+    txt(p, 'chunk ' + hx(ch.n), 22, 54, 38, st && st !== 4 ? '#ffffff' : '#8ea2b6');
+    txt(p, '@' + hx(ch.pa), 22, 92, 27, '#8ea2b6', 500);
+    c.fillStyle = '#18222d'; c.fillRect(22, 116, 256, 80);
+    if (full) hatchFill(c, 22, 116, bw, 80);
+    txt(p, st === 0 ? (o.freeText || 'free') : st === 4 ? 'free again' : st === 1 ? TAKEN[0] : st === 3 ? ch.bytes + ' B read by HW' : ch.bytes + ' B stored', 22, 236, 27,
+        st === 1 ? TAKEN[2] : st === 3 ? '#b48cff' : st === 2 ? '#dfe8f1' : '#5d6f82');
+    if (full && ch.bytes < M.chunk) txt(p, (M.chunk - ch.bytes) + ' B unused', 22, 272, 25, '#8ea2b6', 500);
+    else if (st === 1 && TAKEN[1]) txt(p, TAKEN[1], 22, 272, 27, TAKEN[2]);
+    p.done();
+  }
+
+  /* ---- state to picture */
+  var L;
+  function pose(S, snap) {
+    Object.keys(A).forEach(function (k) {
+      var pl = S.pos[k] ? P[S.pos[k]] : uKeys[k] ? P[uKeys[k]] : null;
+      if (pl && !A[k].fixed) A[k].go(pl[0], pl[1], snap);
+      A[k].say(S.say[k] || '');
+    });
+  }
+  function show(S, flash) {
+    S_desc.set(S.desc, flash); S_cot.set(S.cot, flash); S_done.set(S.done, flash);
+    drawPte(S); drawFrame(S);
+    var i; for (i = 0; i < NT; i++) drawChunk(i, S);
+    for (i = 0; i < segs.length; i++) segs[i].visible = S.eng.vis ? !!S.eng.vis[i] : i < S.eng.segs && S.ch[i] < 2;
+    freeLab.setText('free frames: ' + S.free + ' of ' + D.frames.total);
+    streamLab.setText(S.eng.lab !== undefined ? S.eng.lab : S.eng.segs ? 'stream: ' + D.stream.len + ' B' : '');
+    engLamp.material.color.setHex(S.eng.on ? 0x5ff1ff : 0x2a2244);
+    bell.material.color.setHex(S.bell ? 0xf4d35e : 0x33404e); irq.material.color.setHex(S.irq ? 0xb48cff : 0x33404e);
+    var gc = R.GATE[S.gate] || R.GATE.idle; lamp.material.color.setHex(gc); pane.material.color.setHex(gc);
+    if (L.more) L.more(S, flash);
+  }
+
+  /* ---- the panel: a structure as a table, one row per field. A state may carry `long`,
+     a map of field name to the text of its value column, for a slot that is used a second time. */
+  var LONG = { opcode: D.desc.opcode + ' = ' + D.desc.op_name, status: D.done.status + ' = ' + D.done.status_name };
+  function structCard(key, S, head, note) {
+    var f = F[key], s = S[key], h = '<div class="card"><h3>' + head + '</h3><table><tr><th>off</th><th>field</th><th>bytes in DRAM</th><th>value</th><th>W</th><th>R</th></tr>';
+    f.fields.forEach(function (x) {
+      var n = x[0], i, by = '', w = s.w[x[1]], r = s.r[x[1]] || '', hot = s.hot.indexOf(n) >= 0;
+      for (i = 0; i < x[2]; i++) by += '<span class="by ' + (s.w[x[1] + i] || '') + '">' + (s.b[x[1] + i] === null ? '--' : R.b2(s.b[x[1] + i])) + '</span>';
+      var val = w ? ((s.long && s.long[n]) || (key === 'cot' && n === 'flags' ? hx(D.cot.flags, 2) + ' = VALID' : LONG[n] && key !== 'cot' ? LONG[n] : s.vals[n] || '0')) : '·';
+      h += '<tr class="' + (hot ? 'hot' : w ? '' : 'off') + '"><td>+' + x[1] + '</td><td>' + n + '</td><td>' + by + '</td><td>' + val + '</td><td>'
+        + (w ? '<span class="wr ' + w + '">' + (w === 'k' ? 'K' : 'HW') + '</span>' : '') + '</td><td>' + (r ? '<span class="wr ' + r + '">' + (r === 'k' ? 'K' : 'HW') + '</span>' : '') + '</td></tr>';
+    });
+    return h + '</table>' + (note ? '<p style="margin:8px 0 0;font-size:12.5px;color:var(--dim)">' + note + '</p>' : '') + '</div>';
+  }
+  function tableCard(head, rows, note) {
+    var h = '<div class="card"><h3>' + head + '</h3><table>';
+    rows.forEach(function (r) { h += '<tr' + (r.hot ? ' class="hot"' : '') + '><td class="t">' + r[0] + '</td><td>' + r[1] + '</td></tr>'; });
+    return h + '</table>' + (note ? '<p style="margin:8px 0 0;font-size:12.5px;color:var(--dim)">' + note + '</p>' : '') + '</div>';
+  }
+
+  /* ---- what a step is about, as world points: bubbles keep off these */
+  function rect(x, z, w, d, y0, y1) { return [[x - w / 2, y0, z - d / 2], [x + w / 2, y0, z - d / 2], [x - w / 2, y1 === undefined ? y0 : y1, z + d / 2], [x + w / 2, y1 === undefined ? y0 : y1, z + d / 2]]; }
+  function slabPts(s, x, y, z, tilt) { var dy = s.d / 2 * Math.sin(tilt || 0), dz = s.d / 2 * Math.cos(tilt || 0); return [[x - s.w / 2, y + dy, z - dz], [x + s.w / 2, y + dy, z - dz], [x - s.w / 2, y - dy, z + dz], [x + s.w / 2, y - dy, z + dz]]; }
+  var KEEP = {
+    desc: slabPts(S_desc, dsc.x, dsc.y, ZDESK, dsc.tilt), done: slabPts(S_done, dne.x, dne.y, ZDESK, dne.tilt), cot: slabPts(S_cot, ct.x, 0.3, ZCOT, 0),
+    bell: [[BX - 1.5, 4.5, -25], [BX + 1.5, 9, -25]], irq: [[IX - 1.5, 4.5, -25], [IX + 1.5, 9, -25]],
+    pte: [[7.5, 0.8, ZGATE], [24.5, 0.8, ZGATE], [7.5, 7.6, ZGATE], [24.5, 7.6, ZGATE]],
+    gate: [[-7, 0, ZGATE], [7, 0, ZGATE], [-7, 11, ZGATE], [7, 11, ZGATE]],
+    frame: rect(-27, ZROW + 1, 13, 17, 0.4), engine: rect(-9, ZROW + 2, 14, 12, 0.4, 0.4).concat([[-13.5, 4.5, ZROW - 4], [-4.5, 4.5, ZROW - 4]])
+  };
+  TILES.forEach(function (c, i) { KEEP['ch' + i] = rect(CX[i], ZROW, TW + 0.6, TW + 0.6, 0.4); });
+
+  L = { KEEP: KEEP, D: D, M: M, V: V, H: H, kit: kit, SEG: SEG, A: A, F: F, P: P, VIEW: VIEW, CX: CX, ZROW: ZROW, ZCOT: ZCOT, XS: XS, NCH: NCH, NT: NT,
+        BELL: new T.Vector3(BX, 5.6, -25), IRQ: new T.Vector3(IX, 5.6, -25), MONO: MONO, txt: txt, rect: rect,
+        slabs: { desc: S_desc, cot: S_cot, done: S_done }, segs: segs, more: null,
+        pose: pose, show: show, structCard: structCard, tableCard: tableCard };
+  return L;
+};
+})();
+
+/* The stage of the software-leaning lessons, shared by the scenes "compress-sw" (COMPRESS of
+   one RW page) and "decompress-sw" (the same page coming back: one DECOMPRESS job).
+   A scene's steps file decides what happens on it.
+
+   stage_base.js builds what both designs have. This file gives it the format of this design's
+   descriptor (48 B, the chunk numbers are in it) and adds what only this design has on stage:
+   the free-chunk bitmap of KERNEL SW. It lies in the nearest row beside the COT entry, because
+   here both are the kernel's books: LZ4 HW has no stack and never goes to that row. */
+(function () {
+'use strict';
+var hx = R.hx, D = R.LD.D, M = R.LD.M, BM = D.bitmap, B0 = BM.first_chunk;
+var TILES = D.tiles || D.chunks, WIDE = TILES.length > 4;
+var DSC = { x: -20, w: 30, y: 4.6, tilt: 0.55 }, DNE = { x: 21, w: 24, y: 3.5, tilt: 0.7 }, COT = { x: 20, w: 34 };
+var BMX = -20, BMW = 30;
+
+var L = R.stage({
+  F: {
+    desc: { title: 'JOB DESCRIPTOR · 48 B · one slot of the job ring', cell: 55,
+            rows: [[['opcode', 0, 1], ['count', 1, 1], ['limit', 2, 2], ['frame_pa', 4, 4], ['comp_len', 8, 2], ['flags', 10, 2], ['checksum', 12, 4]],
+                   [['tag', 16, 4]].concat([0, 1, 2, 3].map(function (i) { return ['chunk[' + i + ']', 20 + 3 * i, 3]; })),
+                   [4, 5, 6, 7].map(function (i) { return ['chunk[' + i + ']', 20 + 3 * i, 3]; }).concat([['pad', 44, 4]])] }
+  },
+  tiles: TILES, tileW: WIDE ? 6.4 : 7.6, zcot: 32,
+  desc: DSC, done: DNE, cot: COT, bellX: -2, irqX: 6,
+  chunkTaken: ['reserved', 'by KERNEL SW', '#f4d35e'],
+  P: function (g) {
+    return {
+      k_home: [-41, -4], k_frame: [-35.5, 1], k_desc: [DSC.x - DSC.w / 2 - 3.5, g.ZDESK], k_bell: [-7, -22], k_done: [DNE.x - DNE.w / 2 - 3.5, g.ZDESK],
+      k_bm: [BMX + 9, g.ZCOT - 11.5], k_cot: [COT.x, g.ZCOT - 14.5], k_tiles: [(g.CX[0] + g.CX[g.CX.length - 1]) / 2, g.ZROW - 7.5],
+      h_home: [44, -9], h_desc: [DSC.x + DSC.w / 2 + 3.5, g.ZDESK], h_done: [DNE.x + DNE.w / 2 + 3.5, g.ZDESK]
+    };
+  },
+  VIEW: function (g) {
+    var c0 = g.CX[0], c1 = g.CX[g.CX.length - 1];
+    return {
+      all: { t: [WIDE ? 6 : 2, 0, -1], w: WIDE ? 104 : 92, v: 94, ph: 0.72 },
+      desc: { t: [DSC.x - 2, 4, g.ZDESK - 1], w: 42, v: 30, ph: 0.74 },
+      desk: { t: [0, 3, g.ZDESK - 2], w: 86, v: 38, ph: 0.8 },
+      read: { t: [DSC.x + 2.5, 4, g.ZDESK - 1], w: 42, v: 30, ph: 0.74 },
+      kread: { t: [DNE.x - 3, 3, g.ZDESK - 1], w: 40, v: 27, ph: 0.74 },
+      done: { t: [DNE.x + 2, 3, g.ZDESK - 1], w: 40, v: 27, ph: 0.74 },
+      work: { t: [(c1 - 14) / 2, 1, 5], w: c1 + 14 + 12, v: 34, ph: 0.7 },
+      chunks: { t: [(c0 + c1) / 2, 1, 2], w: c1 - c0 + 20, v: 34, ph: 0.72 },
+      bitmap: { t: [BMX + 5, 1, g.ZCOT - 3], w: 46, v: 30, ph: 0.5 },
+      cot: { t: [COT.x - 4, 1, g.ZCOT - 3.5], w: 46, v: 37, ph: 0.5 },
+      books: { t: [0, 1, g.ZCOT - 4], w: 82, v: 38, ph: 0.52 },
+      near: { t: [WIDE ? 9 : 4, 0, 19], w: WIDE ? 98 : 82, v: 56, ph: 0.6 }
+    };
+  }
+});
+var kit = L.kit, txt = L.txt, ZB = L.ZCOT - 2.6;
+
+/* ---- the free-chunk bitmap: one 64-bit word of it, the word this job changes */
+var PW = 1024, PH = 452, bmP = kit.plate({ w: BMW, pw: PW, ph: PH, x: BMX, z: ZB });
+kit.label('kernel memory · ' + BM.nwords + ' words · LZ4 HW never sees it', BMX, 0.7, ZB + BMW * PH / PW / 2 + 1.6, 1.2, '#f4d35e');
+kit.label('in DRAM · written and read by KERNEL SW only', COT.x, 0.7, L.ZCOT + 11.2, 1.2, '#f4d35e');
+function bitsOf(hex) { var o = [], i; for (i = 0; i < 64; i++) o.push((parseInt(hex.charAt(15 - (i >> 2)), 16) >> (i & 3)) & 1); return o; }
+function drawBitmap(S) {
+  /* S.bm: { word: 16 hex digits, mark: { bit: 's' set by the kernel in this lesson | 'c' cleared by it }, hot: [bits], free } */
+  var p = bmP, c = p.ctx, s = S.bm, bits = bitsOf(s.word), i, x, y, m, hot, X0 = 152, CW = 52, Y0 = 136, RH = 62;
+  c.fillStyle = '#0f1822'; c.fillRect(0, 0, PW, PH);
+  c.strokeStyle = s.hot.length ? '#ffffff' : '#3a5068'; c.lineWidth = 6; c.strokeRect(3, 3, PW - 6, PH - 6);
+  txt(p, 'FREE-CHUNK BITMAP of KERNEL SW · 1 bit per chunk', 30, 44, 30, '#9fb4cc');
+  txt(p, 'word ' + BM.word + ' of ' + BM.nwords + ' · chunks ' + hx(B0) + ' to ' + hx(B0 + 63) + ' · 1 = in use, 0 = free', 30, 82, 24, '#8ea2b6', 500);
+  for (i = 0; i < 16; i++) txt(p, '+' + i.toString(16).toUpperCase(), X0 + i * CW + CW / 2, 122, 21, '#8ea2b6', 500, 'center');
+  for (i = 0; i < 64; i++) {
+    x = X0 + (i & 15) * CW; y = Y0 + (i >> 4) * RH; m = s.mark[i]; hot = s.hot.indexOf(i) >= 0;
+    if (!(i & 15)) txt(p, hx(B0 + i), 30, y + 40, 27, '#8ea2b6');
+    c.fillStyle = m === 's' ? '#f4d35e' : bits[i] ? '#3a5068' : '#18222d'; c.fillRect(x + 3, y + 3, CW - 6, RH - 8);
+    if (m === 'c') { c.strokeStyle = '#f4d35e'; c.lineWidth = 4; c.strokeRect(x + 5, y + 5, CW - 10, RH - 12); }
+    if (hot) { c.strokeStyle = '#ffffff'; c.lineWidth = 4; c.strokeRect(x + 2, y + 2, CW - 4, RH - 6); }
+    txt(p, '' + bits[i], x + CW / 2, y + 42, 32, m === 's' ? '#10161d' : m === 'c' ? '#f4d35e' : bits[i] ? '#dfe8f1' : '#5d6f82', 700, 'center');
+  }
+  txt(p, 'word ' + BM.word + ' = 0x' + s.word.toUpperCase(), 30, PH - 28, 27, '#dfe8f1');
+  txt(p, 'free chunks: ' + s.free + ' of ' + M.pool_chunks, PW - 30, PH - 28, 27, '#f4d35e', 600, 'right');
+  p.done();
+}
+L.more = function (S) { drawBitmap(S); };
+L.KEEP.bitmap = L.rect(BMX, ZB, BMW + 1, BMW * PH / PW + 1, 0.4);
+L.bitAt = function (n) {           /* where the bit of chunk n is in the world */
+  var i = n - B0, cx = 152 + (i & 15) * 52 + 26, cy = 136 + (i >> 4) * 62 + 30;
+  return new THREE.Vector3(BMX + (cx / PW - 0.5) * BMW, 1, ZB + (cy / PH - 0.5) * BMW * PH / PW);
+};
+L.B0 = B0;
+L.descAt = new THREE.Vector3(DSC.x, DSC.y + 1.5, -15);   /* above the descriptor slab */
+R.L = L;
+})();
+
+/* Lesson scene "decompress-sw": the steps of the software-leaning design. A user program touches a
+   page whose PTE is invalid, the kernel names the case, reads its own COT entry and copies what
+   LZ4 HW needs onto the 48 B descriptor. One job follows (DECOMPRESS); the clean-up afterwards
+   (COT entry, bitmap) is the kernel's own work, not a second job.
+   Prose is zh-TW; what is drawn on the stage is English. */
+(function () {
+'use strict';
+var L = R.L, D = L.D, M = L.M, V = L.V, H = L.H, hx = R.hx, kit = L.kit, A = L.A, T = THREE, NCH = L.NCH, K = L.KEEP;
+var RQ = D.req, J = D.desc, C = D.done, B4 = D.before, BM = D.bitmap, REL = BM.released, B0 = BM.first_chunk, HW = D.hw;
+var SL = D.stream.len, LAST = D.stream.sizes[NCH - 1], CK = hx(D.cot.checksum, 8), FPA = hx(V.frame_pa), TAG = hx(J.tag);
+var bJ = R.bytes(J.hex), bC = R.bytes(C.hex), bCot = R.bytes(D.cot.before);
+var c = function (s) { return '<code>' + s + '</code>'; };
+var hexOf = function (arr, a, n) { return arr.slice(a, a + n).map(R.b2).join(' '); };
+var fill = function (n, v) { var a = [], i; for (i = 0; i < n; i++) a.push(v); return a; };
+var list = function (a) { return a.map(function (n) { return hx(n); }).join(', '); };
+var run = function (a) { var i; for (i = 1; i < a.length; i++) if (a[i] !== a[i - 1] + 1) return false; return a.length > 2; };
+var span = function (a) { return run(a) ? hx(a[0]) + ' to ' + hx(a[a.length - 1]) : list(a); };
+var spanZh = function (a) { return run(a) ? c(hx(a[0])) + ' 到 ' + c(hx(a[a.length - 1])) : a.map(function (n) { return c(hx(n)); }).join('、'); };
+var bit = function (n) { return n - B0; };
+var ns = function (x) { return Math.round(x * 10) / 10; };
+var RW = RQ.w ? 'write' : 'read', RWZ = RQ.w ? '寫' : '讀';
+var CHF = D.cot.chunks.map(function (n, i) { return 'chunk[' + i + ']'; });
+
+var cotVals = { flags: 'VALID', count: '' + NCH, comp_len: '' + SL, checksum: CK };
+D.cot.chunks.forEach(function (n, i) { cotVals['chunk[' + i + ']'] = hx(n); });
+var init = {
+  pos: { kernel: 'k_home', hw: 'h_home', req: 'ui_home' }, say: {}, gate: 'idle', card: null, final: false,
+  pte: { valid: 0, st: 'compressed', hot: false, w: false }, free: D.frames.free_before,
+  frame: { st: 'free', hot: false },
+  desc: { b: fill(48, null), w: fill(48, null), r: fill(48, ''), vals: {}, hot: [] },
+  cot: { b: bCot.slice(), w: fill(32, 'k'), r: fill(32, ''), vals: cotVals, hot: [] },
+  done: { b: fill(16, null), w: fill(16, null), r: fill(16, ''), vals: {}, hot: [] },
+  bm: { word: BM.before, mark: {}, hot: [], free: BM.free_before },
+  bell: 0, irq: 0, eng: { on: 0, vis: fill(NCH, false), lab: '' }, ch: fill(NCH, 2), chHot: -1,
+  led: {}, clk: { on: false, dram: 0, lz: 0, k: 0 }
+};
+var SRC = { desc: bJ, done: bC };
+function put(S, key, vals, who) {
+  var s = S[key]; s.hot = Object.keys(vals);
+  L.F[key].fields.forEach(function (f) {
+    if (!(f[0] in vals)) return;
+    var i; for (i = 0; i < f[2]; i++) { s.b[f[1] + i] = SRC[key][f[1] + i]; s.w[f[1] + i] = who; }
+    s.vals[f[0]] = vals[f[0]];
+  });
+}
+function readAll(S, key, who) { S[key].r = S[key].r.map(function () { return who; }); }
+function led(S, id, who, mark) { var r = S.led[id] = S.led[id] || {}, v = r[who] || ''; if (v.indexOf(mark) < 0) r[who] = v ? v + ' ' + mark : mark; }
+function calm(S) { S.desc.hot = []; S.cot.hot = []; S.done.hot = []; S.bm.hot = []; S.pte.hot = false; S.frame.hot = false; S.chHot = -1; S.eng.on = 0; }
+
+var descCard = function (S) { return L.structCard('desc', S, 'Job descriptor <span>(48 B in DRAM, job ring)</span>'); };
+var cotCard = function (S) { return L.structCard('cot', S, 'COT[' + H + '] <span>(32 B in DRAM @' + hx(V.entry_pa) + ')</span>'); };
+var doneCard = function (S) { return L.structCard('done', S, 'Completion <span>(16 B in DRAM, completion ring)</span>'); };
+var bmCard = function (S, extra) {
+  var rows = [['kept in', 'kernel memory, ' + BM.nwords + ' words of 64 bit = ' + M.bitmap_bytes + ' B'], ['one bit', '1 = chunk in use, 0 = chunk free'],
+              ['word ' + BM.word, 'chunks ' + hx(B0) + ' to ' + hx(B0 + 63)], ['value of word ' + BM.word, '0x' + S.bm.word.toUpperCase()],
+              ['free chunks in the pool', S.bm.free + ' of ' + M.pool_chunks]];
+  return L.tableCard('Free-chunk bitmap <span>(of KERNEL SW)</span>', rows.concat(extra || []));
+};
+var steps = [], lesson;
+function step(o) { var ap = o.apply; o.apply = function (S) { calm(S); S.card = steps.indexOf(o); ap(S); }; steps.push(o); }
+
+/* ---- the stage and where the page is right now */
+var nowCard = function () { return L.tableCard('Page ' + H + ' of ' + V.name + ' right now', [
+    ['compressed at', 'access ' + B4.access_no + ', ' + B4.accesses_ago + ' accesses ago'],
+    ['frame', 'none (it had frame ' + B4.frame + ', given away since)'],
+    ['data', SL + ' B of LZ4 stream in ' + NCH + ' chunks: ' + list(D.cot.chunks)],
+    ['COT[' + H + ']', 'VALID, written by KERNEL SW when the page was compressed'],
+    ['bitmap', 'bits ' + bit(REL[0]) + ' to ' + bit(REL[REL.length - 1]) + ' of word ' + BM.word + ' are 1'],
+    ['PTE', 'valid = 0'], ["kernel's note", 'compressed']]); };
+var glossary = function () { return L.tableCard('Words used in this lesson', [
+    ['page', '軟體看到的 ' + M.page + ' B 記憶體單位，用編號稱呼'],
+    ['frame', 'DRAM 裡一塊 ' + M.page + ' B 的空間，放一個未壓縮的 page'],
+    ['chunk', 'DRAM 裡 ' + M.chunk + ' B 的小塊，放壓縮後的資料'],
+    ['PTE', 'page table entry，決定 user SW 的存取能不能直接通過'],
+    ['COT', 'compressed object table，每個 page 一筆 32 B，記壓縮後的資料在哪些 chunk'],
+    ['bitmap', 'kernel 自己的帳本，每個 chunk 1 個 bit，記它是空的還是用掉了'],
+    ['descriptor', 'kernel 寫給 LZ4 HW 的工作單，48 B'],
+    ['completion', 'LZ4 HW 回報結果的單子，16 B']]); };
+step({ who: 'note', title: '舞台，以及這個 page 現在的樣子', cam: L.VIEW.all, card: function () { return nowCard() + glossary(); },
+  text: '<p>這一課用一個真實的例子，看「解壓縮一個 page」從頭到尾發生的事。所有數字都來自 simulator 的同一次執行，而且就是上一課被壓縮的那個 page。</p>'
+    + '<p>三種角色：<b>USER SW</b>（遠端的 ' + M.clients.join('、') + '）是被服務的程式，只管讀寫自己的 page。<b class="k">KERNEL SW</b>（黃色）管理記憶體，在這個<b>偏軟體</b>的設計裡也自己記兩本帳。<b class="h">LZ4 HW</b>（紫色機器人）是硬體加速器，兩個 job 之間什麼都不記得。</p>'
+    + '<p>先看現況。<b>page ' + H + '</b> 屬於 ' + V.name + '，在第 ' + B4.access_no + ' 次存取時被壓縮，之後 ' + B4.accesses_ago + ' 次存取都沒有人碰它。它現在<b>沒有 frame</b>：左邊那塊 frame 是空的。它的內容是 ' + SL + ' B 的 LZ4 stream，躺在 ' + NCH + ' 個畫斜線的 chunk 裡。PTE 的 valid 是 0。</p>'
+    + '<p>最靠近你的是 kernel 的兩本帳。右邊 COT[' + H + '] 是上一課 kernel 自己寫的（黃色）。左邊 bitmap 的 word ' + BM.word + ' 和上一課結尾時不一樣了，因為這段期間別的 page 也拿過、還過 chunk；但 bit ' + bit(REL[0]) + ' 到 ' + bit(REL[REL.length - 1]) + ' 還是 1，它們就是這 ' + NCH + ' 個 chunk。</p>'
+    + '<p>按 Next 一步一步看，畫面可以拖曳旋轉、滾輪縮放。</p>',
+  apply: function (S) { S.say.kernel = 'I am the kernel.\nI manage the memory and,\nin this design, I keep the books.'; S.say.hw = 'I am the LZ4 accelerator.\nI remember nothing between jobs.'; S.say.req = 'I am ' + RQ.name + ', a program.\nI just read and write my pages.'; } });
+
+/* ---- the access that starts everything */
+step({ who: 'user', title: RQ.name + ' ' + RWZ + ' page ' + H + '，被 access gate 攔下', cam: L.VIEW.far, keep: [K.gate, K.pte],
+  text: '<p><b>' + RQ.name + '</b> 要' + RWZ + '自己的 page ' + c(H) + '。它不知道這個 page 被壓縮過，也不需要知道，它只是照常存取。</p>'
+    + '<p>所有 user SW 的存取都經過同一個 <b>access gate</b>（MMU 查 page table）。gate 查到 page ' + H + ' 的 PTE：' + c('valid = 0') + '。這次存取就停在這裡，CPU 進入 page fault，把 <b class="k">KERNEL SW</b> 叫來。</p>'
+    + '<p>注意：<b>沒有人下令「解壓縮」</b>。解壓縮是被這次停下來的存取觸發的。這一段和偏硬體的設計完全一樣：user SW 和 gate 看不出背後是哪一種設計。</p>',
+  apply: function (S) { S.pos.req = 'ui_gate'; S.gate = 'stop'; S.pte.hot = true; S.pos.kernel = 'k_call';
+    S.say.req = RW + ' page ' + H; S.say.gate = 'PTE of page ' + H + ': valid = 0.\nThis access stops here.\nKERNEL SW is called.'; },
+  card: function () { return L.tableCard('The access', [['who', 'USER SW ' + RQ.name], ['what', RW + ' page ' + H + ' (access ' + RQ.access_no + ' of the run)'], ['PTE valid bit', '0'], ['result', 'page fault: KERNEL SW is called']]); } });
+
+step({ who: 'kernel', title: '為什麼 invalid？kernel 認出是哪一種情況', cam: L.VIEW.pte, keep: [K.pte, K.gate],
+  text: '<p>PTE invalid 有好幾種原因，gate 分不出來，只有 kernel 知道。kernel 查自己的筆記：page ' + H + ' 的狀態是 ' + c('compressed') + '。所以這次的情況是「要解壓縮」。</p>'
+    + '<p>在這個偏軟體的設計裡，kernel 知道的不只這個詞。壓縮後的資料在哪幾個 chunk、有多長、checksum 是多少，都記在 COT，而 <b>COT 是 kernel 自己的帳</b>。等一下它會自己去讀。</p>',
+  apply: function (S) { S.pos.kernel = 'k_gate'; S.pte.hot = true;
+    S.say.kernel = 'Page fault on page ' + H + '.\nMy note says: compressed.\nThis case: decompress it.'; S.say.req = 'waiting…'; },
+  card: function () { var rows = [['untouched', 'first use: give it a zeroed frame, no LZ4 HW'], ['compressed', 'this case: get a frame, read the COT entry, ask LZ4 HW to DECOMPRESS'], ['compressing / decompressing', 'a job is under way: wait for it'], ['lost', 'the data failed its check: report the error']];
+    rows[1].hot = true; return L.tableCard("Why a PTE can be invalid <span>(kernel's note about the page)</span>", rows); } });
+
+step({ who: 'kernel', title: '拿一個空的 frame', cam: L.VIEW.frame, keep: [K.frame],
+  text: '<p>解壓縮後的 ' + M.page + ' B 要有地方放。kernel 從空 frame 清單拿出 <b>frame ' + V.frame + '</b>，實體位址 ' + c(hx(M.fc_base) + ' + ' + V.frame + ' × ' + M.page) + ' = ' + c(FPA) + '。空 frame 從 ' + D.frames.free_before + ' 變 ' + D.frames.free_after + '。</p>'
+    + '<p>' + D.frames.free_before + ' 個還高於門檻 ' + M.fc_low + ' 個，所以這次不用先回收別的 page。如果不夠，kernel 要先做上一課的壓縮，' + RQ.name + ' 就得等更久。</p>'
+    + '<p>這個 page 上次住在 frame ' + B4.frame + '，這次是 frame ' + V.frame + '。page 編號不變，frame 每次都可能不同，這就是 PTE 要重寫的原因。</p>',
+  apply: function (S) { S.pos.kernel = 'k_frame'; S.frame.st = 'taken'; S.frame.hot = true; S.free = D.frames.free_after;
+    S.say.kernel = 'I take free frame ' + V.frame + '\nfor page ' + H + '.\n' + D.frames.free_after + ' free frames left.'; },
+  card: function () { return L.tableCard('What KERNEL SW changed', [['free frames', D.frames.free_before + ', now <span class="by k">' + D.frames.free_after + '</span>'], ['frame for page ' + H, 'frame ' + V.frame + ' @' + FPA], ['reclaim needed', 'no: ' + D.frames.free_before + ' is above ' + M.fc_low]]); } });
+
+/* ---- the kernel reads its own COT entry */
+function kc(o) { var ap = o.apply; o.who = 'kernel'; o.cam = L.VIEW.cot; o.keep = [K.cot]; o.apply = function (S) { S.pos.kernel = 'k_cot'; ap(S); }; step(o); }
+kc({ title: 'kernel 自己讀 COT[' + H + ']', card: cotCard,
+  text: '<p>資料在哪裡？kernel 自己去查。COT entry 的位址是 ' + c('cot_base + ' + H + ' × 32') + ' = ' + c(hx(M.cot_base) + ' + ' + V.h + ' × 32') + ' = ' + c(hx(V.entry_pa)) + '，kernel 從那裡讀出 32 B。</p>'
+    + '<p>這 32 B 是上一課 kernel 自己寫的，所以整片是黃色；現在右上角多了黃色小角，代表「kernel 讀過」。</p>'
+    + '<p>先看 ' + c('flags = ' + hx(D.cot.flags, 2)) + '：bit0 VALID 是 1，代表這個 page 確實有壓縮資料。bit2 RAW 是 0，代表存的是 LZ4 stream，需要解碼。</p>'
+    + '<p>在偏硬體的設計裡，讀這一筆的是 LZ4 HW。這裡硬體根本不知道有 COT 這張表。</p>',
+  apply: function (S) { readAll(S, 'cot', 'k'); S.cot.hot = ['flags']; led(S, 'cot', 'k', 'R');
+    S.say.kernel = 'I read COT[' + H + '] myself.\nVALID: this page has\ncompressed data.'; } });
+kc({ title: '從 COT 讀出：幾個 chunk、多長、哪幾個、checksum',
+  text: '<p>' + c('count = ' + NCH) + '：資料在 ' + NCH + ' 個 chunk 裡。</p>'
+    + '<p>' + c('comp_len') + ' 的 2 個 byte 是 ' + c(hexOf(bCot, 2, 2)) + '，little-endian 讀回來是 ' + c(hx(SL, 4)) + ' = ' + SL + ' B。前 ' + (NCH - 1) + ' 個 chunk 各 ' + M.chunk + ' B，最後一個只有 ' + c(SL + ' − ' + (NCH - 1) + ' × ' + M.chunk + ' = ' + LAST) + ' B 是資料。</p>'
+    + '<p>' + c('chunk[0..' + (NCH - 1) + ']') + ' 每個 3 B：' + c(hexOf(bCot, 8, 3)) + ' 是 ' + c(hx(D.cot.chunks[0])) + '。排列順序就是 stream 的順序。</p>'
+    + '<p>' + c('checksum = ' + CK) + '：壓縮時硬體算出來、交給 kernel 保管的 CRC-32。</p>'
+    + '<p>kernel 把筆記裡這個 page 的狀態改成 ' + c('decompressing') + '。這四樣東西接下來要全部抄給硬體。</p>',
+  apply: function (S) { S.cot.hot = ['count', 'comp_len', 'checksum'].concat(CHF); S.pte.st = 'decompressing';
+    S.say.kernel = NCH + ' chunks, ' + SL + ' B in all:\n' + span(D.cot.chunks) + '.\nChecksum ' + CK + '.'; },
+  card: function (S) { var a = 0; return cotCard(S) + L.tableCard('What KERNEL SW now knows', D.chunks.map(function (ch, i) { var r = ['chunk[' + i + '] = ' + hx(ch.n), '@' + hx(ch.pa) + ', ' + ch.bytes + ' B: stream bytes ' + a + ' to ' + (a + ch.bytes - 1)]; a += ch.bytes; return r; })
+    .concat([["kernel's page state", 'compressed, now <span class="by k">decompressing</span>']])); } });
+
+/* ---- descriptor, field by field */
+var dv = {}, unused = [];
+J.chunks.forEach(function (n, i) { dv['chunk[' + i + ']'] = hx(n); });
+for (var q = J.chunks.length; q < 8; q++) { dv['chunk[' + q + ']'] = '0'; unused.push('chunk[' + q + ']'); }
+dv.pad = '0';
+function kd(o) { var ap = o.apply; o.who = 'kernel'; o.cam = L.VIEW.desc; o.keep = [K.desc]; o.card = descCard; o.apply = function (S) { S.pos.kernel = 'k_desc'; ap(S); }; step(o); }
+kd({ title: '寫 descriptor：要做什麼、列幾個 chunk',
+  text: '<p>kernel 用一張 48 B 的工作單把事情交代給硬體，這就是 <b>job descriptor</b>，放在 DRAM 裡 job ring 的一格。格式和壓縮時完全一樣，只是這次每個欄位都用得到。</p>'
+    + '<p>先寫前 2 個 byte：' + c('opcode = ' + J.opcode) + ' 代表 ' + J.op_name + '（1 是 COMPRESS），' + c('count = ' + J.count) + ' 是後面列了幾個 chunk 號碼，就是剛從 COT 讀到的 ' + NCH + '。</p>'
+    + '<p>黃色的格子是 kernel 寫的 byte，' + c('--') + ' 是還沒寫的。</p>',
+  apply: function (S) { put(S, 'desc', { opcode: 'DEC', count: '' + J.count }, 'k'); led(S, 'desc', 'k', 'W'); S.say.kernel = 'I write the job descriptor.\nopcode ' + J.opcode + ': ' + J.op_name + ',\n' + J.count + ' chunk numbers follow.'; } });
+kd({ title: '寫 descriptor：輸出多大',
+  text: '<p>' + c('limit = ' + J.limit) + '：解出來的資料是一個 page，' + J.limit + ' B。壓縮時同一個欄位的意思是「超過就放棄」。</p>'
+    + '<p>' + J.limit + ' 寫成 16 進位是 ' + c(hx(J.limit, 4)) + '。DRAM 裡是 little-endian，低位的 byte 放前面，所以看到的是 ' + c(hexOf(bJ, 2, 2)) + '。</p>',
+  apply: function (S) { put(S, 'desc', { limit: '' + J.limit }, 'k'); S.say.kernel = 'limit ' + J.limit + ':\none page comes out.'; } });
+kd({ title: '寫 descriptor：解到哪裡',
+  text: '<p>' + c('frame_pa = ' + FPA) + '：寫成 ' + c(hexOf(bJ, 4, 4)) + '。壓縮時這個欄位是「資料從哪裡讀」，這次是「解出來的資料<b>寫到哪裡</b>」，就是剛拿到的 frame ' + V.frame + '。</p>'
+    + '<p>和壓縮時一樣，單子上沒有 page 編號的欄位。硬體不需要知道這是哪個 page。</p>',
+  apply: function (S) { put(S, 'desc', { frame_pa: FPA }, 'k'); S.say.kernel = 'Output goes to\n' + FPA + '.'; } });
+kd({ title: '寫 descriptor：壓縮資料有多長',
+  text: '<p>' + c('comp_len = ' + J.comp_len) + '：從 COT 抄過來，寫成 ' + c(hexOf(bJ, 8, 2)) + '。硬體靠它知道最後一個 chunk 只取 ' + LAST + ' B。</p>'
+    + '<p>' + c('flags = ' + J.flags) + '：只帶 COT 的 RAW bit。0 代表資料是 LZ4 stream，要解碼；1 代表當初壓不小、原樣存放，直接搬就好。</p>'
+    + '<p>上一課壓縮時這兩個欄位填 0。它們就是為了這一刻留的：硬體沒有表可以查，kernel 不講它就不知道。</p>',
+  apply: function (S) { put(S, 'desc', { comp_len: '' + J.comp_len, flags: '' + J.flags }, 'k'); S.say.kernel = 'comp_len ' + J.comp_len + ', not RAW:\ncopied from my COT entry.'; } });
+kd({ title: '寫 descriptor：應該對得上的 checksum',
+  text: '<p>' + c('checksum = ' + CK) + '：也是從 COT 抄過來的，寫成 ' + c(hexOf(bJ, 12, 4)) + '。</p>'
+    + '<p>意思是「這 ' + SL + ' B 的 CRC-32 <b>應該</b>是這個值」。硬體收齊資料後會自己再算一次來比。kernel 只負責保管和轉交這個數字，不自己算。</p>',
+  apply: function (S) { put(S, 'desc', { checksum: CK }, 'k'); S.say.kernel = 'checksum ' + CK + ':\nwhat the data must add up to.'; } });
+kd({ title: '寫 descriptor：tag',
+  text: '<p>' + c('tag = ' + TAG) + '：kernel 自己取的編號，硬體做完會原封不動抄回來。kernel 填的是 page 編號，對硬體來說只是一個要抄回去的數字。</p>',
+  apply: function (S) { put(S, 'desc', { tag: TAG }, 'k'); S.say.kernel = 'tag ' + TAG + ': so I know\nthe answer when it comes back.'; } });
+kd({ title: '寫 descriptor：' + J.count + ' 個 chunk 號碼',
+  text: '<p>最後是 COT 裡那 ' + J.count + ' 個 chunk 號碼，<b>照 COT 的順序</b>抄：' + spanZh(J.chunks) + '。每個號碼 3 B：' + c(hx(J.chunks[0])) + ' 寫成 ' + c(hexOf(bJ, 20, 3)) + '。順序錯了，接起來的 stream 就是錯的。</p>'
+    + (unused.length ? '<p>' + unused.map(c).join('、') + ' 和最後 4 B 的 pad 寫 0。</p>' : '')
+    + '<p>48 B 寫完了。對照 COT entry：' + c('comp_len') + '、' + c('checksum') + '、chunk 號碼全部抄了一份到單子上。<b>硬體解這個 page 需要知道的一切，都在這 48 B 裡。</b></p>',
+  apply: function (S) { put(S, 'desc', dv, 'k'); S.desc.hot = CHF; S.say.kernel = 'chunks ' + span(J.chunks) + ',\nin the order of the stream.'; },
+  card: function (S) { return descCard(S) + L.tableCard('Copied from COT[' + H + '] to the descriptor', [['count', '' + NCH], ['comp_len', SL + ' B'], ['flags', 'RAW bit only: ' + J.flags], ['checksum', CK], ['chunk[0..' + (NCH - 1) + ']', list(J.chunks)]]); } });
+
+/* ---- the briefing and the doorbell */
+step({ who: 'kernel', title: '交代工作，按 doorbell', cam: L.VIEW.desk, keep: [K.desc, K.bell], card: descCard,
+  text: '<p>descriptor 只是躺在 DRAM 裡，硬體還不知道。kernel 對 <b>DOORBELL</b> register 做一次 MMIO 寫入，告訴 LZ4 HW「job ring 有新工作」。</p>'
+    + '<p>聽 kernel 怎麼交代：資料在哪幾個 chunk、多長、checksum 應該是多少、解到哪裡，全部講明。硬體不用查任何東西，照做再回報就好。之後 kernel 等 IRQ，' + RQ.name + ' 還停在 gate 前面。</p>',
+  apply: function (S) { S.pos.kernel = 'k_bell'; S.bell = 1; led(S, 'bell', 'k', 'W');
+    S.say.kernel = 'LZ4 HW, a job for you:\n' + J.op_name + ' to ' + FPA + '.\nThe data is ' + SL + ' B in chunks\n' + span(J.chunks) + ', in that order.\nIts CRC-32 must be ' + CK + ':\nif it is not, write nothing.\nReport back with tag ' + TAG + '.';
+    S.say.hw = 'Understood. I read only\nthe chunks you name.'; },
+  fx: function (done) { kit.after(700, function () { kit.ping(L.BELL.clone(), 0xf4d35e, 3); done(); }); } });
+
+/* ---- the job: the hardware */
+function hw(o) { var ap = o.apply; o.who = 'hw'; o.apply = function (S) { S.pos.kernel = 'k_home'; S.bell = 0; ap(S); }; step(o); }
+var maxChunk = Math.max.apply(null, J.chunks);
+hw({ title: '讀 descriptor，檢查', cam: L.VIEW.read, keep: [K.desc],
+  text: '<p>LZ4 HW 從 job ring 讀出這 48 B（第 1 次 DRAM 存取）。格子右上角的紫色小角代表「LZ4 HW 讀過」。</p>'
+    + '<p>硬體不相信單子上的數字，先檢查：opcode 是認得的；' + c('count') + ' 不超過 8；每個 chunk 號碼都小於 chunk 總數 ' + M.pool_chunks + '；' + c('frame_pa') + ' 落在 frame 區而且對齊 ' + M.page + ' B。任何一項不合格就回報 BAD_DESC，什麼都不動。</p>'
+    + '<p>接下來它<b>不用讀 COT</b>。偏硬體的設計在這裡要多一次 DRAM 存取去讀 COT；這裡需要的東西已經在單子上了。</p>',
+  apply: function (S) { S.pos.hw = 'h_desc'; readAll(S, 'desc', 'h'); led(S, 'desc', 'h', 'R'); S.clk.on = true; S.clk.dram = 1;
+    S.say.hw = 'Descriptor read: ' + J.op_name + '.\n' + J.count + ' chunk numbers, all in range.\nI need no table: it is all here.'; },
+  card: function (S) { return descCard(S) + L.tableCard('Checks by LZ4 HW', [['opcode known', J.opcode + ' = ' + J.op_name + ': yes'], ['count', J.count + ' ≤ 8: yes'],
+    ['every chunk number in range', 'largest ' + hx(maxChunk) + ' = ' + maxChunk + ' &lt; ' + M.pool_chunks + ': yes'], ['frame_pa', FPA + ': in the frame area, multiple of ' + M.page + ': yes'], ['COT read by LZ4 HW', 'none']]); } });
+
+/* ---- gather the chunks, one per step, in the order of the descriptor */
+D.chunks.forEach(function (ch, i) {
+  var a = i * M.chunk, b = a + ch.bytes - 1, got = a + ch.bytes, f = 'chunk[' + i + ']';
+  var t = i === 0
+    ? '<p>LZ4 HW 照單子的順序去讀 chunk。descriptor 的 ' + c(f) + ' 是 ' + c(hx(ch.n)) + '，位址 ' + c('pool_base + ' + hx(ch.n) + ' × ' + M.chunk) + ' = ' + c(hx(ch.pa)) + '。讀出 ' + ch.bytes + ' B，是 stream 的第 ' + a + ' 到 ' + b + ' B，接到左邊的 stream 上。</p>'
+      + '<p>chunk 本身沒有被改動，斜線還在；紫色的字只是標示硬體讀過。時間模型把讀 chunk 算在 engine 的串流時間裡，所以上面的 DRAM 次數不加。</p>'
+    : '<p>下一個照單子上的 ' + c(f) + '：' + c(hx(ch.n)) + '（位址 ' + c(hx(ch.pa)) + '），讀出 ' + ch.bytes + ' B，是 stream 的第 ' + a + ' 到 ' + b + ' B。</p>';
+  if (ch.bytes < M.chunk) t += '<p>這個 chunk 只取前 ' + ch.bytes + ' B，後面 ' + (M.chunk - ch.bytes) + ' B 是沒用到的空間，不能送進 engine。能切得這麼準，靠的是單子上的 ' + c('comp_len = ' + SL) + '：' + c(SL + ' − ' + i + ' × ' + M.chunk + ' = ' + ch.bytes) + '。</p>';
+  hw({ title: '讀第 ' + (i + 1) + ' 個 chunk，取 ' + ch.bytes + ' B', cam: L.VIEW.work, keep: [K['ch' + i], K.engine], text: t,
+    apply: function (S) { S.pos.hw = 'h_ch' + i; S.ch[i] = 3; S.chHot = i; S.eng.vis[i] = true; S.eng.lab = 'stream: ' + got + ' of ' + SL + ' B'; S.desc.hot = [f]; led(S, 'chunk', 'h', 'R');
+      S.say.hw = f + ' on the descriptor\nsays ' + hx(ch.n) + '.\nI read ' + ch.bytes + ' B from it.'; },
+    fx: function (done) {
+      var tile = new T.Vector3(L.CX[i], 1, L.ZROW);
+      kit.after(500, function () { kit.fly(L.descAt.clone(), tile, { color: 0xf4d35e, ms: 800, size: [2.4, 0.5, 1.2], up: 5, done: function () {
+        kit.ping(tile, 0xb48cff);
+        kit.after(350, function () { kit.fly(tile, L.segs[i].position.clone(), { color: 0xffffff, hatch: true, ms: 900, size: [L.SEG * ch.bytes / M.chunk, 0.8, 2.4], up: 5, done: done }); });
+      } }); });
+    },
+    card: function () { return L.tableCard('Chunks named on the descriptor <span>(' + got + ' of ' + SL + ' B gathered)</span>', D.chunks.map(function (x, k) {
+      var r = ['chunk[' + k + '] = ' + hx(x.n), (k <= i ? x.bytes + ' B read, starts ' : x.bytes + ' B to read, starts ') + hexOf(R.bytes(x.head), 0, 8)]; r.hot = k === i; return r; })); } });
+});
+
+/* ---- CRC against the descriptor */
+hw({ title: '先驗 checksum，再動 frame', cam: L.VIEW.engine, keep: [K.engine],
+  text: '<p>' + SL + ' B 到齊了。LZ4 HW 對這 ' + SL + ' B 算 CRC-32，得到 ' + c(CK) + '，和 <b>descriptor 上寫的</b> ' + c(CK) + ' 一樣。</p>'
+    + '<p>如果不一樣呢？硬體回報 BAD_STREAM，<b>frame 一個 byte 都不寫</b>。kernel 把這個 page 標成 ' + c('lost') + '，再回報錯誤。</p>'
+    + '<p>這個檢查在偏軟體的設計裡多擋一種錯：不只是 chunk 裡的資料壞掉，<b>kernel 的帳記錯</b>（例如號碼列錯、順序錯、長度錯）也會讓 CRC 對不上。硬體沒辦法知道 kernel 給的號碼對不對，但它能確定「照這些號碼收到的資料」是不是當初壓出來的那一份。</p>',
+  apply: function (S) { S.pos.hw = 'h_engine'; S.desc.hot = ['checksum']; S.say.hw = 'CRC-32 of the ' + SL + ' B: ' + CK + '.\nThe descriptor says ' + CK + '.\nThe data is intact.'; },
+  card: function () { return L.tableCard('Checksum check by LZ4 HW', [['CRC-32 over', 'the ' + SL + ' B just gathered'], ['computed now', CK], ['expected, from the descriptor', CK + ': equal'], ['where KERNEL SW got it', 'COT[' + H + '], stored when the page was compressed'], ['if not equal', 'status BAD_STREAM, the frame is not written']]); } });
+
+/* ---- decode into the frame */
+var pg = R.bytes(D.page.head), sh = R.bytes(D.stream.head), lit = sh[0] >> 4, li = 1, ext = [], litText = '';
+if (lit === 15) { while (li < sh.length && sh[li] === 255) { ext.push(255); lit += 255; li++; } if (li < sh.length) { ext.push(sh[li]); lit += sh[li]; li++; } else li = 99; }
+if (li < sh.length - 3 && sh.slice(li, li + 4).join() === pg.slice(0, 4).join()) {
+  litText = '<p>看 stream 的開頭怎麼變回 page：第 1 個 byte ' + c(R.b2(sh[0])) + ' 是 token，高 4 bit 是 literal 長度 ' + (sh[0] >> 4)
+    + (ext.length ? '，15 表示還要加上後面的 ' + c(ext.map(R.b2).join(' ')) + '：15 + ' + ext.join(' + ') + ' = ' + lit : '')
+    + '。所以接下來 ' + lit + ' 個 byte 原樣搬到 frame 開頭，frame 的前 4 B 就是 ' + c(hexOf(pg, 0, 4)) + '。之後遇到 match，就從 frame 裡已經寫好的地方複製。</p>';
+}
+var ratio = Math.round(M.comp_ns / M.decomp_ns);
+hw({ title: 'LZ4 解碼，寫進 frame', cam: L.VIEW.engine, keep: [K.frame, K.engine],
+  text: '<p>stream 送進 LZ4 engine 解碼，解出來的 ' + M.page + ' B 寫到 ' + c(FPA) + '（第 2 次 DRAM 存取）。frame ' + V.frame + ' 變成藍色：裡面是 page ' + H + ' 的 RW 資料，和壓縮前一模一樣。</p>'
+    + '<p>解碼比編碼簡單，不用找重複的字串，只要照 token 搬資料。engine 每個 cycle 輸出 ' + M.decomp_bytes_per_cycle + ' B，' + M.page + ' B 只要 ' + ns(M.decomp_ns) + ' ns；壓縮時是 ' + ns(M.comp_ns) + ' ns，差 ' + ratio + ' 倍。LZ4 engine 本身在兩種設計裡是同一個。</p>' + litText,
+  apply: function (S) { S.pos.hw = 'h_engine'; S.frame.st = 'present'; S.frame.hot = 'write'; S.eng.on = 1; S.eng.vis = fill(NCH, false); S.eng.lab = ''; led(S, 'frame', 'h', 'W'); S.clk.dram = 2; S.clk.lz = 1;
+    S.say.hw = 'I LZ4-decode the stream\nand write ' + M.page + ' B\ninto frame ' + V.frame + '.'; },
+  fx: function (done) {
+    var a = new T.Vector3(-9, 3.4, L.ZROW - 1), b = new T.Vector3(-27, 1.2, L.ZROW), i;
+    for (i = 0; i < 4; i++) (function (i) { kit.after(500 + i * 320, function () { kit.fly(a, b, { color: R.COL.rw, ms: 800, size: [2.6, 0.8, 2.6] }); }); })(i);
+    kit.after(2400, done);
+  },
+  card: function () { return L.tableCard('Stream in, frame out', [
+    ['stream, first 16 B', hexOf(sh, 0, 16)], ['frame, first 16 B', '<span style="color:var(--rw)">' + hexOf(pg, 0, 16) + '</span>'],
+    ['size', SL + ' B in, ' + M.page + ' B out'], ['time in the engine', ns(M.decomp_ns) + ' ns (compress: ' + ns(M.comp_ns) + ' ns)']]); } });
+
+/* ---- completion */
+var total = C.dram_accesses * M.dram_ns + M.decomp_ns;
+hw({ title: '寫 completion，發 IRQ', cam: L.VIEW.done, keep: [K.done, K.irq], card: doneCard,
+  text: '<p>LZ4 HW 把結果寫進 completion ring 的一格（第 3 次 DRAM 存取），16 B：' + c('status = ' + C.status) + '（' + C.status_name + '）、' + c('length = ' + C.length) + '（寫進 frame 的 byte 數）、' + c('checksum = ' + hx(C.checksum, 8)) + '，以及抄回來的 ' + c('tag = ' + hx(C.tag)) + '。然後拉 IRQ。</p>'
+    + (total === C.lat_ns ? '<p>這個 job 花了 ' + C.dram_accesses + ' × ' + ns(M.dram_ns) + ' ns + ' + ns(M.decomp_ns) + ' ns = <b>' + C.lat_ns + ' ns</b>。</p>' : '')
+    + '<p>硬體的工作到此<b>全部結束</b>。留意現在的狀態：frame 裡有一份未壓縮的資料，' + NCH + ' 個 chunk 裡的壓縮資料還在，COT 還是 VALID，bitmap 那 ' + NCH + ' 個 bit 還是 1。這些收尾硬體不會做，也做不到：兩本帳都不在它手上。</p>',
+  apply: function (S) { S.pos.hw = 'h_done'; put(S, 'done', { status: C.status_name, flags: '' + C.flags, length: '' + C.length, checksum: hx(C.checksum, 8), tag: hx(C.tag), aux: '' + C.aux }, 'h');
+    S.done.hot = []; S.irq = 1; led(S, 'done', 'h', 'W'); S.clk.dram = 3;
+    S.say.hw = 'KERNEL SW, job done.\nTag ' + hx(C.tag) + ': ' + C.status_name + ',\n' + C.length + ' B written to the frame.\nThe chunks are yours to sort out.'; },
+  fx: function (done) { kit.after(900, function () { done(); kit.ping(L.IRQ.clone(), 0xb48cff, 3); }); } });
+
+/* ---- the kernel does the clean-up itself */
+function kn(o) { var ap = o.apply; o.who = 'kernel'; o.apply = function (S) { S.pos.hw = 'h_home'; ap(S); }; step(o); }
+kn({ title: '讀 completion：解好了，收尾自己來', cam: L.VIEW.kread, keep: [K.done],
+  text: '<p>IRQ 進來，kernel 讀 completion。格子右上角的黃色小角代表「kernel 讀過」。' + c('tag = ' + hx(C.tag)) + ' 對到剛才的 job，' + c('status = ' + C.status) + ' 代表成功。</p>'
+    + '<p>kernel 還不能放行。page ' + H + ' 是 <b>RW page</b>：一旦 ' + V.name + ' 寫了它，chunk 裡那份壓縮資料就過期了。所以 RW page 解回來之後，壓縮的那一份直接作廢，把 ' + NCH + ' 個 chunk 還回去。（RO page 的內容不會變，壓縮的那一份一直留著，沒有接下來這一段。）</p>'
+    + '<p>偏硬體的設計在這裡要再交代硬體一個 job（INVALIDATE）。這裡<b>沒有第二個 job</b>：COT 和 bitmap 都是 kernel 的帳，kernel 自己改就好。</p>',
+  apply: function (S) { S.pos.kernel = 'k_done'; S.irq = 0; readAll(S, 'done', 'k'); S.done.hot = ['status', 'tag']; led(S, 'done', 'k', 'R');
+    S.say.kernel = 'Tag ' + hx(C.tag) + ': ' + C.status_name + '.\nPage ' + H + ' is RW: its compressed\ncopy must go. That is my own work.'; },
+  card: function (S) { return doneCard(S) + L.tableCard('After DECOMPRESS, what about the compressed copy?', [['RW page (this one)', 'drop it: KERNEL SW clears COT[' + H + '] and ' + NCH + ' bitmap bits, no job'], ['RO page', 'keep it: the content never changes']]); } });
+
+kn({ title: '把 COT[' + H + '] 清成 0', cam: L.VIEW.cot, keep: [K.cot], card: cotCard,
+  text: '<p>kernel 對 ' + c(hx(V.entry_pa)) + ' 寫入 32 個 ' + c('00') + '。' + c('flags') + ' 的 VALID bit 變 0，意思是「page ' + H + ' 沒有壓縮資料」，和上一課壓縮之前一模一樣。</p>'
+    + '<p>先清 COT、再動 bitmap，是有原因的。bitmap 只存在 kernel 的記憶體裡，開機時是從 COT 重建的，所以 COT 才是正本。先改正本，就不會出現「bitmap 說 chunk 是空的、COT 卻還指著它」的時刻。</p>'
+    + '<p>看這一筆 COT 的一生：壓縮時 kernel 寫、解壓縮時 kernel 讀、作廢時 kernel 清。<b>LZ4 HW 一次都沒有碰過</b>，和偏硬體的設計剛好相反。</p>',
+  apply: function (S) { S.pos.kernel = 'k_cot'; S.cot = { b: fill(32, 0), w: fill(32, 'k'), r: fill(32, ''), vals: {}, hot: ['flags'], long: { flags: '0x00 = not VALID' } }; led(S, 'cot', 'k', 'W');
+    S.say.kernel = 'COT[' + H + ']: 32 zero bytes.\nNot VALID any more.'; } });
+
+kn({ title: '在 bitmap 裡把 ' + REL.length + ' 個 bit 寫回 0', cam: L.VIEW.bitmap, keep: [K.bitmap],
+  text: '<p>剛才讀 COT 時 kernel 已經知道是哪 ' + REL.length + ' 個 chunk：' + spanZh(REL) + '。它在 bitmap 裡把對應的 bit ' + bit(REL[0]) + ' 到 ' + bit(REL[REL.length - 1]) + ' 從 1 寫回 0（黃框）。</p>'
+    + '<p>word ' + BM.word + ' 的值從 ' + c('0x' + BM.before.toUpperCase()) + ' 變成 ' + c('0x' + BM.after.toUpperCase()) + '，空 chunk 從 ' + BM.free_before + ' 個變 ' + BM.free_after + ' 個。</p>'
+    + '<p>這一步只動 kernel 自己的記憶體，不需要 DRAM 存取，也不需要硬體。simulator 把 kernel 為這個 job 做的記帳（讀 COT、清 COT、改 bitmap）算成固定的 ' + ns(M.kernel_job_ns) + ' ns。</p>',
+  apply: function (S) { S.pos.kernel = 'k_bm'; S.bm.word = BM.after; S.bm.free = BM.free_after; REL.forEach(function (n, i) { S.bm.mark[bit(n)] = 'c'; S.ch[i] = 4; }); S.bm.hot = REL.map(bit); S.clk.k = 1; led(S, 'bitmap', 'k', 'W');
+    S.say.kernel = REL.length + ' bits back to 0: chunks\n' + span(REL) + '\nare free again.'; },
+  fx: function (done) { kit.after(500, function () { REL.forEach(function (n, i) { kit.after(i * 140, function () { kit.ping(L.bitAt(n), 0xf4d35e, 1.2); }); }); kit.after(REL.length * 140 + 300, done); }); },
+  card: function (S) { return bmCard(S, [['bits cleared by KERNEL SW', '<span class="by k">' + REL.length + ' bits</span>, bit ' + bit(REL[0]) + ' to ' + bit(REL[REL.length - 1])], ['chunks free again', span(REL)], ['free chunks', BM.free_before + ', now ' + BM.free_after]]); } });
+
+kn({ title: '這 ' + NCH + ' 個 chunk 現在是空的', cam: L.VIEW.chunks, keep: D.chunks.map(function (x, i) { return K['ch' + i]; }),
+  text: '<p>回頭看 chunk pool：' + NCH + ' 個 chunk 都標成 free again。裡面的 byte 沒有被清掉，只是 COT 不再指向它們、bitmap 也說它們是空的。下次有 page 要壓縮時，kernel 從 bitmap 找到它們，硬體直接蓋過去。</p>'
+    + '<p>從頭到尾，硬體只<b>讀</b>過這些 chunk。把它們「還回去」這件事沒有動到 chunk 本身，只改了 kernel 的兩本帳。</p>',
+  apply: function (S) { S.pos.kernel = 'k_tiles'; S.say.kernel = 'These ' + NCH + ' chunks are free.\nOnly my books changed.'; },
+  card: function () { return L.tableCard('The ' + NCH + ' chunks after the clean-up', D.chunks.map(function (x) { return ['chunk ' + hx(x.n), 'free again · bit ' + bit(x.n) + ' of word ' + BM.word + ' = 0']; })); } });
+
+kn({ title: '最後才把 PTE 設回 valid', cam: L.VIEW.pte, keep: [K.pte, K.gate],
+  text: '<p>kernel 把筆記裡 page ' + H + ' 的狀態從 ' + c('decompressing') + ' 改成 ' + c('present') + '，再把 PTE 寫成 ' + c('valid = 1') + '，指向 <b>frame ' + V.frame + '</b>。</p>'
+    + '<p>這一步<b>故意排在最後</b>。如果 frame 還沒寫完就 valid，' + RQ.name + ' 會讀到半成品。順序是：資料到位、帳記完，才開門。</p>'
+    + '<p>PTE 在兩種設計裡都只有 kernel 寫。LZ4 HW 不碰 page table。</p>',
+  apply: function (S) { S.pos.kernel = 'k_gate'; S.pte.valid = 1; S.pte.st = 'present'; S.pte.hot = true; S.pte.w = true; led(S, 'pte', 'k', 'W');
+    S.say.kernel = 'PTE of page ' + H + ': valid = 1,\nit points to frame ' + V.frame + '.\n' + RQ.name + ', go on.'; },
+  card: function () { return L.tableCard('What KERNEL SW changed', [['PTE valid bit', '0, now <span class="by k">1</span>'], ['PTE points to', 'frame ' + V.frame + ' @' + FPA], ["kernel's page state", 'decompressing, now <span class="by k">present</span>']]); } });
+
+var kns = RQ.kernel_ns, kj = M.kernel_job_ns, sum = kns + C.lat_ns + kj, same = HW && HW.same;
+step({ who: 'user', title: RQ.name + ' 重試，這次通過', cam: L.VIEW.far, keep: [K.gate, K.pte],
+  text: '<p>kernel 從 page fault 返回，CPU 把 ' + RQ.name + ' 剛才那個' + RWZ + '的動作<b>重做一次</b>。這次 gate 查到 ' + c('valid = 1') + '，直接通過，' + RQ.name + ' 拿到 frame ' + V.frame + ' 裡的資料。</p>'
+    + '<p>對 ' + RQ.name + ' 來說，什麼事都沒發生，只是這一次' + RWZ + '比平常慢。它等了 ' + c(ns(kns) + ' + ' + C.lat_ns + ' + ' + ns(kj)) + ' = <b>' + ns(sum) + ' ns</b>' + (sum === RQ.lat_ns ? '，和 simulator 記錄的這次存取的 latency 相同' : '') + '。其中 kernel 處理 page fault 的固定成本佔了大半。</p>'
+    + (same ? '<p>偏硬體那一課的同一次存取等了 ' + ns(HW.access_ns) + ' ns。' + RQ.name + ' 分不出兩種設計，只感覺得到這個數字。</p>' : ''),
+  apply: function (S) { S.pos.kernel = 'k_home'; S.pos.hw = 'h_home'; S.gate = 'pass'; S.pte.w = false; S.pte.hot = true;
+    S.say.gate = 'PTE of page ' + H + ': valid = 1.\nGo on to frame ' + V.frame + '.'; S.say.req = 'Got my data from page ' + H + '.\nI never knew it was compressed.'; },
+  card: function () { var rows = [['KERNEL SW, page-fault handling', ns(kns) + ' ns'], ['LZ4 HW, ' + J.op_name, C.dram_accesses + ' × ' + ns(M.dram_ns) + ' + ' + ns(M.decomp_ns) + ' = ' + C.lat_ns + ' ns'], ['KERNEL SW, COT and bitmap', ns(kj) + ' ns'], ['total', ns(sum) + ' ns']];
+    rows[3].hot = true; return L.tableCard('What ' + RQ.name + ' waited for', rows); } });
+
+/* ---- result, and the same fault in the hardware-leaning lesson */
+var cmpText = same
+  ? '<p><b>和偏硬體那一課對照</b>（同一次存取、同一個 page ' + H + '）：</p><ul style="margin:6px 0 0 18px;padding:0">'
+    + '<li>誰去查資料在哪：那邊 LZ4 HW 自己讀 COT（硬體多一次 DRAM 存取），這邊 kernel 讀 COT，把號碼、長度、checksum 抄到 descriptor 上。</li>'
+    + '<li>descriptor：那邊 ' + HW.desc_bytes + ' B，只說「哪個 page、放哪裡」；這邊 48 B，COT 的內容幾乎整筆帶過去。</li>'
+    + '<li>job 數：那邊 ' + HW.jobs + ' 個（DECOMPRESS ' + HW.lat_ns + ' ns，再 INVALIDATE ' + HW.lat2_ns + ' ns）；這邊 1 個（' + C.lat_ns + ' ns），收尾是 kernel 自己的 ' + ns(kj) + ' ns。</li>'
+    + '<li>checksum：那邊硬體自己存、自己對；這邊 kernel 保管、硬體核對，順便擋下 kernel 記錯帳的情況。</li>'
+    + '<li>還 chunk：那邊硬體把 ' + list(HW.chunks) + ' push 回 SRAM 裡的 stack；這邊 kernel 把 ' + list(REL) + ' 的 bit 清成 0。</li>'
+    + '<li>' + RQ.name + ' 等的時間：' + ns(HW.access_ns) + ' ns 對 ' + ns(sum) + ' ns。差別來自 simulator 的時間模型，不是量測值。</li></ul>'
+  : '<p>偏硬體那一課用的是另一次存取，數字不能直接對照，但分工的差別一樣：那邊 COT 和空 chunk 的清單在硬體手上，這邊都在 kernel 手上。</p>';
+step({ who: 'note', title: '結果：誰碰了什麼', cam: L.VIEW.all, keep: [K.gate, K.pte],
+  text: '<p>page ' + H + ' 回到 frame 裡，' + NCH + ' 個 chunk 在 bitmap 上又是空的，COT[' + H + '] 回到全 0。和上一課的壓縮合起來，剛好是一個完整的來回。</p>'
+    + '<p>看下面的表：<b class="h">LZ4 HW</b> 只讀了 descriptor 和 chunk，只寫了 frame 和 completion。PTE、COT、bitmap 全部只有 <b class="k">KERNEL SW</b> 在碰。硬體連這是哪個 page 都不知道。</p>'
+    + '<p>分工：<b>要不要做、資料在哪、做完怎麼記</b>都是 kernel 的事；硬體只負責<b>搬資料、驗 checksum、解碼</b>，每個 job 從零開始。</p>'
+    + cmpText,
+  apply: function (S) { S.final = true; S.gate = 'idle'; S.pos.req = 'ui_home'; S.pos.kernel = 'k_home'; S.pos.hw = 'h_home'; S.pte.w = false;
+    S.say.req = 'Back to work.'; S.say.kernel = 'One job, and my two books\nagree again.'; S.say.hw = 'I touched only what\nthe descriptor named.'; },
+  card: function () {
+    var h = L.tableCard('Before and after, page ' + H, [['where the page is', NCH + ' chunks (' + SL + ' B), now frame ' + V.frame + ' (' + M.page + ' B)'], ['free frames', D.frames.free_before + ', now ' + D.frames.free_after],
+      ['PTE', 'valid 0, now 1'], ['COT[' + H + ']', 'VALID with ' + NCH + ' chunks, now all zero'], ['free chunks in the bitmap', BM.free_before + ', now ' + BM.free_after],
+      ['LZ4 HW jobs', '1: ' + J.op_name + ' ' + C.lat_ns + ' ns']]);
+    if (same) h += L.tableCard('Same page, same access, two designs', [
+      ['', '<b class="h">HW-leaning</b> · <b class="k">SW-leaning (this lesson)</b>'],
+      ['who reads COT[' + H + ']', 'LZ4 HW · KERNEL SW'],
+      ['job descriptor', HW.desc_bytes + ' B · 48 B'],
+      ['LZ4 HW jobs', HW.jobs + ' · 1'],
+      ['DRAM accesses by LZ4 HW', HW.dram_accesses + ' + ' + HW.dram2_accesses + ' · ' + C.dram_accesses],
+      ['who clears COT[' + H + ']', 'LZ4 HW · KERNEL SW'],
+      ['chunks given back', list(HW.chunks) + ' to the stack · ' + list(REL) + ' in the bitmap'],
+      [RQ.name + ' waited', ns(HW.access_ns) + ' ns · ' + ns(sum) + ' ns']]);
+    return h;
+  } });
+
+var reqCss = A.req ? A.req.css : '#ff8fb1';
+lesson = new R.Lesson({
+  kit: kit, steps: steps, init: init, pose: L.pose, show: L.show,
+  card: function (S, st) { return st.card ? st.card(S) : ''; },
+  clock: function (S) {
+    if (!S.clk.on) return 'LZ4 HW job time: not started';
+    var t = S.clk.dram * M.dram_ns + S.clk.lz * M.decomp_ns;
+    return 'LZ4 HW job time so far: <b>' + S.clk.dram + ' × ' + ns(M.dram_ns) + ' ns</b> DRAM' + (S.clk.lz ? ' + <b>' + ns(M.decomp_ns) + ' ns</b> LZ4' : '') + ' = <b>' + ns(t) + ' ns</b>'
+      + (S.clk.k ? ' · KERNEL SW bookkeeping: <b>+ ' + ns(kj) + ' ns</b>' : '');
+  },
+  ledger: [['pte', 'PTE of page ' + H], ['cot', 'COT[' + H + ']'], ['desc', 'job descriptor'], ['bell', 'DOORBELL register'], ['chunk', 'chunks (compressed data)'],
+           ['frame', 'frame data (' + M.page + ' B)'], ['done', 'completion'], ['bitmap', 'free-chunk bitmap']],
+  who: { user: ['USER SW', reqCss], kernel: ['KERNEL SW', '#f4d35e'], hw: ['LZ4 HW · HARDWARE', '#b48cff'], note: ['SUMMARY', '#7ee2a8'] }
+});
+var chip = document.getElementById('design');
+document.getElementById('title').textContent = 'LZ4 DRAM compression lesson';
+chip.textContent = 'SW-LEANING DESIGN'; chip.style.background = '#f4d35e'; chip.style.color = '#10161d';
+document.getElementById('scene').textContent = 'Scene: DECOMPRESS on an invalid PTE · real job from simulator run seed ' + M.seed + ', access ' + RQ.access_no;
+R.lesson = lesson;
+})();
+
+</script>
+</body>
+</html>

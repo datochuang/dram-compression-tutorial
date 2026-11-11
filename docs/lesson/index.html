@@ -125,16 +125,37 @@ dd { margin: 0; font-family: var(--mono); }
     <h2>偏軟體的設計 · SW-leaning</h2>
     <p class="dim">chunk 號碼改由 kernel 自己記，直接寫在 descriptor 裡；硬體每個 job 不留狀態。</p>
 
-    <div class="lesson wait">
+    <a class="lesson" href="compress-sw/">
       <div>
-        <div class="tags"><span class="chip sw">SW-LEANING</span><span class="chip soon">製作中</span></div>
-        <h3>COMPRESS 與 DECOMPRESS 各一課</h3>
-        <p class="dim">同樣的兩個場景，換成偏軟體的分工。完成後可以和上面兩課逐步對照，看同一件事換人記帳之後哪裡變了。</p>
+        <div class="tags"><span class="chip sw">SW-LEANING</span><span class="mono dim">第 3 課</span></div>
+        <h3>COMPRESS：kernel 先訂好 chunk，再交代硬體</h3>
+        <p>和第 1 課是同一次 access、同一個 page <code>0x4F5</code>。kernel 先在自己的 bitmap 找 7 個空 chunk，把號碼寫進 48 B 的 descriptor。LZ4 HW 照著寫，只用了 4 個。kernel 讀 completion 後自己寫 COT entry，再把沒用到的 3 個 chunk 還回 bitmap。</p>
+        <span class="go">開始這一課</span>
       </div>
       <dl>
-        <dt>狀態</dt><dd>尚未上線</dd>
+        <dt>步數</dt><dd>32</dd>
+        <dt>觸發</dt><dd>reclaim</dd>
+        <dt>access</dt><dd>2997</dd>
+        <dt>LZ4 HW</dt><dd>4396 ns</dd>
       </dl>
-    </div>
+    </a>
+
+    <a class="lesson" href="decompress-sw/">
+      <div>
+        <div class="tags"><span class="chip sw">SW-LEANING</span><span class="mono dim">第 4 課</span></div>
+        <h3>DECOMPRESS：一個 job，收尾由 kernel 自己做</h3>
+        <p>和第 2 課是同一次 access。kernel 自己讀 COT entry，把 comp_len、checksum 和 4 個 chunk 號碼抄進 descriptor。LZ4 HW 不讀 COT，只做一個 DECOMPRESS job。之後 kernel 把 COT entry 清成 0、把 bitmap 的 4 個 bit 寫回 0，最後才把 PTE 寫回 valid。</p>
+        <span class="go">開始這一課</span>
+      </div>
+      <dl>
+        <dt>步數</dt><dd>29</dd>
+        <dt>觸發</dt><dd>page fault</dd>
+        <dt>access</dt><dd>11519</dd>
+        <dt>LOG 等待</dt><dd>4624 ns</dd>
+      </dl>
+    </a>
+
+    <p class="pair">第 3、4 課和第 1、2 課追的是同一個 page、同一份 1938 B 的 stream，可以一步一步對照。每一課的最後一步會列出同一個 job 在兩種設計裡的差別。</p>
   </section>
 
   <section>
