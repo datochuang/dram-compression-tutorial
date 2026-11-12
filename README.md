@@ -27,6 +27,7 @@
 - `docs/lz4-verify/`：LZ4 程式（`lz4core.js`）、與 `lz4` v1.10.0 的比對（`verify.js`）、量測腳本，
   以及 512 MiB 設計的所有數字（`plan512.py`）。
 - `figures/capacity-approaches/`：sketchnote 圖的 prompts、產生紀錄與審查。
+- [figures/README.md](figures/README.md)：kernel SW 的白板工程圖，十三張照閱讀順序排在一份文件裡。先是一個 page 的六種狀態，再是八個場景裡 kernel 的每一步：資料結構、所在、運算、cycle、相依。`python3 figures/build_book.py` 會把它轉成圖嵌在裡面的單一 HTML。
 
 ## 建置
 

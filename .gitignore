@@ -5,3 +5,4 @@ shots/
 src/*.png
 src/*.html.tmp
 __pycache__/
+figures/kernel-sw-figures.html
