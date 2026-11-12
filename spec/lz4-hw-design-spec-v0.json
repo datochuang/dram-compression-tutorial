@@ -1,0 +1,536 @@
+{
+ "pages_per_set": 300,
+ "sets": {
+  "binaries": {
+   "cycles": {
+    "compress_job": {
+     "max": 7309,
+     "mean": 5277.19,
+     "p50": 5582,
+     "p99": 6344
+    },
+    "decode_core": {
+     "max": 3323,
+     "mean": 1584.46,
+     "p50": 1541,
+     "p99": 2925
+    },
+    "decompress_job": {
+     "max": 3409,
+     "mean": 1670.4733333333334,
+     "p50": 1627,
+     "p99": 3011
+    },
+    "decompress_job_store_after": {
+     "max": 3864,
+     "mean": 2125.4733333333334,
+     "p50": 2082,
+     "p99": 3466
+    },
+    "encode_core": {
+     "max": 6690,
+     "mean": 4652.97,
+     "p50": 4959,
+     "p99": 5725
+    },
+    "sequences": {
+     "max": 574,
+     "mean": 255.02,
+     "p50": 246,
+     "p99": 557
+    }
+   },
+   "rows": [
+    {
+     "mean_chunks": 6.38,
+     "mean_len": 3005.1633333333334,
+     "name": "**硬體採用：1024 格，XOR hash**",
+     "over_rw_limit_pct": 21.666666666666668,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 6.86,
+     "mean_len": 3221.693333333333,
+     "name": "256 格",
+     "over_rw_limit_pct": 47.333333333333336,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 6.51,
+     "mean_len": 3066.28,
+     "name": "512 格",
+     "over_rw_limit_pct": 30.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 6.273333333333333,
+     "mean_len": 2972.846666666667,
+     "name": "2048 格",
+     "over_rw_limit_pct": 14.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 6.243333333333333,
+     "mean_len": 2960.116666666667,
+     "name": "4096 格",
+     "over_rw_limit_pct": 11.666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 6.366666666666666,
+     "mean_len": 3002.2466666666664,
+     "name": "乘法 hash，1024 格",
+     "over_rw_limit_pct": 21.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 6.21,
+     "mean_len": 2951.47,
+     "name": "乘法 hash，4096 格",
+     "over_rw_limit_pct": 10.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 6.366666666666666,
+     "mean_len": 3004.366666666667,
+     "name": "match 開頭後 2 個位置也放進 table",
+     "over_rw_limit_pct": 18.666666666666668,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 6.363333333333333,
+     "mean_len": 2998.3733333333334,
+     "name": "match 結尾前 2 個位置也放進 table",
+     "over_rw_limit_pct": 20.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 6.286666666666667,
+     "mean_len": 2969.2033333333334,
+     "name": "match 往回延伸",
+     "over_rw_limit_pct": 16.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 6.316666666666666,
+     "mean_len": 2983.0266666666666,
+     "name": "liblz4，預設",
+     "over_rw_limit_pct": 21.333333333333332,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 5.976666666666667,
+     "mean_len": 2805.38,
+     "name": "liblz4 HC，level 9",
+     "over_rw_limit_pct": 4.333333333333333,
+     "pages": 300
+    }
+   ]
+  },
+  "heap": {
+   "cycles": {
+    "compress_job": {
+     "max": 5234,
+     "mean": 3667.48,
+     "p50": 3563,
+     "p99": 4830
+    },
+    "decode_core": {
+     "max": 2112,
+     "mean": 1634.39,
+     "p50": 1638,
+     "p99": 1996
+    },
+    "decompress_job": {
+     "max": 2198,
+     "mean": 1720.39,
+     "p50": 1724,
+     "p99": 2082
+    },
+    "decompress_job_store_after": {
+     "max": 2653,
+     "mean": 2175.39,
+     "p50": 2179,
+     "p99": 2537
+    },
+    "encode_core": {
+     "max": 4615,
+     "mean": 3048.48,
+     "p50": 2944,
+     "p99": 4211
+    },
+    "sequences": {
+     "max": 409,
+     "mean": 289.98,
+     "p50": 297,
+     "p99": 393
+    }
+   },
+   "rows": [
+    {
+     "mean_chunks": 3.1733333333333333,
+     "mean_len": 1291.4033333333334,
+     "name": "**硬體採用：1024 格，XOR hash**",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 3.3133333333333335,
+     "mean_len": 1409.3333333333333,
+     "name": "256 格",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 3.2133333333333334,
+     "mean_len": 1305.9033333333334,
+     "name": "512 格",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 3.1666666666666665,
+     "mean_len": 1284.0733333333333,
+     "name": "2048 格",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 3.1666666666666665,
+     "mean_len": 1284.1166666666666,
+     "name": "4096 格",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 3.183333333333333,
+     "mean_len": 1291.11,
+     "name": "乘法 hash，1024 格",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 3.1633333333333336,
+     "mean_len": 1278.3633333333332,
+     "name": "乘法 hash，4096 格",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 3.223333333333333,
+     "mean_len": 1366.3,
+     "name": "match 開頭後 2 個位置也放進 table",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 3.1666666666666665,
+     "mean_len": 1289.2733333333333,
+     "name": "match 結尾前 2 個位置也放進 table",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 3.1666666666666665,
+     "mean_len": 1284.15,
+     "name": "match 往回延伸",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 3.11,
+     "mean_len": 1243.6666666666667,
+     "name": "liblz4，預設",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 2.3766666666666665,
+     "mean_len": 976.1733333333333,
+     "name": "liblz4 HC，level 9",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    }
+   ]
+  },
+  "synthetic": {
+   "cycles": {
+    "compress_job": {
+     "max": 4736,
+     "mean": 3112.326666666667,
+     "p50": 3168,
+     "p99": 4594
+    },
+    "decode_core": {
+     "max": 554,
+     "mean": 551.8466666666667,
+     "p50": 553,
+     "p99": 554
+    },
+    "decompress_job": {
+     "max": 640,
+     "mean": 637.8466666666667,
+     "p50": 639,
+     "p99": 640
+    },
+    "decompress_job_store_after": {
+     "max": 1095,
+     "mean": 1092.8466666666666,
+     "p50": 1094,
+     "p99": 1095
+    },
+    "encode_core": {
+     "max": 4117,
+     "mean": 2493.326666666667,
+     "p50": 2549,
+     "p99": 3975
+    },
+    "sequences": {
+     "max": 5,
+     "mean": 4.9,
+     "p50": 5,
+     "p99": 5
+    }
+   },
+   "rows": [
+    {
+     "mean_chunks": 4.3966666666666665,
+     "mean_len": 1984.8266666666666,
+     "name": "**硬體採用：1024 格，XOR hash**",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 7.766666666666667,
+     "mean_len": 3977.733333333333,
+     "name": "256 格",
+     "over_rw_limit_pct": 96.66666666666667,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.3966666666666665,
+     "mean_len": 1984.81,
+     "name": "512 格",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.3966666666666665,
+     "mean_len": 1984.78,
+     "name": "2048 格",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.3966666666666665,
+     "mean_len": 1984.87,
+     "name": "4096 格",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.3966666666666665,
+     "mean_len": 1984.82,
+     "name": "乘法 hash，1024 格",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.3966666666666665,
+     "mean_len": 1984.77,
+     "name": "乘法 hash，4096 格",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.3966666666666665,
+     "mean_len": 1984.8266666666666,
+     "name": "match 開頭後 2 個位置也放進 table",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.3966666666666665,
+     "mean_len": 1984.8266666666666,
+     "name": "match 結尾前 2 個位置也放進 table",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.3966666666666665,
+     "mean_len": 1984.7633333333333,
+     "name": "match 往回延伸",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.446666666666666,
+     "mean_len": 2006.0533333333333,
+     "name": "liblz4，預設",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.3966666666666665,
+     "mean_len": 1984.7633333333333,
+     "name": "liblz4 HC，level 9",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    }
+   ]
+  },
+  "text": {
+   "cycles": {
+    "compress_job": {
+     "max": 6034,
+     "mean": 4628.133333333333,
+     "p50": 4724,
+     "p99": 5719
+    },
+    "decode_core": {
+     "max": 2110,
+     "mean": 1804.2833333333333,
+     "p50": 1835,
+     "p99": 2083
+    },
+    "decompress_job": {
+     "max": 2196,
+     "mean": 1890.2833333333333,
+     "p50": 1921,
+     "p99": 2169
+    },
+    "decompress_job_store_after": {
+     "max": 2651,
+     "mean": 2345.2833333333333,
+     "p50": 2376,
+     "p99": 2624
+    },
+    "encode_core": {
+     "max": 5415,
+     "mean": 4009.133333333333,
+     "p50": 4105,
+     "p99": 5100
+    },
+    "sequences": {
+     "max": 416,
+     "mean": 329.96,
+     "p50": 337,
+     "p99": 408
+    }
+   },
+   "rows": [
+    {
+     "mean_chunks": 4.63,
+     "mean_len": 2121.0733333333333,
+     "name": "**硬體採用：1024 格，XOR hash**",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 5.45,
+     "mean_len": 2528.3,
+     "name": "256 格",
+     "over_rw_limit_pct": 0.6666666666666666,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.773333333333333,
+     "mean_len": 2189.4066666666668,
+     "name": "512 格",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.583333333333333,
+     "mean_len": 2090.1466666666665,
+     "name": "2048 格",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.573333333333333,
+     "mean_len": 2083.1233333333334,
+     "name": "4096 格",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.616666666666666,
+     "mean_len": 2112.28,
+     "name": "乘法 hash，1024 格",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.56,
+     "mean_len": 2077.4666666666667,
+     "name": "乘法 hash，4096 格",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.6,
+     "mean_len": 2101.28,
+     "name": "match 開頭後 2 個位置也放進 table",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.613333333333333,
+     "mean_len": 2100.2566666666667,
+     "name": "match 結尾前 2 個位置也放進 table",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.5633333333333335,
+     "mean_len": 2075.983333333333,
+     "name": "match 往回延伸",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.523333333333333,
+     "mean_len": 2041.2766666666666,
+     "name": "liblz4，預設",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    },
+    {
+     "mean_chunks": 4.06,
+     "mean_len": 1821.7866666666666,
+     "name": "liblz4 HC，level 9",
+     "over_rw_limit_pct": 0.0,
+     "pages": 300
+    }
+   ]
+  }
+ },
+ "sources": [
+  {
+   "bytes": 1361216,
+   "file": "/bin/zsh",
+   "sha256": "1f473d234dd65157"
+  },
+  {
+   "bytes": 5651232,
+   "file": "/usr/bin/vim",
+   "sha256": "0e7f7d3ff46a0ab7"
+  },
+  {
+   "bytes": 1555472,
+   "file": "/usr/bin/ssh",
+   "sha256": "470f812f6e71ee4c"
+  },
+  {
+   "bytes": 1293840,
+   "file": "/bin/bash",
+   "sha256": "fde343ee184953c1"
+  },
+  {
+   "bytes": 275184,
+   "file": "/usr/bin/tar",
+   "sha256": "9ab7f0793033dc9d"
+  }
+ ]
+}

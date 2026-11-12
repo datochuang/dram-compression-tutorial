@@ -1,0 +1,227 @@
+{
+ "measure": {
+  "compiler": "Apple clang version 15.0.0 (clang-1500.3.9.4)",
+  "flags": "-O2",
+  "machine": "arm64",
+  "steps": {
+   "calib5": {
+    "instr": 5,
+    "note": "five NOPs: checks the method",
+    "raw": 5.0
+   },
+   "check_state": {
+    "instr": 14,
+    "note": "page untouched, a frame is free: the longest way through",
+    "raw": 14.0
+   },
+   "cot_clear": {
+    "instr": 4,
+    "note": "32 B of zeros",
+    "raw": 4.0
+   },
+   "cot_read": {
+    "instr": 6,
+    "note": "copy 32 B, test the valid flag",
+    "raw": 6.0
+   },
+   "cot_store": {
+    "instr": 44,
+    "note": "32 B entry with 5 chunk numbers",
+    "raw": 44.0
+   },
+   "cpl_read": {
+    "instr": 12,
+    "note": "16 B out of the ring, tag compare, head, one register store",
+    "raw": 12.0
+   },
+   "desc_compress": {
+    "instr": 55,
+    "note": "new tag, 48 B descriptor with 7 chunk numbers",
+    "raw": 55.0
+   },
+   "desc_decompress": {
+    "instr": 26,
+    "note": "new tag, 48 B descriptor from the COT entry",
+    "raw": 26.0
+   },
+   "find_frame": {
+    "instr": 5,
+    "note": "",
+    "raw": 5.0
+   },
+   "frame_write": {
+    "instr": 791,
+    "note": "memcpy of 4096 B as the C library does it",
+    "raw": 791.0
+   },
+   "lock": {
+    "instr": 4,
+    "note": "atomic exchange, nobody else holds it",
+    "raw": 4.0
+   },
+   "mark_decompressing": {
+    "instr": 7,
+    "note": "",
+    "raw": 7.0
+   },
+   "mark_incompressible": {
+    "instr": 8,
+    "note": "set one bit",
+    "raw": 8.0
+   },
+   "note_fresh": {
+    "instr": 19,
+    "note": "protect = 1, the thread had an older page on its list",
+    "raw": 19.0
+   },
+   "note_hw": {
+    "instr": 5,
+    "note": "the job was answered and the answer was right",
+    "raw": 5.0
+   },
+   "pick_victim.16_accessed": {
+    "instr": 684,
+    "note": "the hand passes 16 accessed pages first and clears their accessed flag",
+    "raw": 684.0
+   },
+   "pick_victim.16_free": {
+    "instr": 204,
+    "note": "the hand passes 16 free frames first",
+    "raw": 204.01
+   },
+   "pick_victim.16_fresh": {
+    "instr": 364,
+    "note": "the hand passes 16 fresh pages first",
+    "raw": 364.0
+   },
+   "pick_victim.16_incompressible": {
+    "instr": 572,
+    "note": "the hand passes 16 incompressible RW pages first",
+    "raw": 572.0
+   },
+   "pick_victim.ro_first": {
+    "instr": 33,
+    "note": "the first frame the hand meets can go, RO page",
+    "raw": 33.0
+   },
+   "pick_victim.rw_first": {
+    "instr": 44,
+    "note": "the first frame the hand meets can go, RW page",
+    "raw": 44.0
+   },
+   "pte_clear": {
+    "instr": 2,
+    "note": "one 8 B store",
+    "raw": 2.0
+   },
+   "pte_map": {
+    "instr": 6,
+    "note": "one 8 B store",
+    "raw": 6.0
+   },
+   "put_frame": {
+    "instr": 13,
+    "note": "",
+    "raw": 13.0
+   },
+   "reclaim_check": {
+    "instr": 2,
+    "note": "compare only",
+    "raw": 2.0
+   },
+   "release_all": {
+    "instr": 51,
+    "note": "7 chunks back",
+    "raw": 51.0
+   },
+   "release_chunks": {
+    "instr": 80,
+    "note": "5 chunks",
+    "raw": 80.0
+   },
+   "reserve.11_words": {
+    "instr": 174,
+    "note": "7 chunks, 9 all-ones words between words with 7 free bits: 11 words a call",
+    "raw": 173.91
+   },
+   "reserve.2_words": {
+    "instr": 111,
+    "note": "7 chunks, every word has 7 free bits: 2 words a call",
+    "raw": 110.99
+   },
+   "reserve.7_words": {
+    "instr": 220,
+    "note": "7 chunks, one free bit a word: 7 words a call",
+    "raw": 219.99
+   },
+   "reserve.empty_pool": {
+    "instr": 106,
+    "note": "7 chunks, all bits free: 1.11 words a call",
+    "raw": 105.75
+   },
+   "set_state": {
+    "instr": 3,
+    "note": "one byte store",
+    "raw": 3.0
+   },
+   "submit": {
+    "instr": 13,
+    "note": "48 B into the ring slot, tail, one register store",
+    "raw": 13.0
+   },
+   "take_frame": {
+    "instr": 12,
+    "note": "",
+    "raw": 12.0
+   },
+   "trim": {
+    "instr": 18,
+    "note": "2 chunks back",
+    "raw": 18.0
+   },
+   "unlock": {
+    "instr": 2,
+    "note": "atomic store",
+    "raw": 2.0
+   },
+   "wake_check": {
+    "instr": 2,
+    "note": "compare only",
+    "raw": 2.0
+   },
+   "zero_frame": {
+    "instr": 341,
+    "note": "memset of 4096 B as the C library does it (DC ZVA, 64 B a step)",
+    "raw": 341.0
+   }
+  }
+ },
+ "model": {
+  "cpi": 1.0,
+  "cpu_hz": 1000000000,
+  "miss": 100,
+  "mmio": 50
+ },
+ "runs": {
+  "full": {
+   "accesses": 400000,
+   "frames": 35840,
+   "longest": 35841,
+   "looked": 228141,
+   "picks": 46692,
+   "reserves": 31364,
+   "words": 33352,
+   "words_max": 2
+  },
+  "small": {
+   "accesses": 20000,
+   "frames": 512,
+   "longest": 513,
+   "looked": 8285,
+   "picks": 1747,
+   "reserves": 1303,
+   "words": 1383,
+   "words_max": 2
+  }
+ }
+}

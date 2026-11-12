@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1448 1560" width="1448" height="1560" role="img" aria-label="Dependency graph of fault_lost: page fault, the stored stream is damaged" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L10,5 L0,9 z" fill="#52514e"/></marker>
+<marker id="arrow-bold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,1 L10,5 L0,9 z" fill="#0b0b0b"/></marker>
+<pattern id="standstill" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#eeede8"/><line x1="0" y1="0" x2="0" y2="7" stroke="#8a8983" stroke-width="2"/></pattern>
+</defs>
+<rect width="1448" height="1560" fill="#fcfcfb"/>
+<text x="40.0" y="34.0" font-size="21" fill="#0b0b0b" text-anchor="start" font-weight="bold" >fault_lost: page fault, the stored stream is damaged</text>
+<text x="40.0" y="58.0" font-size="13.5" fill="#52514e" text-anchor="start" font-weight="normal" >18 steps. One after the other: 5583 ns. Longest path through the graph: 5483 ns. Assumed step costs, not measurements.</text>
+<rect x="40.0" y="88" width="180.0" height="1340.0" rx="8" fill="#edf3f8"/>
+<rect x="40.0" y="88" width="180.0" height="5" rx="2" fill="#2a78d6"/>
+<text x="130.0" y="112.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >CPU</text>
+<rect x="260.0" y="88" width="532.0" height="1340.0" rx="8" fill="#fbf2ed"/>
+<rect x="260.0" y="88" width="532.0" height="5" rx="2" fill="#eb6834"/>
+<text x="526.0" y="112.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >Kernel, mm_lock held</text>
+<rect x="832.0" y="88" width="356.0" height="1340.0" rx="8" fill="#ecf7f2"/>
+<rect x="832.0" y="88" width="356.0" height="5" rx="2" fill="#1baf7a"/>
+<text x="1010.0" y="112.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >Kernel, lock not held</text>
+<rect x="1228.0" y="88" width="180.0" height="1340.0" rx="8" fill="#fbf6e9"/>
+<rect x="1228.0" y="88" width="180.0" height="5" rx="2" fill="#eda100"/>
+<text x="1318.0" y="112.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >LZ4 HW</text>
+<rect x="264.0" y="334.0" width="524.0" height="186.0" rx="6" fill="#f9ded3" stroke="#eb6834" stroke-width="1"/>
+<rect x="264.0" y="1134.0" width="524.0" height="186.0" rx="6" fill="#f9ded3" stroke="#eb6834" stroke-width="1"/>
+<path d="M552.0,410.0 L552.0,427.0 L702.0,427.0 L702.0,455.0" fill="none" stroke="#52514e" stroke-width="1.3" marker-end="url(#arrow)"><title>check_state before mark_decompressing: needs state[h]</title></path>
+<path d="M702.0,510.0 L702.0,532.0 L702.0,622.0 L997.0,622.0 L997.0,655.0" fill="none" stroke="#52514e" stroke-width="1.3" marker-end="url(#arrow)" stroke-dasharray="6 4"><title>mark_decompressing before submit: page marked before the lock is dropped for the job</title></path>
+<path d="M130.0,210.0 L130.0,255.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)" stroke-dasharray="6 4"><title>access before exception: the CPU MMU finds the PTE not valid</title></path>
+<path d="M130.0,310.0 L130.0,322.0 L526.0,322.0 L526.0,355.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)" stroke-dasharray="6 4"><title>exception before check_state: the kernel runs once the CPU has taken the exception</title></path>
+<path d="M500.0,410.0 L500.0,422.0 L350.0,422.0 L350.0,455.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"><title>check_state before take_frame: needs free_frames</title></path>
+<path d="M526.0,410.0 L526.0,455.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"><title>check_state before cot_read: needs s</title></path>
+<path d="M350.0,510.0 L350.0,522.0 L997.0,522.0 L997.0,555.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"><title>take_frame before desc: needs f</title></path>
+<path d="M526.0,510.0 L526.0,527.0 L1023.0,527.0 L1023.0,555.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"><title>cot_read before desc: needs e</title></path>
+<path d="M1010.0,610.0 L1010.0,627.0 L1023.0,627.0 L1023.0,655.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"><title>desc before submit: needs desc</title></path>
+<path d="M1010.0,710.0 L1010.0,722.0 L1318.0,722.0 L1318.0,755.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"><title>submit before hw_decompress: needs job_ring</title></path>
+<path d="M1318.0,810.0 L1318.0,822.0 L1010.0,822.0 L1010.0,855.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"><title>hw_decompress before notify: needs irq</title></path>
+<path d="M1010.0,910.0 L1010.0,955.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"><title>notify before cpl_read: needs wake</title></path>
+<path d="M1023.0,1010.0 L1023.0,1022.0 L1098.0,1022.0 L1098.0,1055.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"><title>cpl_read before sw_decode: needs cpl</title></path>
+<path d="M997.0,1010.0 L997.0,1027.0 L922.0,1027.0 L922.0,1055.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)" stroke-dasharray="6 4"><title>cpl_read before cache_invalidate: the kernel learns from the completion that the HW has stopped writing</title></path>
+<path d="M1072.0,1110.0 L1072.0,1122.0 L350.0,1122.0 L350.0,1155.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"><title>sw_decode before note_hw: needs page</title></path>
+<path d="M1124.0,1110.0 L1124.0,1127.0 L702.0,1127.0 L702.0,1155.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)" stroke-dasharray="6 4"><title>sw_decode before set_lost: LOST only after the decoder of the kernel has failed as well</title></path>
+<path d="M1098.0,1110.0 L1098.0,1132.0 L526.0,1132.0 L526.0,1155.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)" stroke-dasharray="6 4"><title>sw_decode before put_frame: the frame is given up only when no decoder can fill it</title></path>
+<path d="M702.0,1210.0 L702.0,1222.0 L526.0,1222.0 L526.0,1255.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)" stroke-dasharray="6 4"><title>set_lost before wake_page: waiters wake up to read the new state</title></path>
+<path d="M304.0,1320.0 L304.0,1334.0 L1010.0,1334.0 L1010.0,1355.0" fill="none" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"/>
+<text x="312.0" y="1348.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">every step of section B is done</text>
+<text x="272.0" y="348.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="bold" stroke="#f9ded3" stroke-width="4" paint-order="stroke" stroke-linejoin="round">critical section A</text>
+<text x="272.0" y="1148.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="bold" stroke="#f9ded3" stroke-width="4" paint-order="stroke" stroke-linejoin="round">critical section B</text>
+<rect x="52.0" y="156.0" width="156" height="54" rx="7" fill="#accaed" stroke="#0b0b0b" stroke-width="2.6"><title>access</title></rect>
+<text x="130.0" y="173.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >instruction touches</text>
+<text x="130.0" y="188.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >page h</text>
+<rect x="52.0" y="256.0" width="156" height="54" rx="7" fill="#accaed" stroke="#0b0b0b" stroke-width="2.6"><title>exception</title></rect>
+<text x="130.0" y="276.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >page fault exception</text>
+<text x="201.0" y="304.0" font-size="11.5" fill="#52514e" text-anchor="end" font-weight="bold" >600 ns</text>
+<rect x="448.0" y="356.0" width="156" height="54" rx="7" fill="#f6c4af" stroke="#0b0b0b" stroke-width="2.6"><title>check_state</title></rect>
+<text x="526.0" y="373.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >read state[h], any free</text>
+<text x="526.0" y="388.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >frame?</text>
+<rect x="272.0" y="456.0" width="156" height="54" rx="7" fill="#f6c4af" stroke="#0b0b0b" stroke-width="2.6"><title>take_frame</title></rect>
+<text x="350.0" y="476.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >take a free frame</text>
+<text x="421.0" y="504.0" font-size="11.5" fill="#52514e" text-anchor="end" font-weight="bold" >100 ns</text>
+<rect x="448.0" y="456.0" width="156" height="54" rx="7" fill="#f6c4af" stroke="#0b0b0b" stroke-width="2.6"><title>cot_read</title></rect>
+<text x="526.0" y="476.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >read COT entry</text>
+<text x="597.0" y="504.0" font-size="11.5" fill="#52514e" text-anchor="end" font-weight="bold" >100 ns</text>
+<rect x="624.0" y="456.0" width="156" height="54" rx="7" fill="#f6c4af" stroke="#eb6834" stroke-width="1.2"><title>mark_decompressing</title></rect>
+<text x="702.0" y="473.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >state =</text>
+<text x="702.0" y="488.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >DECOMPRESSING</text>
+<rect x="932.0" y="556.0" width="156" height="54" rx="7" fill="#a6dfca" stroke="#0b0b0b" stroke-width="2.6"><title>desc</title></rect>
+<text x="1010.0" y="576.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >build job descriptor</text>
+<text x="1081.0" y="604.0" font-size="11.5" fill="#52514e" text-anchor="end" font-weight="bold" >150 ns</text>
+<rect x="932.0" y="656.0" width="156" height="54" rx="7" fill="#a6dfca" stroke="#0b0b0b" stroke-width="2.6"><title>submit</title></rect>
+<text x="1010.0" y="673.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >write job ring,</text>
+<text x="1010.0" y="688.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >doorbell</text>
+<text x="1081.0" y="704.0" font-size="11.5" fill="#52514e" text-anchor="end" font-weight="bold" >150 ns</text>
+<rect x="1240.0" y="756.0" width="156" height="54" rx="7" fill="#f6d99c" stroke="#0b0b0b" stroke-width="2.6"><title>hw_decompress</title></rect>
+<text x="1318.0" y="773.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >DECOMPRESS chunks</text>
+<text x="1318.0" y="788.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >to frame</text>
+<text x="1389.0" y="804.0" font-size="11.5" fill="#52514e" text-anchor="end" font-weight="bold" >1253 ns</text>
+<rect x="932.0" y="856.0" width="156" height="54" rx="7" fill="#f4cbda" stroke="#0b0b0b" stroke-width="2.6"><title>notify</title></rect>
+<text x="1010.0" y="873.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >interrupt, handler,</text>
+<text x="1010.0" y="888.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >wake thread</text>
+<text x="1081.0" y="904.0" font-size="11.5" fill="#52514e" text-anchor="end" font-weight="bold" >3150 ns</text>
+<rect x="932.0" y="956.0" width="156" height="54" rx="7" fill="#a6dfca" stroke="#0b0b0b" stroke-width="2.6"><title>cpl_read</title></rect>
+<text x="1010.0" y="973.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >read completion, check</text>
+<text x="1010.0" y="988.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >tag</text>
+<text x="1081.0" y="1004.0" font-size="11.5" fill="#52514e" text-anchor="end" font-weight="bold" >80 ns</text>
+<rect x="844.0" y="1056.0" width="156" height="54" rx="7" fill="#a6dfca" stroke="#0b0b0b" stroke-width="2.6"><title>cache_invalidate</title></rect>
+<text x="922.0" y="1076.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >cache invalidate frame</text>
+<text x="993.0" y="1104.0" font-size="11.5" fill="#52514e" text-anchor="end" font-weight="bold" >? ns</text>
+<rect x="1020.0" y="1056.0" width="156" height="54" rx="7" fill="#a6dfca" stroke="#0b0b0b" stroke-width="2.6"><title>sw_decode</title></rect>
+<text x="1098.0" y="1073.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >kernel decodes the</text>
+<text x="1098.0" y="1088.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >stream</text>
+<text x="1169.0" y="1104.0" font-size="11.5" fill="#52514e" text-anchor="end" font-weight="bold" >? ns</text>
+<rect x="272.0" y="1156.0" width="156" height="54" rx="7" fill="#f6c4af" stroke="#0b0b0b" stroke-width="2.6"><title>note_hw</title></rect>
+<text x="350.0" y="1176.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >count HW strikes</text>
+<rect x="448.0" y="1156.0" width="156" height="54" rx="7" fill="#f6c4af" stroke="#0b0b0b" stroke-width="2.6"><title>put_frame</title></rect>
+<text x="526.0" y="1173.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >frame back to free</text>
+<text x="526.0" y="1188.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >list</text>
+<rect x="624.0" y="1156.0" width="156" height="54" rx="7" fill="#f6c4af" stroke="#0b0b0b" stroke-width="2.6"><title>set_lost</title></rect>
+<text x="702.0" y="1176.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >state = LOST</text>
+<rect x="448.0" y="1256.0" width="156" height="54" rx="7" fill="#f6c4af" stroke="#0b0b0b" stroke-width="2.6"><title>wake_page</title></rect>
+<text x="526.0" y="1276.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >wake waiters of page h</text>
+<rect x="932.0" y="1356.0" width="156" height="54" rx="7" fill="#a6dfca" stroke="#0b0b0b" stroke-width="2.6"><title>kill</title></rect>
+<text x="1010.0" y="1376.0" font-size="12.5" fill="#0b0b0b" text-anchor="middle" font-weight="normal" >end the user program</text>
+<line x1="40" y1="1456" x2="86" y2="1456" stroke="#52514e" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="96.0" y="1460.0" font-size="12.5" fill="#0b0b0b" text-anchor="start" font-weight="normal" >needs what the step above produced</text>
+<line x1="40" y1="1480" x2="86" y2="1480" stroke="#52514e" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<text x="96.0" y="1484.0" font-size="12.5" fill="#0b0b0b" text-anchor="start" font-weight="normal" >ordering rule (reasons in the document)</text>
+<line x1="40" y1="1504" x2="86" y2="1504" stroke="#0b0b0b" stroke-width="2.6" marker-end="url(#arrow-bold)"/>
+<text x="96.0" y="1508.0" font-size="12.5" fill="#0b0b0b" text-anchor="start" font-weight="normal" >longest path: it sets the time; steps on it have a thick border</text>
+<text x="40.0" y="1534.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >Number in a step: assumed cost. &quot;? ns&quot;: cost not in the model. No number: a few instructions, not costed.</text>
+</svg>

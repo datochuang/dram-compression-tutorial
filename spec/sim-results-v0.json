@@ -1,0 +1,4426 @@
+{
+ "seed": 1,
+ "n_full": 400000,
+ "n_small": 20000,
+ "sweeps": {
+  "wait_cores": {
+   "keys": [
+    "wait_mode",
+    "cores"
+   ],
+   "fixed": {},
+   "cols": [
+    "p50",
+    "p99",
+    "max",
+    "notify",
+    "kcpu",
+    "tend",
+    "fails"
+   ],
+   "cfg": "small",
+   "rows": [
+    [
+     {
+      "wait_mode": "irq",
+      "cores": 1
+     },
+     {
+      "p50": 42700,
+      "p99": 65900,
+      "max": 66400,
+      "engine_util": 0.014502277721866609,
+      "kernel_cpu_share": 0.014199121543620467,
+      "ring_peak": 2,
+      "frame_waits": 0,
+      "t_end_ns": 403280582,
+      "violations": 0,
+      "fails": [
+       "fault_p50_ns",
+       "fault_p99_ns"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 5.326693227091633,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 17.209163346613547,
+       "hw": 1251.9203187250996,
+       "notify": 45170.32071713147
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 21.218604651162792,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 63.06976744186046,
+       "hw": 1251.4093023255814,
+       "notify": 36621.93023255814
+      },
+      "jobs": 2031,
+      "irqs": 2026,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 16,
+      "stall_share": 0.03910233892689631,
+      "lost": 0,
+      "mm_lock_busy": 0.00665454802383716,
+      "runq_ns": 842847475,
+      "results": {
+       "first": 731,
+       "fault_ro": 502,
+       "hit": 18337,
+       "fault_rw": 430
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "irq",
+      "cores": 2
+     },
+     {
+      "p50": 21600,
+      "p99": 23450,
+      "max": 24300,
+      "engine_util": 0.023337692818752403,
+      "kernel_cpu_share": 0.011485274599739876,
+      "ring_peak": 2,
+      "frame_waits": 0,
+      "t_end_ns": 246334119,
+      "violations": 0,
+      "fails": [
+       "fault_p50_ns"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 17.683366733466933,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 64.41683366733467,
+       "hw": 1257.5811623246493,
+       "notify": 15564.330661322645
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 9.298823529411765,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 83.04470588235294,
+       "hw": 1251.524705882353,
+       "notify": 12917.094117647059
+      },
+      "jobs": 2001,
+      "irqs": 1983,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 16,
+      "stall_share": 0.02939860718197953,
+      "lost": 0,
+      "mm_lock_busy": 0.010750236348704907,
+      "runq_ns": 263265421,
+      "results": {
+       "first": 731,
+       "fault_ro": 499,
+       "hit": 18345,
+       "fault_rw": 425
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "irq",
+      "cores": 4
+     },
+     {
+      "p50": 6329,
+      "p99": 9845,
+      "max": 11297,
+      "engine_util": 0.0360038807670532,
+      "kernel_cpu_share": 0.008836936277151871,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161257811,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 22.72962226640159,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.35188866799206,
+       "queue": 75.05566600397614,
+       "hw": 1257.4711729622265,
+       "notify": 3293.7355864811134
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 27.205128205128204,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.07692307692307,
+       "queue": 59.578088578088575,
+       "hw": 1252.920745920746,
+       "notify": 3293.146853146853
+      },
+      "jobs": 2020,
+      "irqs": 2006,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.019082864767400322,
+      "lost": 0,
+      "mm_lock_busy": 0.01654307461732815,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 503,
+       "hit": 18337,
+       "fault_rw": 429
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "poll",
+      "cores": 1
+     },
+     {
+      "p50": 3230,
+      "p99": 5680,
+      "max": 8420,
+      "engine_util": 0.014347961508422167,
+      "kernel_cpu_share": 0.027798455814519618,
+      "ring_peak": 2,
+      "frame_waits": 0,
+      "t_end_ns": 404213100,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 9.861386138613861,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.03960396039605,
+       "queue": 42.37623762376238,
+       "hw": 1259.1940594059406,
+       "notify": 240.8059405940594
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 12.843822843822844,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0932400932401,
+       "queue": 29.132867132867133,
+       "hw": 1250.079254079254,
+       "notify": 238.03729603729604
+      },
+      "jobs": 2020,
+      "irqs": 0,
+      "poll_spins": 24146,
+      "ring_full_waits": 0,
+      "min_free": 16,
+      "stall_share": 0.004491393277456866,
+      "lost": 0,
+      "mm_lock_busy": 0.006596520498717137,
+      "runq_ns": 853653420,
+      "results": {
+       "first": 731,
+       "fault_ro": 505,
+       "hit": 18335,
+       "fault_rw": 429
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "poll",
+      "cores": 2
+     },
+     {
+      "p50": 3230,
+      "p99": 5330,
+      "max": 8490,
+      "engine_util": 0.023263722405331325,
+      "kernel_cpu_share": 0.0225667047105886,
+      "ring_peak": 2,
+      "frame_waits": 0,
+      "t_end_ns": 246583410,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 11.951710261569417,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.1006036217304,
+       "queue": 42.78269617706238,
+       "hw": 1253.5251509054326,
+       "notify": 235.40241448692154
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 11.777251184834123,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.04739336492892,
+       "queue": 43.338862559241704,
+       "hw": 1253.7796208530806,
+       "notify": 242.81042654028437
+      },
+      "jobs": 1995,
+      "irqs": 0,
+      "poll_spins": 23916,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.007195334025107366,
+      "lost": 0,
+      "mm_lock_busy": 0.010715643846437195,
+      "runq_ns": 269191290,
+      "results": {
+       "first": 731,
+       "fault_ro": 497,
+       "hit": 18350,
+       "fault_rw": 422
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "poll",
+      "cores": 4
+     },
+     {
+      "p50": 3230,
+      "p99": 6580,
+      "max": 8130,
+      "engine_util": 0.036526591575973495,
+      "kernel_cpu_share": 0.017741157314156535,
+      "ring_peak": 2,
+      "frame_waits": 0,
+      "t_end_ns": 160032260,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 31.07569721115538,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.9561752988048,
+       "queue": 123.800796812749,
+       "hw": 1253.800796812749,
+       "notify": 240.9442231075697
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 17.425968109339408,
+       "frame": 0.0,
+       "inflight": 7.6082004555808656,
+       "submit": 150.20501138952164,
+       "queue": 45.876993166287015,
+       "hw": 1254.4282460136674,
+       "notify": 241.88154897494306
+      },
+      "jobs": 2036,
+      "irqs": 0,
+      "poll_spins": 24518,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.011570854526456103,
+      "lost": 0,
+      "mm_lock_busy": 0.016744436403010245,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 502,
+       "hit": 18328,
+       "fault_rw": 439
+      }
+     }
+    ]
+   ]
+  },
+  "load": {
+   "keys": [
+    "wait_mode",
+    "think_ns"
+   ],
+   "fixed": {},
+   "cols": [
+    "p50",
+    "p99",
+    "max",
+    "queue",
+    "frame",
+    "engine",
+    "kcpu",
+    "fwaits",
+    "stall",
+    "fails"
+   ],
+   "cfg": "small",
+   "rows": [
+    [
+     {
+      "wait_mode": "irq",
+      "think_ns": 20000
+     },
+     {
+      "p50": 6329,
+      "p99": 9845,
+      "max": 11297,
+      "engine_util": 0.0360038807670532,
+      "kernel_cpu_share": 0.008836936277151871,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161257811,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 22.72962226640159,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.35188866799206,
+       "queue": 75.05566600397614,
+       "hw": 1257.4711729622265,
+       "notify": 3293.7355864811134
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 27.205128205128204,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.07692307692307,
+       "queue": 59.578088578088575,
+       "hw": 1252.920745920746,
+       "notify": 3293.146853146853
+      },
+      "jobs": 2020,
+      "irqs": 2006,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.019082864767400322,
+      "lost": 0,
+      "mm_lock_busy": 0.01654307461732815,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 503,
+       "hit": 18337,
+       "fault_rw": 429
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "irq",
+      "think_ns": 5000
+     },
+     {
+      "p50": 6366,
+      "p99": 10719,
+      "max": 12359,
+      "engine_util": 0.13459315905372987,
+      "kernel_cpu_share": 0.0330198715322409,
+      "ring_peak": 4,
+      "frame_waits": 0,
+      "t_end_ns": 42652725,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 112.73293172690764,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 151.14859437751005,
+       "queue": 384.30522088353416,
+       "hw": 1256.7811244979919,
+       "notify": 3162.9377510040163
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 102.88524590163935,
+       "frame": 0.0,
+       "inflight": 2.208430913348946,
+       "submit": 150.01639344262296,
+       "queue": 392.91569086651054,
+       "hw": 1252.0655737704917,
+       "notify": 3194.622950819672
+      },
+      "jobs": 2000,
+      "irqs": 1926,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 2,
+      "stall_share": 0.07284821778678853,
+      "lost": 0,
+      "mm_lock_busy": 0.06188936345802056,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 498,
+       "hit": 18344,
+       "fault_rw": 427
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "irq",
+      "think_ns": 2000
+     },
+     {
+      "p50": 6436,
+      "p99": 31746,
+      "max": 44914,
+      "engine_util": 0.2901234511465135,
+      "kernel_cpu_share": 0.07061044953893117,
+      "ring_peak": 4,
+      "frame_waits": 245,
+      "t_end_ns": 19687950,
+      "violations": 0,
+      "fails": [
+       "fault_p99_ns",
+       "kernel_cpu_share",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 523.8259109311741,
+       "frame": 1007.2995951417004,
+       "inflight": 0.0,
+       "submit": 150.97773279352228,
+       "queue": 1121.1437246963562,
+       "hw": 1254.9554655870445,
+       "notify": 2936.9372469635628
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 243.45631067961165,
+       "frame": 72.27184466019418,
+       "inflight": 0.0,
+       "submit": 152.05582524271844,
+       "queue": 779.8131067961165,
+       "hw": 1248.4368932038835,
+       "notify": 3043.6723300970875
+      },
+      "jobs": 1980,
+      "irqs": 1808,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 0,
+      "stall_share": 0.1965364601190068,
+      "lost": 0,
+      "mm_lock_busy": 0.13352837649425156,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18363,
+       "fault_ro": 494,
+       "fault_rw": 412
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "irq",
+      "think_ns": 1000
+     },
+     {
+      "p50": 7567,
+      "p99": 42063,
+      "max": 49466,
+      "engine_util": 0.40872833745108933,
+      "kernel_cpu_share": 0.09918078327994043,
+      "ring_peak": 4,
+      "frame_waits": 1034,
+      "t_end_ns": 13534880,
+      "violations": 0,
+      "fails": [
+       "fault_p99_ns",
+       "kernel_cpu_share",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 1273.121338912134,
+       "frame": 3922.8870292887027,
+       "inflight": 0.0,
+       "submit": 151.98326359832635,
+       "queue": 1608.2489539748954,
+       "hw": 1256.663179916318,
+       "notify": 2857.533472803347
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 983.1439790575917,
+       "frame": 2535.9607329842934,
+       "inflight": 0.0,
+       "submit": 150.81413612565444,
+       "queue": 1673.1701570680627,
+       "hw": 1247.9109947643979,
+       "notify": 2800.17277486911
+      },
+      "jobs": 1905,
+      "irqs": 1662,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 0,
+      "stall_share": 0.4156172792074994,
+      "lost": 0,
+      "mm_lock_busy": 0.1888528010591893,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18409,
+       "fault_ro": 478,
+       "fault_rw": 382
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "irq",
+      "think_ns": 500
+     },
+     {
+      "p50": 10509,
+      "p99": 44679,
+      "max": 46158,
+      "engine_util": 0.4822903329015913,
+      "kernel_cpu_share": 0.11639622616723537,
+      "ring_peak": 4,
+      "frame_waits": 1766,
+      "t_end_ns": 11342421,
+      "violations": 0,
+      "fails": [
+       "fault_p50_ns",
+       "fault_p99_ns",
+       "kernel_cpu_share",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 1978.4721030042917,
+       "frame": 7119.156652360515,
+       "inflight": 0.0,
+       "submit": 151.39484978540773,
+       "queue": 1855.107296137339,
+       "hw": 1247.7103004291846,
+       "notify": 2748.8175965665237
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 1699.7732240437158,
+       "frame": 5780.497267759562,
+       "inflight": 28.633879781420767,
+       "submit": 150.58743169398906,
+       "queue": 1969.016393442623,
+       "hw": 1250.8196721311476,
+       "notify": 2745.530054644809
+      },
+      "jobs": 1872,
+      "irqs": 1597,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 0,
+      "stall_share": 0.6513046024301161,
+      "lost": 0,
+      "mm_lock_busy": 0.22282720770107192,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18437,
+       "fault_ro": 466,
+       "fault_rw": 366
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "poll",
+      "think_ns": 20000
+     },
+     {
+      "p50": 3230,
+      "p99": 6580,
+      "max": 8130,
+      "engine_util": 0.036526591575973495,
+      "kernel_cpu_share": 0.017741157314156535,
+      "ring_peak": 2,
+      "frame_waits": 0,
+      "t_end_ns": 160032260,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 31.07569721115538,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.9561752988048,
+       "queue": 123.800796812749,
+       "hw": 1253.800796812749,
+       "notify": 240.9442231075697
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 17.425968109339408,
+       "frame": 0.0,
+       "inflight": 7.6082004555808656,
+       "submit": 150.20501138952164,
+       "queue": 45.876993166287015,
+       "hw": 1254.4282460136674,
+       "notify": 241.88154897494306
+      },
+      "jobs": 2036,
+      "irqs": 0,
+      "poll_spins": 24518,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.011570854526456103,
+      "lost": 0,
+      "mm_lock_busy": 0.016744436403010245,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 502,
+       "hit": 18328,
+       "fault_rw": 439
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "poll",
+      "think_ns": 5000
+     },
+     {
+      "p50": 3230,
+      "p99": 8310,
+      "max": 10710,
+      "engine_util": 0.13976768570319786,
+      "kernel_cpu_share": 0.06967717520470317,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 41486900,
+      "violations": 0,
+      "fails": [
+       "kernel_cpu_share"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 91.91616766467065,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 151.83632734530937,
+       "queue": 443.5588822355289,
+       "hw": 1253.6467065868264,
+       "notify": 246.0678642714571
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 77.07943925233644,
+       "frame": 0.0,
+       "inflight": 2.289719626168224,
+       "submit": 152.5,
+       "queue": 383.1682242990654,
+       "hw": 1251.4065420560748,
+       "notify": 241.14953271028037
+      },
+      "jobs": 2017,
+      "irqs": 0,
+      "poll_spins": 25480,
+      "ring_full_waits": 0,
+      "min_free": 12,
+      "stall_share": 0.046794289281676865,
+      "lost": 0,
+      "mm_lock_busy": 0.06424919673439086,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 501,
+       "hit": 18340,
+       "fault_rw": 428
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "poll",
+      "think_ns": 2000
+     },
+     {
+      "p50": 3480,
+      "p99": 12120,
+      "max": 29200,
+      "engine_util": 0.3182338540677037,
+      "kernel_cpu_share": 0.16550389518121061,
+      "ring_peak": 4,
+      "frame_waits": 72,
+      "t_end_ns": 18157050,
+      "violations": 0,
+      "fails": [
+       "kernel_cpu_share",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 279.4011976047904,
+       "frame": 148.62275449101796,
+       "inflight": 0.0,
+       "submit": 156.2674650698603,
+       "queue": 1036.0499001996009,
+       "hw": 1255.4031936127744,
+       "notify": 250.84231536926148
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 173.55608591885442,
+       "frame": 3.60381861575179,
+       "inflight": 0.0,
+       "submit": 153.91408114558473,
+       "queue": 896.8496420047733,
+       "hw": 1254.8090692124106,
+       "notify": 242.99522673031026
+      },
+      "jobs": 2005,
+      "irqs": 0,
+      "poll_spins": 27394,
+      "ring_full_waits": 0,
+      "min_free": 0,
+      "stall_share": 0.12879294819367684,
+      "lost": 0,
+      "mm_lock_busy": 0.14643623275807469,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 501,
+       "hit": 18349,
+       "fault_rw": 419
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "poll",
+      "think_ns": 1000
+     },
+     {
+      "p50": 4590,
+      "p99": 26080,
+      "max": 32530,
+      "engine_util": 0.5126781057090891,
+      "kernel_cpu_share": 0.2787801680931452,
+      "ring_peak": 4,
+      "frame_waits": 511,
+      "t_end_ns": 11023650,
+      "violations": 0,
+      "fails": [
+       "kernel_cpu_share",
+       "engine_util",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 837.9629629629629,
+       "frame": 1258.9300411522634,
+       "inflight": 0.0,
+       "submit": 157.71604938271605,
+       "queue": 1607.312757201646,
+       "hw": 1253.2222222222222,
+       "notify": 242.119341563786
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 527.984886649874,
+       "frame": 506.5239294710328,
+       "inflight": 0.0,
+       "submit": 156.44836272040303,
+       "queue": 1606.375314861461,
+       "hw": 1253.8413098236776,
+       "notify": 249.50629722921914
+      },
+      "jobs": 1950,
+      "irqs": 0,
+      "poll_spins": 28949,
+      "ring_full_waits": 0,
+      "min_free": 0,
+      "stall_share": 0.2824926408222322,
+      "lost": 0,
+      "mm_lock_busy": 0.23621032960952135,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 486,
+       "hit": 18386,
+       "fault_rw": 397
+      }
+     }
+    ],
+    [
+     {
+      "wait_mode": "poll",
+      "think_ns": 500
+     },
+     {
+      "p50": 6570,
+      "p99": 30500,
+      "max": 36660,
+      "engine_util": 0.6559957934331615,
+      "kernel_cpu_share": 0.3643974416033767,
+      "ring_peak": 4,
+      "frame_waits": 1309,
+      "t_end_ns": 8358360,
+      "violations": 0,
+      "fails": [
+       "fault_p99_ns",
+       "kernel_cpu_share",
+       "engine_util",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 1627.4840085287847,
+       "frame": 3268.1023454157785,
+       "inflight": 0.0,
+       "submit": 154.09381663113007,
+       "queue": 1943.2793176972282,
+       "hw": 1254.7505330490405,
+       "notify": 244.23027718550105
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 1348.75,
+       "frame": 2321.3315217391305,
+       "inflight": 0.0,
+       "submit": 154.4836956521739,
+       "queue": 1915.4701086956522,
+       "hw": 1255.875,
+       "notify": 248.13858695652175
+      },
+      "jobs": 1877,
+      "irqs": 0,
+      "poll_spins": 29098,
+      "ring_full_waits": 0,
+      "min_free": 0,
+      "stall_share": 0.5268150689848248,
+      "lost": 0,
+      "mm_lock_busy": 0.30317550332840415,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18432,
+       "fault_ro": 469,
+       "fault_rw": 368
+      }
+     }
+    ]
+   ]
+  },
+  "full_load": {
+   "keys": [
+    "think_ns",
+    "reclaim_inflight"
+   ],
+   "fixed": {},
+   "cols": [
+    "p50",
+    "p99",
+    "max",
+    "queue",
+    "frame",
+    "engine",
+    "kcpu",
+    "fwaits",
+    "stall",
+    "fails"
+   ],
+   "cfg": "full",
+   "rows": [
+    [
+     {
+      "think_ns": 5000,
+      "reclaim_inflight": 1
+     },
+     {
+      "p50": 6234,
+      "p99": 10811,
+      "max": 12987,
+      "engine_util": 0.14697112401142995,
+      "kernel_cpu_share": 0.04633694266410874,
+      "ring_peak": 4,
+      "frame_waits": 0,
+      "t_end_ns": 913063909,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 111.91108705067128,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 151.1045907319186,
+       "queue": 353.4490688609788,
+       "hw": 1251.9856214811607,
+       "notify": 3166.0543092247726
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 138.537215271094,
+       "frame": 0.0,
+       "inflight": 0.5433108758421559,
+       "submit": 150.83413538658968,
+       "queue": 496.3683028553096,
+       "hw": 1250.909367982034,
+       "notify": 3124.097850497273
+      },
+      "jobs": 52207,
+      "irqs": 49373,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 507,
+      "stall_share": 0.12398185700273912,
+      "lost": 0,
+      "mm_lock_busy": 0.07923629363385559,
+      "runq_ns": 0,
+      "results": {
+       "hit": 337764,
+       "first": 32912,
+       "fault_ro": 23090,
+       "fault_rw": 6234
+      }
+     }
+    ],
+    [
+     {
+      "think_ns": 5000,
+      "reclaim_inflight": 2
+     },
+     {
+      "p50": 6229,
+      "p99": 11374,
+      "max": 15083,
+      "engine_util": 0.1460645414810981,
+      "kernel_cpu_share": 0.04620408473836525,
+      "ring_peak": 6,
+      "frame_waits": 0,
+      "t_end_ns": 913708068,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 103.858924395947,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 151.22555642158136,
+       "queue": 387.9746687451286,
+       "hw": 1252.9908634277301,
+       "notify": 3180.515198752923
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 116.70176565008026,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.9589085072231,
+       "queue": 531.455216693419,
+       "hw": 1250.9093097913324,
+       "notify": 3153.9709470304974
+      },
+      "jobs": 52031,
+      "irqs": 49461,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 509,
+      "stall_share": 0.12459944481961169,
+      "lost": 0,
+      "mm_lock_busy": 0.07882397291034975,
+      "runq_ns": 0,
+      "results": {
+       "hit": 337764,
+       "first": 32912,
+       "fault_ro": 23094,
+       "fault_rw": 6230
+      }
+     }
+    ],
+    [
+     {
+      "think_ns": 2000,
+      "reclaim_inflight": 1
+     },
+     {
+      "p50": 6354,
+      "p99": 34112,
+      "max": 59907,
+      "engine_util": 0.2824734691167897,
+      "kernel_cpu_share": 0.08924541877224176,
+      "ring_peak": 4,
+      "frame_waits": 9489,
+      "t_end_ns": 460364527,
+      "violations": 0,
+      "fails": [
+       "fault_p99_ns",
+       "kernel_cpu_share",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 471.6724251906042,
+       "frame": 1048.1857564673219,
+       "inflight": 0.0,
+       "submit": 151.61870345070733,
+       "queue": 834.4434357234146,
+       "hw": 1251.91653078313,
+       "notify": 3023.907143801507
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 348.0745148297327,
+       "frame": 319.8700109849872,
+       "inflight": 0.0,
+       "submit": 151.66605638960087,
+       "queue": 1017.8767850604174,
+       "hw": 1250.8656169901135,
+       "notify": 2959.93756865617
+      },
+      "jobs": 50405,
+      "irqs": 45363,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 0,
+      "stall_share": 0.30501910717373754,
+      "lost": 0,
+      "mm_lock_busy": 0.15316970762171692,
+      "runq_ns": 0,
+      "results": {
+       "hit": 338935,
+       "first": 32912,
+       "fault_ro": 22691,
+       "fault_rw": 5462
+      }
+     }
+    ],
+    [
+     {
+      "think_ns": 2000,
+      "reclaim_inflight": 2
+     },
+     {
+      "p50": 6334,
+      "p99": 12017,
+      "max": 15114,
+      "engine_util": 0.3000243236925405,
+      "kernel_cpu_share": 0.09470558899516482,
+      "ring_peak": 5,
+      "frame_waits": 0,
+      "t_end_ns": 439172629,
+      "violations": 0,
+      "fails": [
+       "kernel_cpu_share"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 209.38230289279636,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 152.2705179109036,
+       "queue": 825.9022644967058,
+       "hw": 1253.2141891007461,
+       "notify": 3045.8952397574067
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 244.08955476553243,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 151.95801591332318,
+       "queue": 1146.08041306924,
+       "hw": 1252.2893177585916,
+       "notify": 2989.4338919925513
+      },
+      "jobs": 51277,
+      "irqs": 46424,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 366,
+      "stall_share": 0.27148340112061037,
+      "lost": 0,
+      "mm_lock_busy": 0.16216390844339254,
+      "runq_ns": 0,
+      "results": {
+       "hit": 338262,
+       "first": 32912,
+       "fault_ro": 22919,
+       "fault_rw": 5907
+      }
+     }
+    ]
+   ]
+  },
+  "reclaim_inflight": {
+   "keys": [
+    "reclaim_inflight"
+   ],
+   "fixed": {
+    "think_ns": 2000
+   },
+   "cols": [
+    "p50",
+    "p99",
+    "max",
+    "queue",
+    "frame",
+    "ring",
+    "fwaits",
+    "stall",
+    "fails"
+   ],
+   "cfg": "small",
+   "rows": [
+    [
+     {
+      "reclaim_inflight": 1
+     },
+     {
+      "p50": 6436,
+      "p99": 31746,
+      "max": 44914,
+      "engine_util": 0.2901234511465135,
+      "kernel_cpu_share": 0.07061044953893117,
+      "ring_peak": 4,
+      "frame_waits": 245,
+      "t_end_ns": 19687950,
+      "violations": 0,
+      "fails": [
+       "fault_p99_ns",
+       "kernel_cpu_share",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 523.8259109311741,
+       "frame": 1007.2995951417004,
+       "inflight": 0.0,
+       "submit": 150.97773279352228,
+       "queue": 1121.1437246963562,
+       "hw": 1254.9554655870445,
+       "notify": 2936.9372469635628
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 243.45631067961165,
+       "frame": 72.27184466019418,
+       "inflight": 0.0,
+       "submit": 152.05582524271844,
+       "queue": 779.8131067961165,
+       "hw": 1248.4368932038835,
+       "notify": 3043.6723300970875
+      },
+      "jobs": 1980,
+      "irqs": 1808,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 0,
+      "stall_share": 0.1965364601190068,
+      "lost": 0,
+      "mm_lock_busy": 0.13352837649425156,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18363,
+       "fault_ro": 494,
+       "fault_rw": 412
+      }
+     }
+    ],
+    [
+     {
+      "reclaim_inflight": 2
+     },
+     {
+      "p50": 6411,
+      "p99": 12646,
+      "max": 17582,
+      "engine_util": 0.3014263462527902,
+      "kernel_cpu_share": 0.07353249433478898,
+      "ring_peak": 5,
+      "frame_waits": 11,
+      "t_end_ns": 19154185,
+      "violations": 0,
+      "fails": [
+       "kernel_cpu_share",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 239.1756487025948,
+       "frame": 21.115768463073852,
+       "inflight": 0.0,
+       "submit": 151.8682634730539,
+       "queue": 968.2694610778443,
+       "hw": 1249.4730538922156,
+       "notify": 3001.3353293413174
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 203.74528301886792,
+       "frame": 0.0,
+       "inflight": 6.443396226415095,
+       "submit": 152.16037735849056,
+       "queue": 964.0566037735849,
+       "hw": 1248.9622641509434,
+       "notify": 3033.370283018868
+      },
+      "jobs": 2009,
+      "irqs": 1848,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 0,
+      "stall_share": 0.17414653768876096,
+      "lost": 0,
+      "mm_lock_busy": 0.13887304523789448,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18344,
+       "fault_ro": 501,
+       "fault_rw": 424
+      }
+     }
+    ],
+    [
+     {
+      "reclaim_inflight": 4
+     },
+     {
+      "p50": 6410,
+      "p99": 20105,
+      "max": 21438,
+      "engine_util": 0.29457619815719677,
+      "kernel_cpu_share": 0.07172044628993467,
+      "ring_peak": 8,
+      "frame_waits": 0,
+      "t_end_ns": 19741337,
+      "violations": 0,
+      "fails": [
+       "kernel_cpu_share",
+       "job_ring_peak"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 194.375249500998,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 151.67265469061877,
+       "queue": 3014.626746506986,
+       "hw": 1251.0419161676646,
+       "notify": 3034.950099800399
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 155.69626168224298,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.98130841121494,
+       "queue": 2503.7803738317757,
+       "hw": 1250.9065420560748,
+       "notify": 3079.4228971962616
+      },
+      "jobs": 2021,
+      "irqs": 1876,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 7,
+      "stall_share": 0.19870928701536275,
+      "lost": 0,
+      "mm_lock_busy": 0.13538343426283642,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18340,
+       "fault_ro": 501,
+       "fault_rw": 428
+      }
+     }
+    ],
+    [
+     {
+      "reclaim_inflight": 8
+     },
+     {
+      "p50": 6397,
+      "p99": 37690,
+      "max": 49637,
+      "engine_util": 0.2800823004105386,
+      "kernel_cpu_share": 0.06842172966712613,
+      "ring_peak": 12,
+      "frame_waits": 0,
+      "t_end_ns": 20655061,
+      "violations": 0,
+      "fails": [
+       "fault_p99_ns",
+       "kernel_cpu_share",
+       "job_ring_peak"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 177.37171717171717,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 152.07676767676767,
+       "queue": 5303.739393939394,
+       "hw": 1251.4222222222222,
+       "notify": 3079.00202020202
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 141.43548387096774,
+       "frame": 0.0,
+       "inflight": 39.453917050691246,
+       "submit": 150.3732718894009,
+       "queue": 5334.1336405529955,
+       "hw": 1252.8870967741937,
+       "notify": 3139.458525345622
+      },
+      "jobs": 2014,
+      "irqs": 1901,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 8,
+      "stall_share": 0.23415621963062708,
+      "lost": 0,
+      "mm_lock_busy": 0.1286561196793367,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18340,
+       "fault_ro": 495,
+       "fault_rw": 434
+      }
+     }
+    ]
+   ]
+  },
+  "ring_size": {
+   "keys": [
+    "job_entries"
+   ],
+   "fixed": {
+    "think_ns": 2000,
+    "reclaim_inflight": 2
+   },
+   "cols": [
+    "p50",
+    "p99",
+    "max",
+    "submit",
+    "queue",
+    "ring",
+    "stall",
+    "fails"
+   ],
+   "cfg": "small",
+   "rows": [
+    [
+     {
+      "job_entries": 2
+     },
+     {
+      "p50": 11809,
+      "p99": 39259,
+      "max": 51822,
+      "engine_util": 0.26748937706922726,
+      "kernel_cpu_share": 0.06558916224946942,
+      "ring_peak": 1,
+      "frame_waits": 158,
+      "t_end_ns": 21493833,
+      "violations": 0,
+      "fails": [
+       "fault_p50_ns",
+       "fault_p99_ns",
+       "kernel_cpu_share",
+       "job_ring_peak",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 197.3939393939394,
+       "frame": 530.0828282828282,
+       "inflight": 0.0,
+       "submit": 7926.060606060606,
+       "queue": 0.0,
+       "hw": 1255.2868686868687,
+       "notify": 3330.0
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 66.94430992736078,
+       "frame": 47.016949152542374,
+       "inflight": 30.501210653753027,
+       "submit": 7191.697336561743,
+       "queue": 0.0,
+       "hw": 1257.1138014527844,
+       "notify": 3330.0
+      },
+      "jobs": 1990,
+      "irqs": 1990,
+      "poll_spins": 0,
+      "ring_full_waits": 1631,
+      "min_free": 0,
+      "stall_share": 0.264042388344601,
+      "lost": 0,
+      "mm_lock_busy": 0.12314462478609563,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18361,
+       "fault_ro": 495,
+       "fault_rw": 413
+      }
+     }
+    ],
+    [
+     {
+      "job_entries": 4
+     },
+     {
+      "p50": 6439,
+      "p99": 12152,
+      "max": 18134,
+      "engine_util": 0.30405974223791066,
+      "kernel_cpu_share": 0.07369854356877982,
+      "ring_peak": 3,
+      "frame_waits": 9,
+      "t_end_ns": 19213609,
+      "violations": 0,
+      "fails": [
+       "kernel_cpu_share",
+       "job_ring_peak",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 245.892,
+       "frame": 28.024,
+       "inflight": 0.0,
+       "submit": 326.81,
+       "queue": 911.998,
+       "hw": 1252.8,
+       "notify": 2977.888
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 192.72027972027973,
+       "frame": 0.0,
+       "inflight": 2.9743589743589745,
+       "submit": 262.23543123543124,
+       "queue": 807.8531468531469,
+       "hw": 1255.8461538461538,
+       "notify": 3025.219114219114
+      },
+      "jobs": 2027,
+      "irqs": 1840,
+      "poll_spins": 0,
+      "ring_full_waits": 109,
+      "min_free": 0,
+      "stall_share": 0.17670074372805233,
+      "lost": 0,
+      "mm_lock_busy": 0.13957815004979024,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18340,
+       "fault_ro": 500,
+       "fault_rw": 429
+      }
+     }
+    ],
+    [
+     {
+      "job_entries": 8
+     },
+     {
+      "p50": 6411,
+      "p99": 12646,
+      "max": 17582,
+      "engine_util": 0.3014263462527902,
+      "kernel_cpu_share": 0.07353249433478898,
+      "ring_peak": 5,
+      "frame_waits": 11,
+      "t_end_ns": 19154185,
+      "violations": 0,
+      "fails": [
+       "kernel_cpu_share",
+       "job_ring_peak",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 239.1756487025948,
+       "frame": 21.115768463073852,
+       "inflight": 0.0,
+       "submit": 151.8682634730539,
+       "queue": 968.2694610778443,
+       "hw": 1249.4730538922156,
+       "notify": 3001.3353293413174
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 203.74528301886792,
+       "frame": 0.0,
+       "inflight": 6.443396226415095,
+       "submit": 152.16037735849056,
+       "queue": 964.0566037735849,
+       "hw": 1248.9622641509434,
+       "notify": 3033.370283018868
+      },
+      "jobs": 2009,
+      "irqs": 1848,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 0,
+      "stall_share": 0.17414653768876096,
+      "lost": 0,
+      "mm_lock_busy": 0.13887304523789448,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18344,
+       "fault_ro": 501,
+       "fault_rw": 424
+      }
+     }
+    ],
+    [
+     {
+      "job_entries": 16
+     },
+     {
+      "p50": 6411,
+      "p99": 12646,
+      "max": 17582,
+      "engine_util": 0.3014263462527902,
+      "kernel_cpu_share": 0.07353249433478898,
+      "ring_peak": 5,
+      "frame_waits": 11,
+      "t_end_ns": 19154185,
+      "violations": 0,
+      "fails": [
+       "kernel_cpu_share",
+       "frame_waits"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 239.1756487025948,
+       "frame": 21.115768463073852,
+       "inflight": 0.0,
+       "submit": 151.8682634730539,
+       "queue": 968.2694610778443,
+       "hw": 1249.4730538922156,
+       "notify": 3001.3353293413174
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 203.74528301886792,
+       "frame": 0.0,
+       "inflight": 6.443396226415095,
+       "submit": 152.16037735849056,
+       "queue": 964.0566037735849,
+       "hw": 1248.9622641509434,
+       "notify": 3033.370283018868
+      },
+      "jobs": 2009,
+      "irqs": 1848,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 0,
+      "stall_share": 0.17414653768876096,
+      "lost": 0,
+      "mm_lock_busy": 0.13887304523789448,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18344,
+       "fault_ro": 501,
+       "fault_rw": 424
+      }
+     }
+    ]
+   ]
+  },
+  "comp_speed": {
+   "keys": [
+    "comp_bytes_per_cycle"
+   ],
+   "fixed": {},
+   "cols": [
+    "p50",
+    "p99",
+    "max",
+    "queue",
+    "engine",
+    "fails"
+   ],
+   "cfg": "small",
+   "rows": [
+    [
+     {
+      "comp_bytes_per_cycle": 0.5
+     },
+     {
+      "p50": 6354,
+      "p99": 13507,
+      "max": 15262,
+      "engine_util": 0.0639131953959747,
+      "kernel_cpu_share": 0.00884895890282461,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161337341,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 61.50796812749004,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 151.0159362549801,
+       "queue": 412.2051792828685,
+       "hw": 1251.910358565737,
+       "notify": 3235.503984063745
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 31.33949191685912,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.24711316397227,
+       "queue": 275.3764434180139,
+       "hw": 1253.5612009237875,
+       "notify": 3267.2886836027715
+      },
+      "jobs": 2029,
+      "irqs": 1988,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.019566400316464866,
+      "lost": 0,
+      "mm_lock_busy": 0.016594112580546373,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 502,
+       "hit": 18334,
+       "fault_rw": 433
+      }
+     }
+    ],
+    [
+     {
+      "comp_bytes_per_cycle": 1.0
+     },
+     {
+      "p50": 6329,
+      "p99": 9845,
+      "max": 11297,
+      "engine_util": 0.0360038807670532,
+      "kernel_cpu_share": 0.008836936277151871,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161257811,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 22.72962226640159,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.35188866799206,
+       "queue": 75.05566600397614,
+       "hw": 1257.4711729622265,
+       "notify": 3293.7355864811134
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 27.205128205128204,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.07692307692307,
+       "queue": 59.578088578088575,
+       "hw": 1252.920745920746,
+       "notify": 3293.146853146853
+      },
+      "jobs": 2020,
+      "irqs": 2006,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.019082864767400322,
+      "lost": 0,
+      "mm_lock_busy": 0.01654307461732815,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 503,
+       "hit": 18337,
+       "fault_rw": 429
+      }
+     }
+    ],
+    [
+     {
+      "comp_bytes_per_cycle": 2.0
+     },
+     {
+      "p50": 6354,
+      "p99": 7653,
+      "max": 8859,
+      "engine_util": 0.022358917814124937,
+      "kernel_cpu_share": 0.008890797317838215,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161258878,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 22.5398406374502,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.65139442231074,
+       "queue": 35.60756972111554,
+       "hw": 1256.1912350597609,
+       "notify": 3299.2948207171316
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 15.506880733944953,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.06422018348624,
+       "queue": 36.75688073394495,
+       "hw": 1252.5275229357799,
+       "notify": 3307.4701834862385
+      },
+      "jobs": 2036,
+      "irqs": 2024,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.019089355191966546,
+      "lost": 0,
+      "mm_lock_busy": 0.016650246072033317,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 502,
+       "hit": 18331,
+       "fault_rw": 436
+      }
+     }
+    ],
+    [
+     {
+      "comp_bytes_per_cycle": 4.0
+     },
+     {
+      "p50": 6332,
+      "p99": 6837,
+      "max": 8612,
+      "engine_util": 0.015617026501837026,
+      "kernel_cpu_share": 0.008922163151423551,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161254897,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 15.528712871287128,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.35049504950496,
+       "queue": 15.025742574257425,
+       "hw": 1254.6534653465346,
+       "notify": 3310.588118811881
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 22.732718894009217,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.2926267281106,
+       "queue": 15.804147465437788,
+       "hw": 1250.6728110599079,
+       "notify": 3307.7350230414745
+      },
+      "jobs": 2044,
+      "irqs": 2023,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.01906513884040371,
+      "lost": 0,
+      "mm_lock_busy": 0.016752049396676617,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 505,
+       "hit": 18330,
+       "fault_rw": 434
+      }
+     }
+    ]
+   ]
+  },
+  "decomp_speed": {
+   "keys": [
+    "decomp_bytes_per_cycle"
+   ],
+   "fixed": {},
+   "cols": [
+    "p50",
+    "p99",
+    "max",
+    "hw",
+    "engine",
+    "fails"
+   ],
+   "cfg": "small",
+   "rows": [
+    [
+     {
+      "decomp_bytes_per_cycle": 1.0
+     },
+     {
+      "p50": 9426,
+      "p99": 13609,
+      "max": 17232,
+      "engine_util": 0.05362278706235265,
+      "kernel_cpu_share": 0.008851267570074014,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 162519378,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 12.950396825396826,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0595238095238,
+       "queue": 166.10119047619048,
+       "hw": 4273.146825396825,
+       "notify": 3330.0
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 13.529816513761467,
+       "frame": 0.0,
+       "inflight": 1.8394495412844036,
+       "submit": 150.0183486238532,
+       "queue": 130.78669724770643,
+       "hw": 4278.892201834862,
+       "notify": 3330.0
+      },
+      "jobs": 2042,
+      "irqs": 2042,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.026697296367944504,
+      "lost": 0,
+      "mm_lock_busy": 0.016579253705979603,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 504,
+       "hit": 18329,
+       "fault_rw": 436
+      }
+     }
+    ],
+    [
+     {
+      "decomp_bytes_per_cycle": 2.0
+     },
+     {
+      "p50": 7328,
+      "p99": 11638,
+      "max": 12430,
+      "engine_util": 0.04166203825929585,
+      "kernel_cpu_share": 0.008839912674727689,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161646676,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 16.435387673956264,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.15506958250498,
+       "queue": 127.20675944333996,
+       "hw": 2228.4254473161036,
+       "notify": 3330.5666003976144
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 8.59529411764706,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.28941176470587,
+       "queue": 103.79764705882353,
+       "hw": 2229.035294117647,
+       "notify": 3330.065882352941
+      },
+      "jobs": 2024,
+      "irqs": 2024,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 16,
+      "stall_share": 0.021442606094789107,
+      "lost": 0,
+      "mm_lock_busy": 0.016582153535900732,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 503,
+       "hit": 18341,
+       "fault_rw": 425
+      }
+     }
+    ],
+    [
+     {
+      "decomp_bytes_per_cycle": 4.0
+     },
+     {
+      "p50": 6329,
+      "p99": 9845,
+      "max": 11297,
+      "engine_util": 0.0360038807670532,
+      "kernel_cpu_share": 0.008836936277151871,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161257811,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 22.72962226640159,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.35188866799206,
+       "queue": 75.05566600397614,
+       "hw": 1257.4711729622265,
+       "notify": 3293.7355864811134
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 27.205128205128204,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.07692307692307,
+       "queue": 59.578088578088575,
+       "hw": 1252.920745920746,
+       "notify": 3293.146853146853
+      },
+      "jobs": 2020,
+      "irqs": 2006,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.019082864767400322,
+      "lost": 0,
+      "mm_lock_busy": 0.01654307461732815,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 503,
+       "hit": 18337,
+       "fault_rw": 429
+      }
+     }
+    ],
+    [
+     {
+      "decomp_bytes_per_cycle": 8.0
+     },
+     {
+      "p50": 6202,
+      "p99": 9949,
+      "max": 11245,
+      "engine_util": 0.03557968301138551,
+      "kernel_cpu_share": 0.008875157662852792,
+      "ring_peak": 2,
+      "frame_waits": 0,
+      "t_end_ns": 161247558,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 23.907297830374752,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.38658777120315,
+       "queue": 53.58382642998028,
+       "hw": 1156.7278106508875,
+       "notify": 3288.859960552268
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 35.02546296296296,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 112.3125,
+       "hw": 1134.5648148148148,
+       "notify": 3279.5833333333335
+      },
+      "jobs": 2033,
+      "irqs": 1999,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.019020492701042953,
+      "lost": 0,
+      "mm_lock_busy": 0.01663374027655042,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 507,
+       "hit": 18330,
+       "fault_rw": 432
+      }
+     }
+    ]
+   ]
+  },
+  "bus_bg": {
+   "keys": [
+    "bus_bg_share"
+   ],
+   "fixed": {},
+   "cols": [
+    "p50",
+    "p99",
+    "max",
+    "hw",
+    "fails"
+   ],
+   "cfg": "small",
+   "rows": [
+    [
+     {
+      "bus_bg_share": 0.0
+     },
+     {
+      "p50": 6104,
+      "p99": 8987,
+      "max": 10253,
+      "engine_util": 0.0356030887550456,
+      "kernel_cpu_share": 0.008863694201095172,
+      "ring_peak": 2,
+      "frame_waits": 0,
+      "t_end_ns": 161180538,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 20.262948207171316,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 109.87051792828686,
+       "hw": 1174.0,
+       "notify": 3271.675298804781
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 14.587412587412587,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 81.55011655011656,
+       "hw": 1174.0,
+       "notify": 3294.86013986014
+      },
+      "jobs": 2029,
+      "irqs": 1991,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.018612594530488538,
+      "lost": 0,
+      "mm_lock_busy": 0.01665399578204659,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 502,
+       "hit": 18338,
+       "fault_rw": 429
+      }
+     }
+    ],
+    [
+     {
+      "bus_bg_share": 0.2
+     },
+     {
+      "p50": 6329,
+      "p99": 9845,
+      "max": 11297,
+      "engine_util": 0.0360038807670532,
+      "kernel_cpu_share": 0.008836936277151871,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161257811,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 22.72962226640159,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.35188866799206,
+       "queue": 75.05566600397614,
+       "hw": 1257.4711729622265,
+       "notify": 3293.7355864811134
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 27.205128205128204,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.07692307692307,
+       "queue": 59.578088578088575,
+       "hw": 1252.920745920746,
+       "notify": 3293.146853146853
+      },
+      "jobs": 2020,
+      "irqs": 2006,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.019082864767400322,
+      "lost": 0,
+      "mm_lock_busy": 0.01654307461732815,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 503,
+       "hit": 18337,
+       "fault_rw": 429
+      }
+     }
+    ],
+    [
+     {
+      "bus_bg_share": 0.5
+     },
+     {
+      "p50": 6521,
+      "p99": 9691,
+      "max": 12317,
+      "engine_util": 0.03769404002716766,
+      "kernel_cpu_share": 0.00885521281748634,
+      "ring_peak": 2,
+      "frame_waits": 0,
+      "t_end_ns": 161297648,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 27.986,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.078,
+       "queue": 95.31,
+       "hw": 1478.18,
+       "notify": 3309.63
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 20.564102564102566,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 73.95571095571096,
+       "hw": 1453.2144522144522,
+       "notify": 3319.358974358974
+      },
+      "jobs": 2025,
+      "irqs": 2022,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.0193251298989803,
+      "lost": 0,
+      "mm_lock_busy": 0.016597886163845364,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 500,
+       "hit": 18340,
+       "fault_rw": 429
+      }
+     }
+    ],
+    [
+     {
+      "bus_bg_share": 0.8
+     },
+     {
+      "p50": 6774,
+      "p99": 10532,
+      "max": 12122,
+      "engine_util": 0.039494002544625574,
+      "kernel_cpu_share": 0.008867738738173099,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161453223,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 11.20440881763527,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.3426853707415,
+       "queue": 94.95791583166333,
+       "hw": 1723.432865731463,
+       "notify": 3330.0
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 15.974537037037036,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 94.12962962962963,
+       "hw": 1703.6458333333333,
+       "notify": 3330.025462962963
+      },
+      "jobs": 2030,
+      "irqs": 2030,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.02027010015154668,
+      "lost": 0,
+      "mm_lock_busy": 0.016627106911331214,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 499,
+       "hit": 18338,
+       "fault_rw": 432
+      }
+     }
+    ]
+   ]
+  },
+  "wakeup": {
+   "keys": [
+    "wakeup_ns"
+   ],
+   "fixed": {},
+   "cols": [
+    "p50",
+    "p99",
+    "max",
+    "notify",
+    "fails"
+   ],
+   "cfg": "small",
+   "rows": [
+    [
+     {
+      "wakeup_ns": 500
+     },
+     {
+      "p50": 4854,
+      "p99": 8818,
+      "max": 10222,
+      "engine_util": 0.03671637578928714,
+      "kernel_cpu_share": 0.008943672632148552,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 160652403,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 43.392,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 137.234,
+       "hw": 1255.422,
+       "notify": 1777.3
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 41.122401847575055,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 156.60739030023095,
+       "hw": 1251.35103926097,
+       "notify": 1766.0369515011548
+      },
+      "jobs": 2043,
+      "irqs": 2016,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.015386343147322857,
+      "lost": 0,
+      "mm_lock_busy": 0.01681985422900895,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 500,
+       "hit": 18336,
+       "fault_rw": 433
+      }
+     }
+    ],
+    [
+     {
+      "wakeup_ns": 1000
+     },
+     {
+      "p50": 5354,
+      "p99": 7658,
+      "max": 10075,
+      "engine_util": 0.036425670197143996,
+      "kernel_cpu_share": 0.008910242095025951,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 160829244,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 37.395209580838326,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.4451097804391,
+       "queue": 91.82235528942115,
+       "hw": 1255.2095808383233,
+       "notify": 2272.820359281437
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 11.697940503432495,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.6315789473684,
+       "queue": 62.19908466819222,
+       "hw": 1252.553775743707,
+       "notify": 2297.3226544622426
+      },
+      "jobs": 2037,
+      "irqs": 2013,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.01646898246938225,
+      "lost": 0,
+      "mm_lock_busy": 0.01669565766285639,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 501,
+       "hit": 18331,
+       "fault_rw": 437
+      }
+     }
+    ],
+    [
+     {
+      "wakeup_ns": 2000
+     },
+     {
+      "p50": 6329,
+      "p99": 9845,
+      "max": 11297,
+      "engine_util": 0.0360038807670532,
+      "kernel_cpu_share": 0.008836936277151871,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161257811,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 22.72962226640159,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.35188866799206,
+       "queue": 75.05566600397614,
+       "hw": 1257.4711729622265,
+       "notify": 3293.7355864811134
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 27.205128205128204,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.07692307692307,
+       "queue": 59.578088578088575,
+       "hw": 1252.920745920746,
+       "notify": 3293.146853146853
+      },
+      "jobs": 2020,
+      "irqs": 2006,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.019082864767400322,
+      "lost": 0,
+      "mm_lock_busy": 0.01654307461732815,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 503,
+       "hit": 18337,
+       "fault_rw": 429
+      }
+     }
+    ],
+    [
+     {
+      "wakeup_ns": 5000
+     },
+     {
+      "p50": 9354,
+      "p99": 12351,
+      "max": 23626,
+      "engine_util": 0.03593243207259175,
+      "kernel_cpu_share": 0.008791831577405476,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 162534392,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 40.0059880239521,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.4111776447106,
+       "queue": 133.60678642714572,
+       "hw": 1254.620758483034,
+       "notify": 6253.245508982036
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 29.325635103926096,
+       "frame": 0.0,
+       "inflight": 20.397228637413395,
+       "submit": 150.28175519630486,
+       "queue": 85.86374133949192,
+       "hw": 1255.0230946882218,
+       "notify": 6287.048498845265
+      },
+      "jobs": 2030,
+      "irqs": 1996,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.026787204519767113,
+      "lost": 0,
+      "mm_lock_busy": 0.016493124728949673,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 501,
+       "hit": 18335,
+       "fault_rw": 433
+      }
+     }
+    ],
+    [
+     {
+      "wakeup_ns": 20000
+     },
+     {
+      "p50": 24352,
+      "p99": 27573,
+      "max": 29311,
+      "engine_util": 0.034609679807549594,
+      "kernel_cpu_share": 0.008476882162863146,
+      "ring_peak": 2,
+      "frame_waits": 0,
+      "t_end_ns": 168529239,
+      "violations": 0,
+      "fails": [
+       "fault_p50_ns"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 36.60956175298805,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.63346613545818,
+       "queue": 113.54980079681275,
+       "hw": 1253.9382470119522,
+       "notify": 21277.946215139444
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 22.904651162790696,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.41162790697675,
+       "queue": 73.90697674418605,
+       "hw": 1255.4302325581396,
+       "notify": 21294.70930232558
+      },
+      "jobs": 2027,
+      "irqs": 2007,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 9,
+      "stall_share": 0.06140589645693469,
+      "lost": 0,
+      "mm_lock_busy": 0.015896648058797678,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "hit": 18337,
+       "fault_ro": 502,
+       "fault_rw": 430
+      }
+     }
+    ]
+   ]
+  },
+  "irq_latency": {
+   "keys": [
+    "irq_latency_ns"
+   ],
+   "fixed": {},
+   "cols": [
+    "p50",
+    "p99",
+    "max",
+    "notify",
+    "fails"
+   ],
+   "cfg": "small",
+   "rows": [
+    [
+     {
+      "irq_latency_ns": 200
+     },
+     {
+      "p50": 5554,
+      "p99": 9912,
+      "max": 11128,
+      "engine_util": 0.036514706156611586,
+      "kernel_cpu_share": 0.008938212499515279,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 160968706,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 28.187250996015937,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.73306772908367,
+       "queue": 123.3207171314741,
+       "hw": 1253.3745019920318,
+       "notify": 2530.2529880478087
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 22.95433789954338,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 100.18949771689498,
+       "hw": 1252.2990867579908,
+       "notify": 2530.0
+      },
+      "jobs": 2043,
+      "irqs": 2043,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.017321105880046025,
+      "lost": 0,
+      "mm_lock_busy": 0.016741452838665422,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 502,
+       "hit": 18329,
+       "fault_rw": 438
+      }
+     }
+    ],
+    [
+     {
+      "irq_latency_ns": 1000
+     },
+     {
+      "p50": 6329,
+      "p99": 9845,
+      "max": 11297,
+      "engine_util": 0.0360038807670532,
+      "kernel_cpu_share": 0.008836936277151871,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 161257811,
+      "violations": 0,
+      "fails": [],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 22.72962226640159,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.35188866799206,
+       "queue": 75.05566600397614,
+       "hw": 1257.4711729622265,
+       "notify": 3293.7355864811134
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 27.205128205128204,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.07692307692307,
+       "queue": 59.578088578088575,
+       "hw": 1252.920745920746,
+       "notify": 3293.146853146853
+      },
+      "jobs": 2020,
+      "irqs": 2006,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.019082864767400322,
+      "lost": 0,
+      "mm_lock_busy": 0.01654307461732815,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 503,
+       "hit": 18337,
+       "fault_rw": 429
+      }
+     }
+    ],
+    [
+     {
+      "irq_latency_ns": 5000
+     },
+     {
+      "p50": 10303,
+      "p99": 13478,
+      "max": 14293,
+      "engine_util": 0.03549878624731887,
+      "kernel_cpu_share": 0.008672024642566353,
+      "ring_peak": 3,
+      "frame_waits": 0,
+      "t_end_ns": 162802524,
+      "violations": 0,
+      "fails": [
+       "fault_p50_ns"
+      ],
+      "fault_ro_parts": {
+       "cpu": 1450.0,
+       "lock": 32.44311377245509,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.0,
+       "queue": 100.1497005988024,
+       "hw": 1255.0439121756488,
+       "notify": 7047.151696606787
+      },
+      "fault_rw_parts": {
+       "cpu": 1700.0,
+       "lock": 24.41588785046729,
+       "frame": 0.0,
+       "inflight": 0.0,
+       "submit": 150.68691588785046,
+       "queue": 96.83411214953271,
+       "hw": 1254.9369158878505,
+       "notify": 7150.182242990654
+      },
+      "jobs": 2012,
+      "irqs": 1889,
+      "poll_spins": 0,
+      "ring_full_waits": 0,
+      "min_free": 15,
+      "stall_share": 0.02839006353488721,
+      "lost": 0,
+      "mm_lock_busy": 0.01631455050414329,
+      "runq_ns": 0,
+      "results": {
+       "first": 731,
+       "fault_ro": 501,
+       "hit": 18340,
+       "fault_rw": 428
+      }
+     }
+    ]
+   ]
+  }
+ },
+ "faults": {
+  "hang_irq": {
+   "params": {
+    "hw_hang_jobs": [
+     40,
+     300
+    ]
+   },
+   "n": 20000,
+   "drv": {
+    "irqs": 1986,
+    "completions": 2028,
+    "drains": 1986,
+    "timeouts": 2,
+    "resets": 2,
+    "reissued": 8
+   },
+   "hw": {
+    "jobs": 2028,
+    "st_OK": 2008,
+    "hung": 2,
+    "resets": 2,
+    "st_INCOMPRESSIBLE": 20
+   },
+   "mm": {
+    "reclaim_runs": 40,
+    "rw_compress_ok": 1091,
+    "rw_comp_bytes": 1994505,
+    "rw_comp_chunks": 4441,
+    "rw_incompressible": 20,
+    "ro_drops": 341
+   },
+   "lost": 0,
+   "violations": 0,
+   "audit": {
+    "pages": {
+     "compressed": 1027,
+     "present": 480,
+     "untouched": 285
+    },
+    "chunks_owned": 5246,
+    "chunks_free": 2946,
+    "frames_used": 480,
+    "frames_free": 32,
+    "violations": 0
+   },
+   "lat": {
+    "n": 917,
+    "mean": 13093.971646673937,
+    "p50": 6354,
+    "p90": 6553,
+    "p99": 11192,
+    "max": 1007004
+   },
+   "stalled": null
+  },
+  "hang_poll": {
+   "params": {
+    "hw_hang_jobs": [
+     40,
+     300
+    ],
+    "wait_mode": "poll"
+   },
+   "n": 20000,
+   "drv": {
+    "poll_spins": 47638,
+    "completions": 2013,
+    "drains": 2013,
+    "timeouts": 2,
+    "resets": 2,
+    "reissued": 7
+   },
+   "hw": {
+    "jobs": 2013,
+    "st_OK": 1994,
+    "hung": 2,
+    "resets": 2,
+    "st_INCOMPRESSIBLE": 19
+   },
+   "mm": {
+    "reclaim_runs": 42,
+    "rw_compress_ok": 1088,
+    "rw_comp_bytes": 2004086,
+    "rw_comp_chunks": 4466,
+    "rw_incompressible": 19,
+    "ro_drops": 347
+   },
+   "lost": 0,
+   "violations": 0,
+   "audit": {
+    "pages": {
+     "compressed": 1041,
+     "present": 466,
+     "untouched": 285
+    },
+    "chunks_owned": 5313,
+    "chunks_free": 2879,
+    "frames_used": 466,
+    "frames_free": 46,
+    "violations": 0
+   },
+   "lat": {
+    "n": 906,
+    "mean": 8608.002207505519,
+    "p50": 3230,
+    "p90": 3480,
+    "p99": 8080,
+    "max": 1003890
+   },
+   "stalled": null
+  },
+  "irq_drop": {
+   "params": {
+    "irq_drop_every": 50
+   },
+   "n": 20000,
+   "drv": {
+    "irqs": 1831,
+    "completions": 1990,
+    "drains": 1868,
+    "timeouts": 37,
+    "late_completions": 37
+   },
+   "hw": {
+    "jobs": 1990,
+    "st_OK": 1977,
+    "st_INCOMPRESSIBLE": 13
+   },
+   "mm": {
+    "reclaim_runs": 37,
+    "rw_compress_ok": 1074,
+    "rw_comp_bytes": 1943970,
+    "rw_comp_chunks": 4336,
+    "rw_incompressible": 13,
+    "ro_drops": 332,
+    "fault_during_compress": 1
+   },
+   "lost": 0,
+   "violations": 0,
+   "audit": {
+    "pages": {
+     "compressed": 1015,
+     "present": 492,
+     "untouched": 285
+    },
+    "chunks_owned": 5199,
+    "chunks_free": 2993,
+    "frames_used": 492,
+    "frames_free": 20,
+    "violations": 0
+   },
+   "lat": {
+    "n": 903,
+    "mean": 93234.62901439646,
+    "p50": 6354,
+    "p90": 474003,
+    "p99": 1002030,
+    "max": 1002367
+   },
+   "stalled": null
+  },
+  "corrupt": {
+   "params": {
+    "corrupt_every": 500
+   },
+   "n": 20000,
+   "drv": {
+    "irqs": 1971,
+    "completions": 1992,
+    "drains": 1971
+   },
+   "hw": {
+    "jobs": 1992,
+    "st_OK": 1965,
+    "st_INCOMPRESSIBLE": 15,
+    "bad_stream": 12,
+    "st_BAD_STREAM": 12
+   },
+   "mm": {
+    "reclaim_runs": 40,
+    "rw_compress_ok": 1071,
+    "rw_comp_bytes": 1947711,
+    "rw_comp_chunks": 4336,
+    "rw_incompressible": 15,
+    "ro_drops": 333,
+    "decompress_BAD_STREAM": 12,
+    "lost_rw": 12
+   },
+   "lost": 12,
+   "violations": 0,
+   "audit": {
+    "pages": {
+     "compressed": 1010,
+     "present": 485,
+     "lost": 12,
+     "untouched": 285
+    },
+    "chunks_owned": 5192,
+    "chunks_free": 3000,
+    "frames_used": 485,
+    "frames_free": 27,
+    "violations": 0
+   },
+   "lat": {
+    "n": 894,
+    "mean": 6410.974272930649,
+    "p50": 6354,
+    "p90": 6527,
+    "p99": 10611,
+    "max": 11601
+   },
+   "stalled": null
+  }
+ },
+ "base_irq": {
+  "name": "full irq",
+  "seed": 1,
+  "accesses": 400000,
+  "t_end_ns": 3309604804,
+  "events": 7393725,
+  "wait_mode": "irq",
+  "cores": 4,
+  "reclaim_inflight": 1,
+  "frames": 35840,
+  "pages": 148480,
+  "pool_chunks": 563200,
+  "results": {
+   "hit": 337471,
+   "first": 32912,
+   "fault_ro": 23180,
+   "fault_rw": 6437
+  },
+  "lat": {
+   "first": {
+    "n": 32912,
+    "mean": 1609.2356587263005,
+    "p50": 1600,
+    "p90": 1600,
+    "p99": 2028,
+    "max": 3014
+   },
+   "fault_ro": {
+    "n": 23180,
+    "mean": 6266.639128559103,
+    "p50": 6176,
+    "p90": 6329,
+    "p99": 9433,
+    "max": 11890
+   },
+   "fault_rw": {
+    "n": 6437,
+    "mean": 6558.357620009321,
+    "p50": 6427,
+    "p90": 6589,
+    "p99": 10056,
+    "max": 13283
+   },
+   "waited": {
+    "n": 29617,
+    "mean": 6330.041631495425,
+    "p50": 6204,
+    "p90": 6480,
+    "p99": 9639,
+    "max": 13283
+   }
+  },
+  "parts": {
+   "first": {
+    "cpu": 1600.0,
+    "lock": 9.235658726300437,
+    "frame": 0.0,
+    "inflight": 0.0,
+    "submit": 0.0,
+    "queue": 0.0,
+    "hw": 0.0,
+    "notify": 0.0
+   },
+   "fault_ro": {
+    "cpu": 1450.0,
+    "lock": 33.03839516824849,
+    "frame": 0.0,
+    "inflight": 0.0,
+    "submit": 150.32126833477136,
+    "queue": 104.57446074201899,
+    "hw": 1252.8887834339948,
+    "notify": 3275.816220880069
+   },
+   "fault_rw": {
+    "cpu": 1700.0,
+    "lock": 41.11464968152866,
+    "frame": 0.0,
+    "inflight": 0.0,
+    "submit": 150.21174460152244,
+    "queue": 148.1216405157682,
+    "hw": 1252.5845890942985,
+    "notify": 3266.3249961162032
+   }
+  },
+  "worst": {
+   "first": {
+    "ns": 3014,
+    "parts": {
+     "lock": 1414,
+     "cpu": 1600
+    },
+    "page": 66828,
+    "t": 497466001
+   },
+   "fault_ro": {
+    "ns": 11890,
+    "parts": {
+     "lock": 717,
+     "submit": 150,
+     "queue": 5001,
+     "hw": 1242,
+     "notify": 3330,
+     "cpu": 1450
+    },
+    "page": 117696,
+    "t": 639547622
+   },
+   "fault_rw": {
+    "ns": 13283,
+    "parts": {
+     "lock": 2614,
+     "submit": 150,
+     "queue": 4101,
+     "hw": 1388,
+     "notify": 3330,
+     "cpu": 1700
+    },
+    "page": 2913,
+    "t": 640044491
+   }
+  },
+  "hw_jobs": 52597,
+  "hw_job_ns": {
+   "COMPRESS": {
+    "n": 22980,
+    "mean": 4260.271018276762,
+    "p50": 4243,
+    "p90": 4321,
+    "p99": 4392,
+    "max": 4524
+   },
+   "DECOMPRESS": {
+    "n": 29617,
+    "mean": 1252.8226694128373,
+    "p50": 1241,
+    "p90": 1351,
+    "p99": 1471,
+    "max": 1648
+   }
+  },
+  "engine_util": 0.04079214437833527,
+  "bus_share": 0.020755256010318506,
+  "bus_wait_per_burst": 9.913752284581712,
+  "bus_bytes": 326467335,
+  "kcpu_ns": {
+   "fault": 101655650,
+   "irq": 19695860,
+   "reclaim": 49342750
+  },
+  "kernel_cpu_share": 0.012893855166158987,
+  "ring_depth": 15,
+  "ring_occ": {
+   "1": 49845,
+   "2": 2679,
+   "3": 70,
+   "4": 3
+  },
+  "ring_peak": 4,
+  "ring_peak_share": 0.26666666666666666,
+  "mm_lock": {
+   "wait_ns": 1625897,
+   "waited": 5119,
+   "grants": 149709,
+   "max_q": 2,
+   "busy_share": 0.02196343802503134
+  },
+  "ring_lock": {
+   "wait_ns": 19487,
+   "waited": 244,
+   "grants": 104224,
+   "max_q": 1,
+   "busy_share": 0.005215127189548278
+  },
+  "runq_ns": 0,
+  "mm": {
+   "reclaim_runs": 59,
+   "rw_compress_ok": 22493,
+   "rw_comp_bytes": 41133080,
+   "rw_comp_chunks": 91836,
+   "rw_incompressible": 487,
+   "ro_drops": 11603,
+   "skip_incompressible": 256
+  },
+  "drv": {
+   "irqs": 51627,
+   "completions": 52597,
+   "drains": 51627
+  },
+  "hw": {
+   "jobs": 52597,
+   "st_OK": 52110,
+   "st_INCOMPRESSIBLE": 487
+  },
+  "irq_edges": 50993,
+  "min_free_frames": 511,
+  "peak_pool_chunks": 379122,
+  "frame_waits": 0,
+  "lost_pages": 0,
+  "clients": [
+   {
+    "name": "UI",
+    "accesses": 159972,
+    "faults": 27251,
+    "stall_ns": 110164254,
+    "stall_share": 0.0332862261581368,
+    "mean_stall_ns": 4042.576565997578
+   },
+   {
+    "name": "MEDIA",
+    "accesses": 107935,
+    "faults": 16701,
+    "stall_ns": 63734848,
+    "stall_share": 0.019257540333205293,
+    "mean_stall_ns": 3816.2294473384827
+   },
+   {
+    "name": "NET",
+    "accesses": 79720,
+    "faults": 11438,
+    "stall_ns": 41670578,
+    "stall_share": 0.012590801762686829,
+    "mean_stall_ns": 3643.169959783179
+   },
+   {
+    "name": "LOG",
+    "accesses": 52373,
+    "faults": 7139,
+    "stall_ns": 24870327,
+    "stall_share": 0.007514591159023469,
+    "mean_stall_ns": 3483.726992575991
+   }
+  ],
+  "rules": [
+   [
+    "FW-CFG-1",
+    "FW",
+    "checker",
+    8,
+    0
+   ],
+   [
+    "FW-CFG-2",
+    "FW",
+    "checker",
+    1,
+    0
+   ],
+   [
+    "FW-JOB-1",
+    "FW",
+    "checker",
+    52597,
+    0
+   ],
+   [
+    "FW-JOB-2",
+    "FW",
+    "checker",
+    105194,
+    0
+   ],
+   [
+    "FW-JOB-3",
+    "FW",
+    "checker",
+    52597,
+    0
+   ],
+   [
+    "FW-JOB-4",
+    "FW",
+    "checker",
+    52597,
+    0
+   ],
+   [
+    "FW-JOB-5",
+    "FW",
+    "checker",
+    52597,
+    0
+   ],
+   [
+    "FW-JOB-6",
+    "FW",
+    "checker",
+    52597,
+    0
+   ],
+   [
+    "FW-CPL-1",
+    "FW",
+    "checker",
+    51627,
+    0
+   ],
+   [
+    "FW-CPL-2",
+    "FW",
+    "review",
+    0,
+    0
+   ],
+   [
+    "FW-MM-1",
+    "FW",
+    "checker",
+    52597,
+    0
+   ],
+   [
+    "FW-MM-2",
+    "FW",
+    "checker",
+    22980,
+    0
+   ],
+   [
+    "FW-MM-3",
+    "FW",
+    "checker",
+    22493,
+    0
+   ],
+   [
+    "FW-MM-4",
+    "FW",
+    "checker",
+    29617,
+    0
+   ],
+   [
+    "FW-MM-5",
+    "FW",
+    "checker",
+    63016,
+    0
+   ],
+   [
+    "FW-MM-6",
+    "FW",
+    "checker",
+    63016,
+    0
+   ],
+   [
+    "FW-MM-7",
+    "FW",
+    "checker",
+    28930,
+    0
+   ],
+   [
+    "FW-RST-1",
+    "FW",
+    "test",
+    0,
+    0
+   ],
+   [
+    "HW-MEM-1",
+    "HW",
+    "checker",
+    1340437,
+    0
+   ],
+   [
+    "HW-MEM-2",
+    "HW",
+    "checker",
+    105194,
+    0
+   ],
+   [
+    "HW-CPL-1",
+    "HW",
+    "checker",
+    52597,
+    0
+   ],
+   [
+    "HW-CPL-2",
+    "HW",
+    "checker",
+    52597,
+    0
+   ],
+   [
+    "HW-CPL-3",
+    "HW",
+    "checker",
+    52597,
+    0
+   ],
+   [
+    "HW-IRQ-1",
+    "HW",
+    "checker",
+    2271460,
+    0
+   ],
+   [
+    "HW-DATA-1",
+    "HW",
+    "checker",
+    22493,
+    0
+   ],
+   [
+    "HW-DATA-2",
+    "HW",
+    "checker",
+    29617,
+    0
+   ],
+   [
+    "HW-STATE-1",
+    "HW",
+    "review",
+    0,
+    0
+   ],
+   [
+    "HW-RST-1",
+    "HW",
+    "test",
+    0,
+    0
+   ],
+   [
+    "AUDIT-1",
+    "FW",
+    "audit",
+    1,
+    0
+   ],
+   [
+    "AUDIT-2",
+    "FW",
+    "audit",
+    1,
+    0
+   ],
+   [
+    "AUDIT-3",
+    "FW+HW",
+    "audit",
+    63017,
+    0
+   ],
+   [
+    "AUDIT-4",
+    "FW+HW",
+    "audit",
+    1,
+    0
+   ]
+  ],
+  "violations": 0,
+  "audit": {
+   "pages": {
+    "present": 35089,
+    "compressed": 67967,
+    "untouched": 45424
+   },
+   "chunks_owned": 379023,
+   "chunks_free": 184177,
+   "frames_used": 35089,
+   "frames_free": 751,
+   "violations": 0
+  },
+  "wall_s": 27.6,
+  "cfg": "full",
+  "params": {
+   "wait_mode": "irq"
+  }
+ },
+ "base_poll": {
+  "name": "full poll",
+  "seed": 1,
+  "accesses": 400000,
+  "t_end_ns": 3266685310,
+  "events": 9373942,
+  "wait_mode": "poll",
+  "cores": 4,
+  "reclaim_inflight": 1,
+  "frames": 35840,
+  "pages": 148480,
+  "pool_chunks": 563200,
+  "results": {
+   "hit": 337484,
+   "first": 32912,
+   "fault_ro": 23189,
+   "fault_rw": 6415
+  },
+  "lat": {
+   "first": {
+    "n": 32912,
+    "mean": 1608.8818667963053,
+    "p50": 1600,
+    "p90": 1600,
+    "p99": 1990,
+    "max": 3120
+   },
+   "fault_ro": {
+    "n": 23189,
+    "mean": 3217.490620552848,
+    "p50": 2980,
+    "p90": 3230,
+    "p99": 7160,
+    "max": 9420
+   },
+   "fault_rw": {
+    "n": 6415,
+    "mean": 3513.340607950117,
+    "p50": 3230,
+    "p90": 3480,
+    "p99": 7830,
+    "max": 9660
+   },
+   "waited": {
+    "n": 29604,
+    "mean": 3281.599446020808,
+    "p50": 3230,
+    "p90": 3480,
+    "p99": 7310,
+    "max": 9660
+   }
+  },
+  "parts": {
+   "first": {
+    "cpu": 1600.0,
+    "lock": 8.8818667963053,
+    "frame": 0.0,
+    "inflight": 0.0,
+    "submit": 0.0,
+    "queue": 0.0,
+    "hw": 0.0,
+    "notify": 0.0
+   },
+   "fault_ro": {
+    "cpu": 1450.0,
+    "lock": 23.674587088705852,
+    "frame": 0.0,
+    "inflight": 0.0,
+    "submit": 150.61192806934324,
+    "queue": 99.28306524645306,
+    "hw": 1252.6347837336668,
+    "notify": 241.28625641467937
+   },
+   "fault_rw": {
+    "cpu": 1700.0,
+    "lock": 33.833203429462195,
+    "frame": 0.0,
+    "inflight": 0.0,
+    "submit": 150.58612626656273,
+    "queue": 136.84738893219017,
+    "hw": 1250.1917381137957,
+    "notify": 241.882151208106
+   }
+  },
+  "worst": {
+   "first": {
+    "ns": 3120,
+    "parts": {
+     "lock": 1520,
+     "cpu": 1600
+    },
+    "page": 84974,
+    "t": 452682700
+   },
+   "fault_ro": {
+    "ns": 9420,
+    "parts": {
+     "lock": 2060,
+     "submit": 150,
+     "queue": 4188,
+     "hw": 1290,
+     "notify": 282,
+     "cpu": 1450
+    },
+    "page": 99530,
+    "t": 1426448600
+   },
+   "fault_rw": {
+    "ns": 9660,
+    "parts": {
+     "lock": 2050,
+     "submit": 150,
+     "queue": 4197,
+     "hw": 1237,
+     "notify": 326,
+     "cpu": 1700
+    },
+    "page": 29336,
+    "t": 1812467800
+   }
+  },
+  "hw_jobs": 52444,
+  "hw_job_ns": {
+   "COMPRESS": {
+    "n": 22840,
+    "mean": 4260.023730297723,
+    "p50": 4243,
+    "p90": 4321,
+    "p99": 4388,
+    "max": 4516
+   },
+   "DECOMPRESS": {
+    "n": 29604,
+    "mean": 1252.1053911633562,
+    "p50": 1240,
+    "p90": 1350,
+    "p99": 1465,
+    "max": 1683
+   }
+  },
+  "engine_util": 0.041132296884758696,
+  "bus_share": 0.020958561508944366,
+  "bus_wait_per_burst": 9.913637313013606,
+  "bus_bytes": 325383758,
+  "kcpu_ns": {
+   "fault": 148954910,
+   "irq": 0,
+   "reclaim": 151349060
+  },
+  "kernel_cpu_share": 0.022982315520315606,
+  "ring_depth": 15,
+  "ring_occ": {
+   "1": 50549,
+   "2": 1875,
+   "3": 20
+  },
+  "ring_peak": 3,
+  "ring_peak_share": 0.2,
+  "mm_lock": {
+   "wait_ns": 1249850,
+   "waited": 3853,
+   "grants": 149354,
+   "max_q": 2,
+   "busy_share": 0.02217896525821154
+  },
+  "ring_lock": {
+   "wait_ns": 214720,
+   "waited": 12030,
+   "grants": 623583,
+   "max_q": 2,
+   "busy_share": 0.013237047923664248
+  },
+  "runq_ns": 0,
+  "mm": {
+   "reclaim_runs": 61,
+   "rw_compress_ok": 22381,
+   "rw_comp_bytes": 40818368,
+   "rw_comp_chunks": 91104,
+   "rw_incompressible": 459,
+   "ro_drops": 11554,
+   "skip_incompressible": 256
+  },
+  "drv": {
+   "poll_spins": 571142,
+   "completions": 52444,
+   "drains": 52444
+  },
+  "hw": {
+   "jobs": 52444,
+   "st_OK": 51985,
+   "st_INCOMPRESSIBLE": 459
+  },
+  "irq_edges": 0,
+  "min_free_frames": 511,
+  "peak_pool_chunks": 378600,
+  "frame_waits": 0,
+  "lost_pages": 0,
+  "clients": [
+   {
+    "name": "UI",
+    "accesses": 159972,
+    "faults": 27222,
+    "stall_ns": 67244760,
+    "stall_share": 0.020585013130634246,
+    "mean_stall_ns": 2470.2358386599076
+   },
+   {
+    "name": "MEDIA",
+    "accesses": 107935,
+    "faults": 16706,
+    "stall_ns": 39923430,
+    "stall_share": 0.012221388414055715,
+    "mean_stall_ns": 2389.765952352448
+   },
+   {
+    "name": "NET",
+    "accesses": 79720,
+    "faults": 11449,
+    "stall_ns": 26736110,
+    "stall_share": 0.008184476759409679,
+    "mean_stall_ns": 2335.2353917372698
+   },
+   {
+    "name": "LOG",
+    "accesses": 52373,
+    "faults": 7139,
+    "stall_ns": 16195690,
+    "stall_share": 0.0049578359906360244,
+    "mean_stall_ns": 2268.621655694075
+   }
+  ],
+  "rules": [
+   [
+    "FW-CFG-1",
+    "FW",
+    "checker",
+    8,
+    0
+   ],
+   [
+    "FW-CFG-2",
+    "FW",
+    "checker",
+    1,
+    0
+   ],
+   [
+    "FW-JOB-1",
+    "FW",
+    "checker",
+    52444,
+    0
+   ],
+   [
+    "FW-JOB-2",
+    "FW",
+    "checker",
+    104888,
+    0
+   ],
+   [
+    "FW-JOB-3",
+    "FW",
+    "checker",
+    52444,
+    0
+   ],
+   [
+    "FW-JOB-4",
+    "FW",
+    "checker",
+    52444,
+    0
+   ],
+   [
+    "FW-JOB-5",
+    "FW",
+    "checker",
+    52444,
+    0
+   ],
+   [
+    "FW-JOB-6",
+    "FW",
+    "checker",
+    52444,
+    0
+   ],
+   [
+    "FW-CPL-1",
+    "FW",
+    "checker",
+    52444,
+    0
+   ],
+   [
+    "FW-CPL-2",
+    "FW",
+    "review",
+    0,
+    0
+   ],
+   [
+    "FW-MM-1",
+    "FW",
+    "checker",
+    52444,
+    0
+   ],
+   [
+    "FW-MM-2",
+    "FW",
+    "checker",
+    22840,
+    0
+   ],
+   [
+    "FW-MM-3",
+    "FW",
+    "checker",
+    22381,
+    0
+   ],
+   [
+    "FW-MM-4",
+    "FW",
+    "checker",
+    29604,
+    0
+   ],
+   [
+    "FW-MM-5",
+    "FW",
+    "checker",
+    62975,
+    0
+   ],
+   [
+    "FW-MM-6",
+    "FW",
+    "checker",
+    62975,
+    0
+   ],
+   [
+    "FW-MM-7",
+    "FW",
+    "checker",
+    28796,
+    0
+   ],
+   [
+    "FW-RST-1",
+    "FW",
+    "test",
+    0,
+    0
+   ],
+   [
+    "HW-MEM-1",
+    "HW",
+    "checker",
+    1336026,
+    0
+   ],
+   [
+    "HW-MEM-2",
+    "HW",
+    "checker",
+    104888,
+    0
+   ],
+   [
+    "HW-CPL-1",
+    "HW",
+    "checker",
+    52444,
+    0
+   ],
+   [
+    "HW-CPL-2",
+    "HW",
+    "checker",
+    52444,
+    0
+   ],
+   [
+    "HW-CPL-3",
+    "HW",
+    "checker",
+    52444,
+    0
+   ],
+   [
+    "HW-IRQ-1",
+    "HW",
+    "checker",
+    2733935,
+    0
+   ],
+   [
+    "HW-DATA-1",
+    "HW",
+    "checker",
+    22381,
+    0
+   ],
+   [
+    "HW-DATA-2",
+    "HW",
+    "checker",
+    29604,
+    0
+   ],
+   [
+    "HW-STATE-1",
+    "HW",
+    "review",
+    0,
+    0
+   ],
+   [
+    "HW-RST-1",
+    "HW",
+    "test",
+    0,
+    0
+   ],
+   [
+    "AUDIT-1",
+    "FW",
+    "audit",
+    1,
+    0
+   ],
+   [
+    "AUDIT-2",
+    "FW",
+    "audit",
+    1,
+    0
+   ],
+   [
+    "AUDIT-3",
+    "FW+HW",
+    "audit",
+    62976,
+    0
+   ],
+   [
+    "AUDIT-4",
+    "FW+HW",
+    "audit",
+    1,
+    0
+   ]
+  ],
+  "violations": 0,
+  "audit": {
+   "pages": {
+    "present": 35237,
+    "compressed": 67819,
+    "untouched": 45424
+   },
+   "chunks_owned": 378446,
+   "chunks_free": 184754,
+   "frames_used": 35237,
+   "frames_free": 603,
+   "violations": 0
+  },
+  "wall_s": 28.9,
+  "cfg": "full",
+  "params": {
+   "wait_mode": "poll"
+  }
+ },
+ "small_irq": {
+  "name": "small irq",
+  "seed": 1,
+  "accesses": 20000,
+  "t_end_ns": 161257811,
+  "events": 285911,
+  "wait_mode": "irq",
+  "cores": 4,
+  "reclaim_inflight": 1,
+  "frames": 512,
+  "pages": 1792,
+  "pool_chunks": 8192,
+  "results": {
+   "first": 731,
+   "fault_ro": 503,
+   "hit": 18337,
+   "fault_rw": 429
+  },
+  "lat": {
+   "first": {
+    "n": 731,
+    "mean": 1610.3871409028727,
+    "p50": 1600,
+    "p90": 1600,
+    "p99": 2000,
+    "max": 3000
+   },
+   "fault_ro": {
+    "n": 503,
+    "mean": 6249.34393638171,
+    "p50": 6178,
+    "p90": 6318,
+    "p99": 9845,
+    "max": 10366
+   },
+   "fault_rw": {
+    "n": 429,
+    "mean": 6482.927738927739,
+    "p50": 6422,
+    "p90": 6550,
+    "p99": 9309,
+    "max": 11297
+   },
+   "waited": {
+    "n": 932,
+    "mean": 6356.862660944206,
+    "p50": 6329,
+    "p90": 6504,
+    "p99": 9845,
+    "max": 11297
+   }
+  },
+  "parts": {
+   "first": {
+    "cpu": 1600.0,
+    "lock": 10.387140902872776,
+    "frame": 0.0,
+    "inflight": 0.0,
+    "submit": 0.0,
+    "queue": 0.0,
+    "hw": 0.0,
+    "notify": 0.0
+   },
+   "fault_ro": {
+    "cpu": 1450.0,
+    "lock": 22.72962226640159,
+    "frame": 0.0,
+    "inflight": 0.0,
+    "submit": 150.35188866799206,
+    "queue": 75.05566600397614,
+    "hw": 1257.4711729622265,
+    "notify": 3293.7355864811134
+   },
+   "fault_rw": {
+    "cpu": 1700.0,
+    "lock": 27.205128205128204,
+    "frame": 0.0,
+    "inflight": 0.0,
+    "submit": 150.07692307692307,
+    "queue": 59.578088578088575,
+    "hw": 1252.920745920746,
+    "notify": 3293.146853146853
+   }
+  },
+  "worst": {
+   "first": {
+    "ns": 3000,
+    "parts": {
+     "lock": 1400,
+     "cpu": 1600
+    },
+    "page": 1228,
+    "t": 20550
+   },
+   "fault_ro": {
+    "ns": 10366,
+    "parts": {
+     "lock": 1021,
+     "submit": 150,
+     "queue": 4035,
+     "hw": 1269,
+     "notify": 2441,
+     "cpu": 1450
+    },
+    "page": 1313,
+    "t": 39626430
+   },
+   "fault_rw": {
+    "ns": 11297,
+    "parts": {
+     "lock": 1722,
+     "submit": 150,
+     "queue": 4015,
+     "hw": 1338,
+     "notify": 2372,
+     "cpu": 1700
+    },
+    "page": 135,
+    "t": 49469473
+   }
+  },
+  "hw_jobs": 2020,
+  "hw_job_ns": {
+   "COMPRESS": {
+    "n": 1088,
+    "mean": 4260.933823529412,
+    "p50": 4243,
+    "p90": 4325,
+    "p99": 4402,
+    "max": 4468
+   },
+   "DECOMPRESS": {
+    "n": 932,
+    "mean": 1255.37660944206,
+    "p50": 1243,
+    "p90": 1358,
+    "p99": 1481,
+    "max": 1756
+   }
+  },
+  "engine_util": 0.0360038807670532,
+  "bus_share": 0.01606823250254836,
+  "bus_wait_per_burst": 9.997243660418963,
+  "bus_bytes": 12305241,
+  "kcpu_ns": {
+   "fault": 2768050,
+   "irq": 763400,
+   "reclaim": 2168650
+  },
+  "kernel_cpu_share": 0.008836936277151871,
+  "ring_depth": 15,
+  "ring_occ": {
+   "1": 1933,
+   "2": 86,
+   "3": 1
+  },
+  "ring_peak": 3,
+  "ring_peak_share": 0.2,
+  "mm_lock": {
+   "wait_ns": 49662,
+   "waited": 133,
+   "grants": 5133,
+   "max_q": 3,
+   "busy_share": 0.01654307461732815
+  },
+  "ring_lock": {
+   "wait_ns": 592,
+   "waited": 8,
+   "grants": 4026,
+   "max_q": 1,
+   "busy_share": 0.004125071498086998
+  },
+  "runq_ns": 0,
+  "mm": {
+   "reclaim_runs": 41,
+   "rw_compress_ok": 1075,
+   "rw_comp_bytes": 1940790,
+   "rw_comp_chunks": 4340,
+   "rw_incompressible": 13,
+   "ro_drops": 362
+  },
+  "drv": {
+   "irqs": 2006,
+   "completions": 2020,
+   "drains": 2006
+  },
+  "hw": {
+   "jobs": 2020,
+   "st_OK": 2007,
+   "st_INCOMPRESSIBLE": 13
+  },
+  "irq_edges": 1986,
+  "min_free_frames": 15,
+  "peak_pool_chunks": 5151,
+  "frame_waits": 0,
+  "lost_pages": 0,
+  "clients": [
+   {
+    "name": "UI",
+    "accesses": 7909,
+    "faults": 698,
+    "stall_ns": 3077261,
+    "stall_share": 0.019082864767400322,
+    "mean_stall_ns": 4408.683381088826
+   },
+   {
+    "name": "MEDIA",
+    "accesses": 5438,
+    "faults": 454,
+    "stall_ns": 1894431,
+    "stall_share": 0.01174784023330194,
+    "mean_stall_ns": 4172.755506607929
+   },
+   {
+    "name": "NET",
+    "accesses": 4291,
+    "faults": 320,
+    "stall_ns": 1338592,
+    "stall_share": 0.008300943636150438,
+    "mean_stall_ns": 4183.1
+   },
+   {
+    "name": "LOG",
+    "accesses": 2362,
+    "faults": 191,
+    "stall_ns": 791505,
+    "stall_share": 0.004908320378973766,
+    "mean_stall_ns": 4144.005235602094
+   }
+  ],
+  "rules": [
+   [
+    "FW-CFG-1",
+    "FW",
+    "checker",
+    8,
+    0
+   ],
+   [
+    "FW-CFG-2",
+    "FW",
+    "checker",
+    1,
+    0
+   ],
+   [
+    "FW-JOB-1",
+    "FW",
+    "checker",
+    2020,
+    0
+   ],
+   [
+    "FW-JOB-2",
+    "FW",
+    "checker",
+    4040,
+    0
+   ],
+   [
+    "FW-JOB-3",
+    "FW",
+    "checker",
+    2020,
+    0
+   ],
+   [
+    "FW-JOB-4",
+    "FW",
+    "checker",
+    2020,
+    0
+   ],
+   [
+    "FW-JOB-5",
+    "FW",
+    "checker",
+    2020,
+    0
+   ],
+   [
+    "FW-JOB-6",
+    "FW",
+    "checker",
+    2020,
+    0
+   ],
+   [
+    "FW-CPL-1",
+    "FW",
+    "checker",
+    2006,
+    0
+   ],
+   [
+    "FW-CPL-2",
+    "FW",
+    "review",
+    0,
+    0
+   ],
+   [
+    "FW-MM-1",
+    "FW",
+    "checker",
+    2020,
+    0
+   ],
+   [
+    "FW-MM-2",
+    "FW",
+    "checker",
+    1088,
+    0
+   ],
+   [
+    "FW-MM-3",
+    "FW",
+    "checker",
+    1075,
+    0
+   ],
+   [
+    "FW-MM-4",
+    "FW",
+    "checker",
+    932,
+    0
+   ],
+   [
+    "FW-MM-5",
+    "FW",
+    "checker",
+    1676,
+    0
+   ],
+   [
+    "FW-MM-6",
+    "FW",
+    "checker",
+    1676,
+    0
+   ],
+   [
+    "FW-MM-7",
+    "FW",
+    "checker",
+    1504,
+    0
+   ],
+   [
+    "FW-RST-1",
+    "FW",
+    "test",
+    0,
+    0
+   ],
+   [
+    "HW-MEM-1",
+    "HW",
+    "checker",
+    50586,
+    0
+   ],
+   [
+    "HW-MEM-2",
+    "HW",
+    "checker",
+    4040,
+    0
+   ],
+   [
+    "HW-CPL-1",
+    "HW",
+    "checker",
+    2020,
+    0
+   ],
+   [
+    "HW-CPL-2",
+    "HW",
+    "checker",
+    2020,
+    0
+   ],
+   [
+    "HW-CPL-3",
+    "HW",
+    "checker",
+    2020,
+    0
+   ],
+   [
+    "HW-IRQ-1",
+    "HW",
+    "checker",
+    84100,
+    0
+   ],
+   [
+    "HW-DATA-1",
+    "HW",
+    "checker",
+    1075,
+    0
+   ],
+   [
+    "HW-DATA-2",
+    "HW",
+    "checker",
+    932,
+    0
+   ],
+   [
+    "HW-STATE-1",
+    "HW",
+    "review",
+    0,
+    0
+   ],
+   [
+    "HW-RST-1",
+    "HW",
+    "test",
+    0,
+    0
+   ],
+   [
+    "AUDIT-1",
+    "FW",
+    "audit",
+    1,
+    0
+   ],
+   [
+    "AUDIT-2",
+    "FW",
+    "audit",
+    1,
+    0
+   ],
+   [
+    "AUDIT-3",
+    "FW+HW",
+    "audit",
+    1677,
+    0
+   ],
+   [
+    "AUDIT-4",
+    "FW+HW",
+    "audit",
+    1,
+    0
+   ]
+  ],
+  "violations": 0,
+  "audit": {
+   "pages": {
+    "present": 482,
+    "compressed": 1017,
+    "untouched": 293
+   },
+   "chunks_owned": 5106,
+   "chunks_free": 3086,
+   "frames_used": 482,
+   "frames_free": 30,
+   "violations": 0
+  },
+  "wall_s": 1.0,
+  "cfg": "small",
+  "params": {}
+ }
+}

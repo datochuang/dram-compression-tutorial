@@ -1,0 +1,803 @@
+{
+ "cfg": "full",
+ "conc": {
+  "damaged": {
+   "COMPRESS_OK": 2493,
+   "DECOMPRESS_BAD_STREAM": 60,
+   "DECOMPRESS_OK": 3929,
+   "cache_chunk_reads": 217,
+   "cache_clean": 2493,
+   "cache_flush_all": 100,
+   "cache_invalidate": 3989,
+   "compress_failed": 0,
+   "evict_ro": 1908,
+   "evict_rw": 2493,
+   "fault_ro": 2331,
+   "fault_rw": 1552,
+   "first_touch": 1232,
+   "injected": 96,
+   "instructions": 6997,
+   "jobs": 6482,
+   "jobs_queued_max": 4,
+   "kills": 0,
+   "lost": 92,
+   "lost_pages": 60,
+   "lz4_off": 0,
+   "pin_page": 158,
+   "reclaim_stuck": 0,
+   "schedules": 100,
+   "spurious": 362,
+   "steps": 56904,
+   "streams_checked": 1176,
+   "sw_decode": 60,
+   "sw_decode_ok": 0,
+   "threads_ended_killed": 0,
+   "threads_ended_lost": 96,
+   "tlb_flushes": 4401,
+   "unpin_page": 154,
+   "verified": 0,
+   "verify_failed": 0,
+   "wait_frame": 3606,
+   "wait_page_compressing": 183,
+   "wait_page_decompressing": 290
+  },
+  "down": {
+   "COMPRESS_OK": 17,
+   "DECOMPRESS_OK": 585,
+   "cache_chunk_reads": 2971,
+   "cache_clean": 663,
+   "cache_flush_all": 100,
+   "cache_invalidate": 1195,
+   "compress_failed": 36,
+   "evict_ro": 718,
+   "evict_rw": 53,
+   "fault_ro": 1183,
+   "fault_rw": 12,
+   "first_touch": 1305,
+   "injected": 0,
+   "instructions": 8448,
+   "jobs": 602,
+   "jobs_queued_max": 3,
+   "kills": 0,
+   "lost_pages": 0,
+   "lz4_off": 99,
+   "no_answer": 140,
+   "pin_page": 196,
+   "reclaim_stuck": 7,
+   "schedules": 100,
+   "spurious": 123,
+   "steps": 20108,
+   "streams_checked": 340,
+   "sw_decode": 610,
+   "sw_decode_ok": 610,
+   "threads_ended_killed": 0,
+   "threads_ended_lost": 0,
+   "tlb_flushes": 771,
+   "unpin_page": 196,
+   "verified": 0,
+   "verify_failed": 0,
+   "wait_frame": 81,
+   "wait_page_compressing": 37,
+   "wait_page_decompressing": 62
+  },
+  "explore": [
+   {
+    "bound": 1,
+    "length": 8,
+    "schedules": 72,
+    "seed": 1,
+    "users": 2
+   },
+   {
+    "bound": 2,
+    "length": 8,
+    "schedules": 2647,
+    "seed": 1,
+    "users": 2
+   },
+   {
+    "bound": 1,
+    "length": 30,
+    "schedules": 462,
+    "seed": 3,
+    "users": 3
+   }
+  ],
+  "faulty": {
+   "COMPRESS_BUS_ERROR": 105,
+   "COMPRESS_OK": 4592,
+   "DECOMPRESS_BAD_STREAM": 126,
+   "DECOMPRESS_BUS_ERROR": 140,
+   "DECOMPRESS_OK": 6747,
+   "cache_chunk_reads": 1087,
+   "cache_clean": 4963,
+   "cache_flush_all": 200,
+   "cache_invalidate": 7013,
+   "compress_failed": 105,
+   "evict_ro": 3287,
+   "evict_rw": 4697,
+   "fault_ro": 4044,
+   "fault_rw": 2922,
+   "first_touch": 2403,
+   "injected": 0,
+   "injected_bad_stream": 126,
+   "injected_bus_error": 245,
+   "instructions": 14370,
+   "jobs": 11710,
+   "jobs_queued_max": 4,
+   "kills": 180,
+   "lost_pages": 0,
+   "lz4_off": 0,
+   "pin_page": 197,
+   "reclaim_stuck": 0,
+   "schedules": 200,
+   "spurious": 633,
+   "steps": 103413,
+   "streams_checked": 2466,
+   "sw_decode": 266,
+   "sw_decode_ok": 266,
+   "threads_ended_killed": 180,
+   "threads_ended_lost": 0,
+   "tlb_flushes": 7984,
+   "unpin_page": 197,
+   "verified": 0,
+   "verify_failed": 0,
+   "wait_frame": 5781,
+   "wait_page_compressing": 382,
+   "wait_page_decompressing": 495
+  },
+  "mutants": [
+   {
+    "name": "shared_tag",
+    "schedule": 1,
+    "stopped_by": "KernelBug",
+    "text": "completion tag 0x1, expected 0x3"
+   },
+   {
+    "name": "no_wake_frame",
+    "schedule": 1,
+    "stopped_by": "Deadlock",
+    "text": "user0 waits for frame, user1 waits for frame, user2 waits for frame"
+   },
+   {
+    "name": "no_wake_page",
+    "schedule": 1,
+    "stopped_by": "Deadlock",
+    "text": "user0 waits for ('page', 14), user2 waits for ('page', 16)"
+   },
+   {
+    "name": "wait_not_atomic",
+    "schedule": 4,
+    "stopped_by": "Deadlock",
+    "text": "user1 waits for ('page', 16), user2 waits for frame"
+   },
+   {
+    "name": "unlatched_reclaimer",
+    "schedule": 4,
+    "stopped_by": "Deadlock",
+    "text": "user0 waits for frame, user1 waits for frame, user2 waits for frame"
+   },
+   {
+    "name": "no_decompressing",
+    "schedule": 1,
+    "stopped_by": "JobRace",
+    "text": "two jobs at once on frame 0x8002b000 or on one of its chunks"
+   },
+   {
+    "name": "no_compressing",
+    "schedule": 7,
+    "stopped_by": "FaultNotAllowed",
+    "text": "page 0x1 was touched where a page fault cannot be served"
+   },
+   {
+    "name": "local_tlb_flush",
+    "schedule": 1,
+    "stopped_by": "StaleTlb",
+    "text": "core 0 still translates page 0x16 to 0x80024000, the PTE says 0x0"
+   },
+   {
+    "name": "no_cache_clean",
+    "schedule": 1,
+    "stopped_by": "CacheError",
+    "text": "C1: the LZ4 HW reads frame 0x80021000 while a CPU cache holds a newer line"
+   },
+   {
+    "name": "no_cache_invalidate",
+    "schedule": 1,
+    "stopped_by": "CacheError",
+    "text": "C3: the CPU runs frame 0x80024000 through a line older than DRAM"
+   },
+   {
+    "name": "invalidate_dcache_only",
+    "schedule": 1,
+    "stopped_by": "CacheError",
+    "text": "C3: the CPU runs frame 0x80024000 through a line older than DRAM"
+   },
+   {
+    "name": "forget_pin",
+    "schedule": 1,
+    "stopped_by": "FaultNotAllowed",
+    "text": "page 0xe was touched where a page fault cannot be served"
+   },
+   {
+    "name": "protect_1",
+    "schedule": 1,
+    "stopped_by": "NoProgress",
+    "text": "the instruction on pages ['0x13', '0x0'] faulted 17 times"
+   },
+   {
+    "name": "too_few_frames",
+    "schedule": 1,
+    "stopped_by": "OutOfMemory",
+    "text": "user0 waits for frame, user1 waits for frame"
+   },
+   {
+    "name": "no_sw_decode",
+    "schedule": 1,
+    "stopped_by": "AuditError",
+    "text": "A7: page 0x2 is lost, but its stored stream is intact and decodes to the page"
+   },
+   {
+    "name": "sw_decode_no_clean",
+    "schedule": 1,
+    "stopped_by": "CacheError",
+    "text": "C3: the CPU runs frame 0x80023000 while its newest bytes are only in the data cache"
+   },
+   {
+    "name": "leak_on_job_failure",
+    "schedule": 1,
+    "stopped_by": "AuditError",
+    "text": "A2: 70 chunks listed and 154 free do not add up to 240"
+   },
+   {
+    "name": "kill_in_kernel",
+    "schedule": 2,
+    "stopped_by": "AuditError",
+    "text": "A1: page 0x1 is decompressing with no job in flight"
+   },
+   {
+    "name": "no_boot_flush",
+    "schedule": 1,
+    "stopped_by": "CacheError",
+    "text": "C2: the LZ4 HW writes frame 0x80023000 while a CPU cache holds a dirty line"
+   },
+   {
+    "name": "chunk_read_cached",
+    "schedule": 1,
+    "stopped_by": "CacheError",
+    "text": "C3: the CPU reads chunk 0x21 through a line older than DRAM"
+   }
+  ],
+  "survey": {
+   "COMPRESS_OK": 9257,
+   "DECOMPRESS_OK": 14670,
+   "cache_clean": 9257,
+   "cache_flush_all": 300,
+   "cache_invalidate": 14670,
+   "compress_failed": 0,
+   "evict_ro": 7026,
+   "evict_rw": 9257,
+   "fault_ro": 8242,
+   "fault_rw": 6248,
+   "first_touch": 3879,
+   "injected": 0,
+   "instructions": 25349,
+   "jobs": 23927,
+   "jobs_queued_max": 4,
+   "kills": 0,
+   "lost_pages": 0,
+   "lz4_off": 0,
+   "pin_page": 585,
+   "reclaim_stuck": 0,
+   "schedules": 300,
+   "spurious": 1269,
+   "steps": 206634,
+   "streams_checked": 4013,
+   "sw_decode": 0,
+   "sw_decode_ok": 0,
+   "threads_ended_killed": 0,
+   "threads_ended_lost": 0,
+   "tlb_flushes": 16283,
+   "unpin_page": 585,
+   "verified": 0,
+   "verify_failed": 0,
+   "wait_frame": 13119,
+   "wait_page_compressing": 728,
+   "wait_page_decompressing": 1042
+  }
+ },
+ "runs": [
+  {
+   "accesses": 400000,
+   "audit": {
+    "chunks_free": 185951,
+    "chunks_listed": 377249,
+    "compressed": 68070,
+    "frames_free": 854,
+    "frames_held": 34986,
+    "guard_bytes": 96468992,
+    "needed": 1,
+    "pinned": 0,
+    "present": 34986,
+    "streams_checked": 68070,
+    "untouched": 45424
+   },
+   "bitmap": {
+    "releases": 44555,
+    "reserves": 31364,
+    "words_scanned": 33352
+   },
+   "bitmap_scan_max": 2,
+   "bitmap_words": 8800,
+   "build": {
+    "free_chunks_at_boot": 249787,
+    "ro_bytes": 145189722,
+    "ro_chunks": 313413,
+    "ro_hist_1": 1719,
+    "ro_hist_2": 2005,
+    "ro_hist_3": 6222,
+    "ro_hist_4": 14378,
+    "ro_hist_5": 16634,
+    "ro_hist_6": 12353,
+    "ro_hist_7": 7198,
+    "ro_hist_8": 2979,
+    "ro_raw": 2979
+   },
+   "cfg": "full",
+   "chunks_free": 185951,
+   "chunks_free_min": 185611,
+   "clients": [
+    {
+     "accesses": 159972,
+     "faults": 30058,
+     "name": "UI"
+    },
+    {
+     "accesses": 107935,
+     "faults": 20080,
+     "name": "MEDIA"
+    },
+    {
+     "accesses": 79720,
+     "faults": 14656,
+     "name": "NET"
+    },
+    {
+     "accesses": 52373,
+     "faults": 9616,
+     "name": "LOG"
+    }
+   ],
+   "codec": "lib",
+   "fc_high": 1024,
+   "fc_low": 512,
+   "frames": 35840,
+   "hw": {
+    "COMPRESS_INCOMPRESSIBLE": 612,
+    "COMPRESS_OK": 30752,
+    "DECOMPRESS_OK": 41498,
+    "jobs": 72862
+   },
+   "incompressible_pages": 612,
+   "injected": 0,
+   "kernel": {
+    "boot": 1,
+    "clock_longest": 35841,
+    "clock_picks": 46692,
+    "clock_steps": 228141,
+    "evict_ro": 15328,
+    "evict_rw": 31364,
+    "page_fault": 74410,
+    "reclaim": 90
+   },
+   "map_accessed": 1,
+   "name": "clock",
+   "pages": 148480,
+   "policy": "clock",
+   "pool_chunks": 563200,
+   "present_rw": 23895,
+   "refaults": 0,
+   "results": {
+    "fault_ro": 26419,
+    "fault_rw": 15079,
+    "first_touch": 32912,
+    "hit": 325590,
+    "lost": 0
+   },
+   "ro_pages": 63488,
+   "rw_hist": {
+    "1": 1058,
+    "2": 1440,
+    "3": 2843,
+    "4": 4094,
+    "5": 3362,
+    "6": 1949,
+    "7": 927
+   },
+   "rw_pages": 84992,
+   "rw_unmaps": 31364,
+   "rw_unmaps_unwritten": 1392,
+   "seed": 1,
+   "states": {
+    "compressed": 68070,
+    "present": 34986,
+    "untouched": 45424
+   },
+   "stored": {
+    "ro_bytes": 119784911,
+    "ro_chunks": 258586,
+    "ro_pages": 52397,
+    "rw_bytes": 28591769,
+    "rw_chunks": 63836,
+    "rw_pages": 15673
+   },
+   "tlb_flushes": 46692,
+   "writes": 108154
+  },
+  {
+   "accesses": 400000,
+   "audit": {
+    "chunks_free": 186356,
+    "chunks_listed": 376844,
+    "compressed": 67977,
+    "frames_free": 761,
+    "frames_held": 35079,
+    "guard_bytes": 96468992,
+    "needed": 1,
+    "pinned": 0,
+    "present": 35079,
+    "streams_checked": 67977,
+    "untouched": 45424
+   },
+   "bitmap": {
+    "releases": 45974,
+    "reserves": 32071,
+    "words_scanned": 34107
+   },
+   "bitmap_scan_max": 2,
+   "bitmap_words": 8800,
+   "build": {
+    "free_chunks_at_boot": 249787,
+    "ro_bytes": 145189722,
+    "ro_chunks": 313413,
+    "ro_hist_1": 1719,
+    "ro_hist_2": 2005,
+    "ro_hist_3": 6222,
+    "ro_hist_4": 14378,
+    "ro_hist_5": 16634,
+    "ro_hist_6": 12353,
+    "ro_hist_7": 7198,
+    "ro_hist_8": 2979,
+    "ro_raw": 2979
+   },
+   "cfg": "full",
+   "chunks_free": 186356,
+   "chunks_free_min": 185875,
+   "clients": [
+    {
+     "accesses": 159972,
+     "faults": 30311,
+     "name": "UI"
+    },
+    {
+     "accesses": 107935,
+     "faults": 20368,
+     "name": "MEDIA"
+    },
+    {
+     "accesses": 79720,
+     "faults": 15005,
+     "name": "NET"
+    },
+    {
+     "accesses": 52373,
+     "faults": 9843,
+     "name": "LOG"
+    }
+   ],
+   "codec": "lib",
+   "fc_high": 1024,
+   "fc_low": 512,
+   "frames": 35840,
+   "hw": {
+    "COMPRESS_INCOMPRESSIBLE": 618,
+    "COMPRESS_OK": 31453,
+    "DECOMPRESS_OK": 42615,
+    "jobs": 74686
+   },
+   "incompressible_pages": 618,
+   "injected": 0,
+   "kernel": {
+    "boot": 1,
+    "clock_longest": 29190,
+    "clock_picks": 47722,
+    "clock_steps": 212276,
+    "evict_ro": 15651,
+    "evict_rw": 32071,
+    "page_fault": 75527,
+    "reclaim": 92
+   },
+   "map_accessed": 0,
+   "name": "clock，新 PTE 不設 accessed bit",
+   "pages": 148480,
+   "policy": "clock",
+   "pool_chunks": 563200,
+   "present_rw": 23987,
+   "refaults": 0,
+   "results": {
+    "fault_ro": 26743,
+    "fault_rw": 15872,
+    "first_touch": 32912,
+    "hit": 324473,
+    "lost": 0
+   },
+   "ro_pages": 63488,
+   "rw_hist": {
+    "1": 1062,
+    "2": 1432,
+    "3": 2836,
+    "4": 4050,
+    "5": 3338,
+    "6": 1934,
+    "7": 929
+   },
+   "rw_pages": 84992,
+   "rw_unmaps": 32071,
+   "rw_unmaps_unwritten": 1477,
+   "seed": 1,
+   "states": {
+    "compressed": 67977,
+    "present": 35079,
+    "untouched": 45424
+   },
+   "stored": {
+    "ro_bytes": 119750662,
+    "ro_chunks": 258532,
+    "ro_pages": 52396,
+    "rw_bytes": 28406306,
+    "rw_chunks": 63431,
+    "rw_pages": 15581
+   },
+   "tlb_flushes": 47722,
+   "writes": 108154
+  },
+  {
+   "accesses": 400000,
+   "audit": {
+    "chunks_free": 186782,
+    "chunks_listed": 376418,
+    "compressed": 68020,
+    "frames_free": 804,
+    "frames_held": 35036,
+    "guard_bytes": 96468992,
+    "needed": 1,
+    "pinned": 0,
+    "present": 35036,
+    "streams_checked": 68020,
+    "untouched": 45424
+   },
+   "bitmap": {
+    "releases": 32594,
+    "reserves": 25030,
+    "words_scanned": 26614
+   },
+   "bitmap_scan_max": 2,
+   "bitmap_words": 8800,
+   "build": {
+    "free_chunks_at_boot": 249787,
+    "ro_bytes": 145189722,
+    "ro_chunks": 313413,
+    "ro_hist_1": 1719,
+    "ro_hist_2": 2005,
+    "ro_hist_3": 6222,
+    "ro_hist_4": 14378,
+    "ro_hist_5": 16634,
+    "ro_hist_6": 12353,
+    "ro_hist_7": 7198,
+    "ro_hist_8": 2979,
+    "ro_raw": 2979
+   },
+   "cfg": "full",
+   "chunks_free": 186782,
+   "chunks_free_min": 186461,
+   "clients": [
+    {
+     "accesses": 159972,
+     "faults": 26671,
+     "name": "UI"
+    },
+    {
+     "accesses": 107935,
+     "faults": 17949,
+     "name": "MEDIA"
+    },
+    {
+     "accesses": 79720,
+     "faults": 13099,
+     "name": "NET"
+    },
+    {
+     "accesses": 52373,
+     "faults": 8549,
+     "name": "LOG"
+    }
+   ],
+   "codec": "lib",
+   "fc_high": 1024,
+   "fc_low": 512,
+   "frames": 35840,
+   "hw": {
+    "COMPRESS_INCOMPRESSIBLE": 507,
+    "COMPRESS_OK": 24523,
+    "DECOMPRESS_OK": 33356,
+    "jobs": 58386
+   },
+   "incompressible_pages": 507,
+   "injected": 0,
+   "kernel": {
+    "boot": 1,
+    "evict_ro": 13365,
+    "evict_rw": 25030,
+    "page_fault": 66268,
+    "reclaim": 74
+   },
+   "map_accessed": 1,
+   "name": "理想 LRU，做不出來",
+   "pages": 148480,
+   "policy": "lru",
+   "pool_chunks": 563200,
+   "present_rw": 24096,
+   "refaults": 0,
+   "results": {
+    "fault_ro": 24305,
+    "fault_rw": 9051,
+    "first_touch": 32912,
+    "hit": 333732,
+    "lost": 0
+   },
+   "ro_pages": 63488,
+   "rw_hist": {
+    "1": 1047,
+    "2": 1437,
+    "3": 2805,
+    "4": 4032,
+    "5": 3294,
+    "6": 1928,
+    "7": 929
+   },
+   "rw_pages": 84992,
+   "rw_unmaps": 25030,
+   "rw_unmaps_unwritten": 1080,
+   "seed": 1,
+   "states": {
+    "compressed": 68020,
+    "present": 35036,
+    "untouched": 45424
+   },
+   "stored": {
+    "ro_bytes": 120117316,
+    "ro_chunks": 259312,
+    "ro_pages": 52548,
+    "rw_bytes": 28214922,
+    "rw_chunks": 63005,
+    "rw_pages": 15472
+   },
+   "tlb_flushes": 38395,
+   "writes": 108154
+  }
+ ],
+ "small_accessed": {
+  "clear": 2430,
+  "set": 2536
+ },
+ "stress": [
+  {
+   "accesses": 20000,
+   "chunks_free_min": 2995,
+   "end": "ok",
+   "frames": 512,
+   "jobs": 2536,
+   "kept": 19,
+   "label": "45%，基準",
+   "pool_chunks": 8192,
+   "protect": 1,
+   "raw": false
+  },
+  {
+   "accesses": 20000,
+   "chunks_free_min": 2884,
+   "end": "ok",
+   "frames": 512,
+   "jobs": 2510,
+   "kept": 0,
+   "label": "45%，基準",
+   "pool_chunks": 8192,
+   "protect": 1,
+   "raw": true
+  },
+  {
+   "accesses": 20000,
+   "chunks_free_min": 1469,
+   "end": "ok",
+   "frames": 512,
+   "jobs": 3394,
+   "kept": 182,
+   "label": "80%",
+   "pool_chunks": 8192,
+   "protect": 1,
+   "raw": false
+  },
+  {
+   "accesses": 20000,
+   "chunks_free_min": 1058,
+   "end": "ok",
+   "frames": 512,
+   "jobs": 2510,
+   "kept": 0,
+   "label": "80%",
+   "pool_chunks": 8192,
+   "protect": 1,
+   "raw": true
+  },
+  {
+   "accesses": 4834,
+   "chunks_free_min": 5088,
+   "end": "OutOfMemory",
+   "frames": 512,
+   "jobs": 2412,
+   "kept": 511,
+   "label": "90%",
+   "pool_chunks": 8192,
+   "protect": 1,
+   "raw": false
+  },
+  {
+   "accesses": 4366,
+   "chunks_free_min": 5108,
+   "end": "NoProgress",
+   "frames": 512,
+   "jobs": 2278,
+   "kept": 495,
+   "label": "90%",
+   "pool_chunks": 8192,
+   "protect": 0,
+   "raw": false
+  },
+  {
+   "accesses": 20000,
+   "chunks_free_min": 527,
+   "end": "ok",
+   "frames": 512,
+   "jobs": 2510,
+   "kept": 0,
+   "label": "90%",
+   "pool_chunks": 8192,
+   "protect": 1,
+   "raw": true
+  },
+  {
+   "accesses": 4440,
+   "chunks_free_min": 0,
+   "end": "OutOfMemory",
+   "frames": 512,
+   "jobs": 4271,
+   "kept": 0,
+   "label": "100%，而且碰遍所有 RW page",
+   "pool_chunks": 8192,
+   "protect": 1,
+   "raw": true
+  },
+  {
+   "accesses": 3902,
+   "chunks_free_min": 0,
+   "end": "NoProgress",
+   "frames": 512,
+   "jobs": 3684,
+   "kept": 0,
+   "label": "100%，而且碰遍所有 RW page",
+   "pool_chunks": 8192,
+   "protect": 0,
+   "raw": true
+  }
+ ]
+}

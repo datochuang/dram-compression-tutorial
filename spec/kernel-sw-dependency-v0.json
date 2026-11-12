@@ -1,0 +1,1584 @@
+{
+ "holds": [
+  {
+   "accesses": 20000,
+   "cfg": "small",
+   "clock_picks": 1747,
+   "clock_steps": 8285,
+   "fault": {
+    "evict_ro_max": 0,
+    "frames_max": 0,
+    "frames_p50": 0,
+    "frames_p99": 0,
+    "frames_total": 0,
+    "holds": 3197,
+    "ns_max": 600,
+    "ns_mean": 303,
+    "ns_p50": 200,
+    "ns_p99": 600,
+    "steps_max": 4,
+    "victims_max": 0
+   },
+   "fc_high": 48,
+   "fc_low": 16,
+   "frames": 512,
+   "reclaim": {
+    "evict_ro_max": 5,
+    "frames_max": 513,
+    "frames_p50": 3,
+    "frames_p99": 47,
+    "frames_total": 8285,
+    "holds": 1357,
+    "ns_max": 5900,
+    "ns_mean": 1633,
+    "ns_p50": 1400,
+    "ns_p99": 4100,
+    "steps_max": 28,
+    "victims_max": 6
+   },
+   "scan_max": 513,
+   "scan_max_at": 1,
+   "scan_rest_max": 168
+  },
+  {
+   "accesses": 400000,
+   "cfg": "full",
+   "clock_picks": 46692,
+   "clock_steps": 228141,
+   "fault": {
+    "evict_ro_max": 0,
+    "frames_max": 0,
+    "frames_p50": 0,
+    "frames_p99": 0,
+    "frames_total": 0,
+    "holds": 115908,
+    "ns_max": 600,
+    "ns_mean": 310,
+    "ns_p50": 200,
+    "ns_p99": 600,
+    "steps_max": 4,
+    "victims_max": 0
+   },
+   "fc_high": 1024,
+   "fc_low": 512,
+   "frames": 35840,
+   "reclaim": {
+    "evict_ro_max": 13,
+    "frames_max": 35841,
+    "frames_p50": 3,
+    "frames_p99": 34,
+    "frames_total": 228141,
+    "holds": 31454,
+    "ns_max": 13100,
+    "ns_mean": 1828,
+    "ns_p50": 1400,
+    "ns_p99": 5000,
+    "steps_max": 60,
+    "victims_max": 14
+   },
+   "scan_max": 35841,
+   "scan_max_at": 1,
+   "scan_rest_max": 1305
+  }
+ ],
+ "trace": {
+  "lock": {
+   "accessed[*]": {
+    "held": 29570
+   },
+   "accessed[h]": {
+    "held": 4510
+   },
+   "bitmap": {
+    "held": 8911
+   },
+   "cache[f]": {
+    "free": 5855,
+    "held": 1852
+   },
+   "chunk[c]": {
+    "free": 1412
+   },
+   "cot[h]": {
+    "held": 6368
+   },
+   "cpl_ring": {
+    "free": 4957
+   },
+   "frame[f]": {
+    "free": 3229,
+    "held": 1852
+   },
+   "frame_of[h]": {
+    "held": 14609
+   },
+   "frame_waiters": {
+    "held": 3753
+   },
+   "free_frames": {
+    "held": 33874
+   },
+   "fresh_n[*]": {
+    "held": 161828
+   },
+   "fresh_n[h]": {
+    "held": 8934
+   },
+   "hand": {
+    "held": 312266
+   },
+   "incompressible": {
+    "held": 10371
+   },
+   "job_ring": {
+    "free": 4957
+   },
+   "lz4_off": {
+    "held": 150568
+   },
+   "owner[*]": {
+    "held": 156133
+   },
+   "owner[f]": {
+    "held": 8230
+   },
+   "pins[*]": {
+    "held": 152900
+   },
+   "pool_full": {
+    "held": 149098
+   },
+   "pte[h]": {
+    "held": 8294
+   },
+   "reclaimer": {
+    "held": 195
+   },
+   "state[*]": {
+    "held": 152900
+   },
+   "state[h]": {
+    "held": 18006
+   },
+   "strikes": {
+    "held": 9921
+   },
+   "tag": {
+    "free": 9914
+   },
+   "tlb": {
+    "held": 3784
+   },
+   "waiters[h]": {
+    "held": 5253
+   }
+  },
+  "rows": [
+   {
+    "declared": [
+     [
+      "W",
+      "cache[f]"
+     ],
+     [
+      "W",
+      "frame[f]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "cache[f]"
+     ],
+     [
+      "W",
+      "frame[f]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "cache_clean"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      315
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "cache[f]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "cache[f]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "cache_invalidate"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "fault_in",
+      197
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "free_frames"
+     ],
+     [
+      "R",
+      "state[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "free_frames"
+     ],
+     [
+      "R",
+      "state[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "check_state"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "page_fault",
+      142
+     ],
+     [
+      "page_fault",
+      153
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "cot[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "cot[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "cot_clear"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "fault_in",
+      211
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "cot[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "cot[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "cot_read"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "fault_in",
+      184
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "cot[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "cot[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "cot_store"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      325
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "cpl_ring"
+     ],
+     [
+      "R",
+      "tag"
+     ],
+     [
+      "W",
+      "job_ring"
+     ],
+     [
+      "W",
+      "tag"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "cpl_ring"
+     ],
+     [
+      "R",
+      "tag"
+     ],
+     [
+      "W",
+      "job_ring"
+     ],
+     [
+      "W",
+      "tag"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "cpl_read",
+     "desc",
+     "notify",
+     "submit"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      316
+     ],
+     [
+      "fault_in",
+      193
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "frame_of[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "frame_of[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "find_frame"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      310
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "cache[f]"
+     ],
+     [
+      "W",
+      "frame[f]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "cache[f]"
+     ],
+     [
+      "W",
+      "frame[f]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "frame_write"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "sw_decode",
+      229
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "state[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "state[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "mark_compressing"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      313
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "lz4_off"
+     ],
+     [
+      "W",
+      "state[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "lz4_off"
+     ],
+     [
+      "W",
+      "state[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "mark_decompressing"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "fault_in",
+      188
+     ],
+     [
+      "fault_in",
+      189
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "incompressible"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "incompressible"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "mark_incompressible"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      334
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "fresh_n[*]"
+     ],
+     [
+      "R",
+      "fresh_n[h]"
+     ],
+     [
+      "W",
+      "fresh_n[*]"
+     ],
+     [
+      "W",
+      "fresh_n[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "fresh_n[*]"
+     ],
+     [
+      "R",
+      "fresh_n[h]"
+     ],
+     [
+      "W",
+      "fresh_n[*]"
+     ],
+     [
+      "W",
+      "fresh_n[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "note_fresh"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "page_fault",
+      144
+     ],
+     [
+      "page_fault",
+      164
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "lz4_off"
+     ],
+     [
+      "R",
+      "strikes"
+     ],
+     [
+      "W",
+      "lz4_off"
+     ],
+     [
+      "W",
+      "strikes"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "lz4_off"
+     ],
+     [
+      "R",
+      "strikes"
+     ],
+     [
+      "W",
+      "lz4_off"
+     ],
+     [
+      "W",
+      "strikes"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "note_hw"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      322
+     ],
+     [
+      "fault_in",
+      204
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "accessed[*]"
+     ],
+     [
+      "R",
+      "fresh_n[*]"
+     ],
+     [
+      "R",
+      "hand"
+     ],
+     [
+      "R",
+      "incompressible"
+     ],
+     [
+      "R",
+      "lz4_off"
+     ],
+     [
+      "R",
+      "owner[*]"
+     ],
+     [
+      "R",
+      "pins[*]"
+     ],
+     [
+      "R",
+      "pool_full"
+     ],
+     [
+      "R",
+      "state[*]"
+     ],
+     [
+      "W",
+      "accessed[*]"
+     ],
+     [
+      "W",
+      "hand"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "accessed[*]"
+     ],
+     [
+      "R",
+      "fresh_n[*]"
+     ],
+     [
+      "R",
+      "hand"
+     ],
+     [
+      "R",
+      "incompressible"
+     ],
+     [
+      "R",
+      "lz4_off"
+     ],
+     [
+      "R",
+      "owner[*]"
+     ],
+     [
+      "R",
+      "pins[*]"
+     ],
+     [
+      "R",
+      "pool_full"
+     ],
+     [
+      "R",
+      "state[*]"
+     ],
+     [
+      "W",
+      "accessed[*]"
+     ],
+     [
+      "W",
+      "hand"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "pick_victim"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "pick_victim",
+      265
+     ],
+     [
+      "pick_victim",
+      267
+     ],
+     [
+      "pick_victim",
+      268
+     ],
+     [
+      "pick_victim",
+      269
+     ],
+     [
+      "pick_victim",
+      270
+     ],
+     [
+      "pick_victim",
+      271
+     ],
+     [
+      "pick_victim",
+      272
+     ],
+     [
+      "pick_victim",
+      273
+     ],
+     [
+      "pick_victim",
+      274
+     ],
+     [
+      "pick_victim",
+      275
+     ],
+     [
+      "pick_victim",
+      276
+     ],
+     [
+      "pick_victim",
+      277
+     ],
+     [
+      "pick_victim",
+      278
+     ],
+     [
+      "pick_victim",
+      279
+     ],
+     [
+      "pick_victim",
+      280
+     ],
+     [
+      "pick_victim",
+      281
+     ],
+     [
+      "pick_victim",
+      282
+     ],
+     [
+      "pick_victim",
+      283
+     ],
+     [
+      "pick_victim",
+      284
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "pte[h]"
+     ],
+     [
+      "W",
+      "tlb"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "pte[h]"
+     ],
+     [
+      "W",
+      "tlb"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "pte_clear",
+     "tlb_inval"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_ro",
+      295
+     ],
+     [
+      "evict_rw",
+      311
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "accessed[h]"
+     ],
+     [
+      "W",
+      "pte[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "accessed[h]"
+     ],
+     [
+      "W",
+      "pte[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "pte_map"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      336
+     ],
+     [
+      "evict_rw",
+      343
+     ],
+     [
+      "fault_in",
+      215
+     ],
+     [
+      "first_touch",
+      175
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "frame_of[h]"
+     ],
+     [
+      "R",
+      "free_frames"
+     ],
+     [
+      "W",
+      "frame_of[h]"
+     ],
+     [
+      "W",
+      "frame_waiters"
+     ],
+     [
+      "W",
+      "free_frames"
+     ],
+     [
+      "W",
+      "owner[f]"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "frame_of[h]"
+     ],
+     [
+      "R",
+      "free_frames"
+     ],
+     [
+      "W",
+      "frame_of[h]"
+     ],
+     [
+      "W",
+      "frame_waiters"
+     ],
+     [
+      "W",
+      "free_frames"
+     ],
+     [
+      "W",
+      "owner[f]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "put_frame"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_ro",
+      297
+     ],
+     [
+      "evict_rw",
+      329
+     ],
+     [
+      "fault_in",
+      206
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "free_frames"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "free_frames"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "reclaim_check"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "reclaim",
+      252
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "bitmap"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "bitmap"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "release_all"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      333
+     ],
+     [
+      "evict_rw",
+      340
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "bitmap"
+     ],
+     [
+      "W",
+      "pool_full"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "bitmap"
+     ],
+     [
+      "W",
+      "pool_full"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "release_chunks"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "fault_in",
+      212
+     ],
+     [
+      "fault_in",
+      213
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "bitmap"
+     ],
+     [
+      "W",
+      "bitmap"
+     ],
+     [
+      "W",
+      "pool_full"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "bitmap"
+     ],
+     [
+      "W",
+      "bitmap"
+     ]
+    ],
+    "rare_unseen": [
+     [
+      "W",
+      "pool_full"
+     ]
+    ],
+    "steps": [
+     "reserve"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      305
+     ],
+     [
+      "evict_rw",
+      307
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "state[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "state[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "set_compressed"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_ro",
+      298
+     ],
+     [
+      "evict_rw",
+      330
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "state[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "state[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "set_lost"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "fault_in",
+      207
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "state[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "state[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "set_present"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      335
+     ],
+     [
+      "evict_rw",
+      342
+     ],
+     [
+      "fault_in",
+      214
+     ],
+     [
+      "first_touch",
+      174
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "cache[f]"
+     ],
+     [
+      "W",
+      "frame[f]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "cache[f]"
+     ],
+     [
+      "W",
+      "frame[f]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "sw_clean"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "sw_decode",
+      231
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "chunk[c]"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "chunk[c]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "sw_decode"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "sw_decode",
+      223
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "free_frames"
+     ],
+     [
+      "W",
+      "frame_of[h]"
+     ],
+     [
+      "W",
+      "free_frames"
+     ],
+     [
+      "W",
+      "owner[f]"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "free_frames"
+     ],
+     [
+      "W",
+      "frame_of[h]"
+     ],
+     [
+      "W",
+      "free_frames"
+     ],
+     [
+      "W",
+      "owner[f]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "take_frame"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "page_fault",
+      158
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "bitmap"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "bitmap"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "trim"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      328
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "frame_waiters"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "frame_waiters"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "wait_frame"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "page_fault",
+      155
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "waiters[h]"
+     ]
+    ],
+    "observed": [],
+    "rare_unseen": [
+     [
+      "W",
+      "waiters[h]"
+     ]
+    ],
+    "steps": [
+     "wait_page"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "page_fault",
+      151
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "R",
+      "free_frames"
+     ],
+     [
+      "W",
+      "reclaimer"
+     ]
+    ],
+    "observed": [
+     [
+      "R",
+      "free_frames"
+     ],
+     [
+      "W",
+      "reclaimer"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "wake_check"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "page_fault",
+      154
+     ],
+     [
+      "page_fault",
+      165
+     ],
+     [
+      "page_fault",
+      166
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "waiters[h]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "waiters[h]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "wake_page"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "evict_rw",
+      348
+     ],
+     [
+      "fault_in",
+      208
+     ],
+     [
+      "fault_in",
+      217
+     ]
+    ]
+   },
+   {
+    "declared": [
+     [
+      "W",
+      "cache[f]"
+     ],
+     [
+      "W",
+      "frame[f]"
+     ]
+    ],
+    "observed": [
+     [
+      "W",
+      "cache[f]"
+     ],
+     [
+      "W",
+      "frame[f]"
+     ]
+    ],
+    "rare_unseen": [],
+    "steps": [
+     "zero_frame"
+    ],
+    "undeclared": [],
+    "unseen": [],
+    "where": [
+     [
+      "first_touch",
+      173
+     ]
+    ]
+   }
+  ],
+  "runs": [
+   {
+    "accesses": 20000,
+    "name": "plain",
+    "results": {
+     "fault_ro": 596,
+     "fault_rw": 637,
+     "first_touch": 731,
+     "hit": 18036,
+     "rw_unmaps": 1303,
+     "rw_unmaps_unwritten": 259,
+     "writes": 4438
+    }
+   },
+   {
+    "accesses": 8000,
+    "name": "damaged streams",
+    "results": {
+     "fault_ro": 273,
+     "fault_rw": 168,
+     "first_touch": 465,
+     "hit": 7071,
+     "injected": 38,
+     "lost": 23,
+     "rw_unmaps": 555,
+     "rw_unmaps_unwritten": 35,
+     "writes": 1950
+    }
+   },
+   {
+    "accesses": 8781,
+    "name": "failing LZ4 HW",
+    "results": {
+     "fault_ro": 588,
+     "fault_rw": 353,
+     "first_touch": 656,
+     "hit": 7184,
+     "rw_unmaps": 769,
+     "rw_unmaps_unwritten": 64,
+     "writes": 2238
+    }
+   }
+  ],
+  "stray": {}
+ }
+}

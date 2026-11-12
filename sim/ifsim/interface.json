@@ -1,0 +1,161 @@
+{
+  "name": "LZ4 accelerator HW/FW interface",
+  "version": "0.1-draft",
+  "byte_order": "little",
+  "constants": {
+    "PAGE_SIZE": {"value": 4096, "desc": "一個 page frame 的大小，單位 byte"},
+    "CHUNK_SIZE": {"value": 512, "desc": "chunk pool 裡一個 chunk 的大小，單位 byte"},
+    "CHUNK_SLOTS": {"value": 8, "desc": "一個 job 或一個 COT entry 最多列出的 chunk 數"},
+    "JOB_SLOT_SIZE": {"value": 64, "desc": "job ring 一格的間距。descriptor 佔前 48 B，其餘 16 B 保留"},
+    "CPL_SLOT_SIZE": {"value": 16, "desc": "completion ring 一格的大小"},
+    "COT_ENTRY_SIZE": {"value": 32, "desc": "COT 一筆 entry 的大小"},
+    "RING_ALIGN": {"value": 64, "desc": "FW 設定兩個 ring 的 base 時對齊的單位。等於 job ring 一格的間距，也是這份規格假設的 CPU cache line 大小"},
+    "ID_VALUE": {"value": 1280966657, "desc": "ID register 的固定值 0x4C5A0001"}
+  },
+  "registers": [
+    {"name": "ID", "offset": 0, "access": "RO", "reset": 1280966657, "desc": "固定值 0x4C5A0001。FW 在 probe 時確認"},
+    {"name": "CAP", "offset": 4, "access": "RO", "reset": 109720, "desc": "硬體能力",
+     "fields": [
+       {"name": "CHUNK_SLOTS", "lsb": 0, "width": 4, "desc": "一個 job 最多的 chunk 數，目前是 8"},
+       {"name": "CHUNK_SHIFT", "lsb": 4, "width": 4, "desc": "log2(chunk size)，目前是 9"},
+       {"name": "PAGE_SHIFT", "lsb": 8, "width": 4, "desc": "log2(page size)，目前是 12"},
+       {"name": "RING_SHIFT_MAX", "lsb": 12, "width": 4, "desc": "ring 最多 2^N 格，目前是 10"},
+       {"name": "ENGINES", "lsb": 16, "width": 4, "desc": "LZ4 engine 的數量，目前是 1"}
+     ]},
+    {"name": "CTRL", "offset": 8, "access": "RW", "reset": 0, "desc": "控制",
+     "fields": [
+       {"name": "ENABLE", "lsb": 0, "width": 1, "desc": "1 表示硬體開始從 job ring 取 job。由 0 寫成 1 時硬體檢查 ring 設定"},
+       {"name": "SOFT_RESET", "lsb": 1, "width": 1, "desc": "寫 1 觸發 soft reset，讀回永遠是 0"}
+     ]},
+    {"name": "STATUS", "offset": 12, "access": "RO", "reset": 0, "desc": "狀態",
+     "fields": [
+       {"name": "BUSY", "lsb": 0, "width": 1, "desc": "1 表示有 job 正在執行，或 reset 還沒收尾"},
+       {"name": "HALTED", "lsb": 1, "width": 1, "desc": "1 表示硬體因為 ERR_CODE 所列的原因停下，只有 soft reset 能解除"}
+     ]},
+    {"name": "IRQ_STATUS", "offset": 16, "access": "RO/W1C", "reset": 0, "desc": "interrupt 來源",
+     "fields": [
+       {"name": "DONE", "lsb": 0, "width": 1, "access": "RO", "desc": "等於 CPL_TAIL != CPL_HEAD。FW 把 CPL_HEAD 推到 CPL_TAIL 就自動變 0，不需要另外清"},
+       {"name": "ERROR", "lsb": 1, "width": 1, "access": "W1C", "desc": "硬體進入 HALTED 時設成 1，FW 寫 1 清除"}
+     ]},
+    {"name": "IRQ_ENABLE", "offset": 20, "access": "RW", "reset": 0, "desc": "interrupt 遮罩，bit 位置與 IRQ_STATUS 相同",
+     "fields": [
+       {"name": "DONE", "lsb": 0, "width": 1, "desc": "1 表示 DONE 會拉起 interrupt line"},
+       {"name": "ERROR", "lsb": 1, "width": 1, "desc": "1 表示 ERROR 會拉起 interrupt line"}
+     ]},
+    {"name": "ERR_CODE", "offset": 24, "access": "RO", "reset": 0, "desc": "HALTED 的原因，見 enum halt_code"},
+    {"name": "JOB_BASE", "offset": 32, "access": "RW", "reset": 0, "config": true, "desc": "job ring 的 PA，對齊 64 B"},
+    {"name": "JOB_SIZE", "offset": 36, "access": "RW", "reset": 0, "config": true, "desc": "job ring 的格數，必須是 2 的次方"},
+    {"name": "JOB_TAIL", "offset": 40, "access": "RW", "reset": 0, "desc": "doorbell。FW 寫入下一個要填的格號，硬體從 JOB_HEAD 做到這一格之前"},
+    {"name": "JOB_HEAD", "offset": 44, "access": "RO", "reset": 0, "desc": "硬體下一個要取的格號"},
+    {"name": "CPL_BASE", "offset": 48, "access": "RW", "reset": 0, "config": true, "desc": "completion ring 的 PA，對齊 16 B"},
+    {"name": "CPL_SIZE", "offset": 52, "access": "RW", "reset": 0, "config": true, "desc": "completion ring 的格數，必須是 2 的次方"},
+    {"name": "CPL_TAIL", "offset": 56, "access": "RO", "reset": 0, "desc": "硬體下一個要寫的格號"},
+    {"name": "CPL_HEAD", "offset": 60, "access": "RW", "reset": 0, "desc": "FW 下一個要讀的格號。FW 讀完 completion 後寫入"},
+    {"name": "POOL_BASE", "offset": 64, "access": "RW", "reset": 0, "config": true, "desc": "chunk pool 的 PA"},
+    {"name": "POOL_CHUNKS", "offset": 68, "access": "RW", "reset": 0, "config": true, "desc": "chunk pool 的 chunk 數。descriptor 裡的 chunk 號碼必須小於它"},
+    {"name": "FRAME_BASE", "offset": 72, "access": "RW", "reset": 0, "config": true, "desc": "page frame 區的 PA"},
+    {"name": "FRAME_COUNT", "offset": 76, "access": "RW", "reset": 0, "config": true, "desc": "page frame 區的 frame 數。descriptor 裡的 frame_pa 必須落在這一區"}
+  ],
+  "structs": {
+    "job_desc": {"size": 48, "desc": "job descriptor。FW 寫，硬體每個 job 讀一次",
+      "fields": [
+        {"name": "opcode", "offset": 0, "size": 1, "desc": "見 enum opcode"},
+        {"name": "count", "offset": 1, "size": 1, "desc": "chunk[] 裡有效的格數，1 到 8"},
+        {"name": "limit", "offset": 2, "size": 2, "desc": "COMPRESS：stream 最多幾個 byte，超過就回 INCOMPRESSIBLE。DECOMPRESS：填 4096"},
+        {"name": "frame_pa", "offset": 4, "size": 4, "desc": "page frame 的 PA。COMPRESS 讀它，DECOMPRESS 寫它"},
+        {"name": "comp_len", "offset": 8, "size": 2, "desc": "DECOMPRESS：stream 的長度。COMPRESS：填 0"},
+        {"name": "flags", "offset": 10, "size": 2, "desc": "bit2 RAW：DECOMPRESS 的 stream 是沒壓縮的 4096 B"},
+        {"name": "checksum", "offset": 12, "size": 4, "desc": "DECOMPRESS：stream 的 CRC-32。COMPRESS：填 0"},
+        {"name": "tag", "offset": 16, "size": 4, "desc": "FW 自訂，硬體原樣抄進 completion"},
+        {"name": "chunk", "offset": 20, "size": 3, "count": 8, "desc": "chunk 號碼，每個 24 bit。COMPRESS 是可以寫的 chunk，DECOMPRESS 是 stream 所在的 chunk，依序"},
+        {"name": "rsvd", "offset": 44, "size": 4, "desc": "保留，FW 寫 0，硬體忽略"}
+      ]},
+    "completion": {"size": 16, "desc": "completion。硬體寫，FW 讀",
+      "fields": [
+        {"name": "status", "offset": 0, "size": 1, "desc": "見 enum status"},
+        {"name": "flags", "offset": 1, "size": 1, "desc": "bit2 RAW：COMPRESS 存的是沒壓縮的 4096 B"},
+        {"name": "length", "offset": 2, "size": 2, "desc": "COMPRESS OK：stream 的長度。DECOMPRESS OK：4096。其他狀態：0"},
+        {"name": "checksum", "offset": 4, "size": 4, "desc": "stream 的 CRC-32"},
+        {"name": "tag", "offset": 8, "size": 4, "desc": "descriptor 的 tag"},
+        {"name": "aux", "offset": 12, "size": 4, "desc": "BAD_DESC 時是 enum bad_desc 的代碼，其餘是 0"}
+      ]},
+    "cot_entry": {"size": 32, "desc": "COT entry。只有 FW 讀寫，硬體不碰。RO page 的 entry 由 build tool 寫好",
+      "fields": [
+        {"name": "flags", "offset": 0, "size": 1, "desc": "bit0 VALID，bit1 RO，bit2 RAW"},
+        {"name": "count", "offset": 1, "size": 1, "desc": "用到的 chunk 數"},
+        {"name": "comp_len", "offset": 2, "size": 2, "desc": "stream 的長度"},
+        {"name": "checksum", "offset": 4, "size": 4, "desc": "stream 的 CRC-32"},
+        {"name": "chunk", "offset": 8, "size": 3, "count": 8, "desc": "chunk 號碼，每個 24 bit，依序"}
+      ]}
+  },
+  "enums": {
+    "opcode": {"desc": "job 的種類", "values": {
+      "COMPRESS": {"value": 1, "desc": "讀 frame，壓成 LZ4 block，寫進 descriptor 列出的 chunk"},
+      "DECOMPRESS": {"value": 2, "desc": "讀 descriptor 列出的 chunk，驗 CRC-32，解回 frame"}
+    }},
+    "status": {"desc": "completion 的 status", "values": {
+      "OK": {"value": 0, "desc": "完成"},
+      "INCOMPRESSIBLE": {"value": 1, "desc": "COMPRESS 的 stream 超過 limit。chunk 內容不定，frame 沒被動過"},
+      "BAD_STREAM": {"value": 3, "desc": "DECOMPRESS 的 CRC-32 不符或 stream 格式錯。frame 內容不定"},
+      "BUS_ERROR": {"value": 5, "desc": "讀寫 frame 或 chunk 時 bus 回報錯誤"},
+      "BAD_DESC": {"value": 6, "desc": "descriptor 沒通過檢查，硬體沒有碰任何 frame 或 chunk。原因在 aux"}
+    }},
+    "bad_desc": {"desc": "BAD_DESC 時 completion.aux 的值", "values": {
+      "OPCODE": {"value": 1, "desc": "opcode 不是 COMPRESS 或 DECOMPRESS"},
+      "COUNT": {"value": 2, "desc": "count 是 0 或大於 8"},
+      "CHUNK_RANGE": {"value": 3, "desc": "有 chunk 號碼不小於 POOL_CHUNKS"},
+      "FRAME_RANGE": {"value": 4, "desc": "frame_pa 不在 frame 區，或沒對齊 4096"},
+      "LENGTH": {"value": 5, "desc": "limit 或 comp_len 是 0、超過 4096 或超過 count 乘 512；RAW 的 comp_len 不是 4096"}
+    }},
+    "halt_code": {"desc": "ERR_CODE 的值", "values": {
+      "NONE": {"value": 0, "desc": "沒有錯誤"},
+      "BAD_RING_CFG": {"value": 1, "desc": "ENABLE 時 ring 大小不是 2 的次方、超過上限，或 base 沒對齊"},
+      "RING_BUS_ERROR": {"value": 2, "desc": "讀 job ring 或寫 completion ring 時 bus 回報錯誤"},
+      "BAD_INDEX": {"value": 3, "desc": "FW 寫入的 JOB_TAIL 或 CPL_HEAD 不小於 ring 的格數"}
+    }},
+    "flag": {"desc": "flags 欄位的 bit", "values": {
+      "VALID": {"value": 1, "desc": "COT entry 有效"},
+      "RO": {"value": 2, "desc": "COT entry 屬於 RO page"},
+      "RAW": {"value": 4, "desc": "stream 是沒壓縮的 4096 B"}
+    }}
+  },
+  "rules": [
+    {"id": "FW-CFG-1", "owner": "FW", "check": "checker", "text": "標成 config 的 register 只能在 CTRL.ENABLE 是 0 的時候寫。"},
+    {"id": "FW-CFG-2", "owner": "FW", "check": "checker", "text": "把 ENABLE 寫成 1 之前，JOB_SIZE 與 CPL_SIZE 是 2 的次方、介於 2 與 2^RING_SHIFT_MAX 之間，JOB_BASE 與 CPL_BASE 都對齊 RING_ALIGN，也就是 64 B，兩個 ring 都不落在 chunk pool 或 frame 區裡。HW 對 CPL_BASE 只檢查 16 B；64 B 是 FW 這一邊為了 FW-CACHE-5 多守的。"},
+    {"id": "FW-JOB-1", "owner": "FW", "check": "checker", "text": "寫 JOB_TAIL 之前，新納入的每一格 descriptor 的 48 B 都已經寫完。"},
+    {"id": "FW-JOB-2", "owner": "FW", "check": "checker", "text": "JOB_TAIL 只往前走，新值小於 JOB_SIZE，而且 ring 永遠留一格空：尚未被硬體取走的 job 最多 JOB_SIZE 減 1 個。"},
+    {"id": "FW-JOB-3", "owner": "FW", "check": "checker", "text": "一格 descriptor 從 doorbell 到 JOB_HEAD 越過它之前，FW 不寫那一格。"},
+    {"id": "FW-JOB-4", "owner": "FW", "check": "checker", "text": "已 doorbell、completion 還沒被 FW 讀走的 job 最多 CPL_SIZE 減 1 個，所以 completion ring 不會滿。"},
+    {"id": "FW-JOB-5", "owner": "FW", "check": "checker", "text": "已 doorbell、completion 還沒被 FW 讀走的 job，tag 互不相同。"},
+    {"id": "FW-JOB-6", "owner": "FW", "check": "checker", "text": "一個 frame 或一個 chunk 同一時間只出現在一個未完成的 job 裡。未完成指 doorbell 之後、硬體還沒貼出 completion。"},
+    {"id": "FW-CPL-1", "owner": "FW", "check": "checker", "text": "CPL_HEAD 只往前走，而且不超過 CPL_TAIL。"},
+    {"id": "FW-CPL-2", "owner": "FW", "check": "review", "text": "FW 用 tag 找出 completion 對應的 job，不假設順序。"},
+    {"id": "FW-MM-1", "owner": "FW", "check": "checker", "text": "job 的 doorbell 之前，沒有任何 valid 的 PTE 指到那個 frame。COMPRESS 的來源 frame 已經寫成 invalid 而且 TLB 清掉，DECOMPRESS 的目的 frame 還沒對應給任何 page。"},
+    {"id": "FW-MM-2", "owner": "FW", "check": "checker", "text": "COMPRESS 列出的 chunk 都是空的：沒有任何有效的 COT entry 指到它。"},
+    {"id": "FW-MM-3", "owner": "FW", "check": "checker", "text": "RW page 的 COT entry 只在 COMPRESS 回 OK 之後寫。comp_len、checksum、RAW 來自 completion，chunk 是 descriptor 的前 ceil(length/512) 個，順序不變。"},
+    {"id": "FW-MM-4", "owner": "FW", "check": "checker", "text": "DECOMPRESS 的 count、comp_len、checksum、RAW 與 chunk 原樣抄自那個 page 有效的 COT entry。"},
+    {"id": "FW-MM-5", "owner": "FW", "check": "checker", "text": "PTE 寫成 valid 之前：那個 page 沒有未完成的 job，那個 frame 不在任何未完成的 job 裡，也沒有對應到別的 page。"},
+    {"id": "FW-MM-6", "owner": "FW", "check": "checker", "text": "page 上一個 job 是 DECOMPRESS 時，只有 status 是 OK 才能把 PTE 寫成 valid。RW page 還要先把 COT entry 清成 0，PTE 最後才寫。"},
+    {"id": "FW-MM-7", "owner": "FW", "check": "checker", "text": "RO page 的 COT entry 在執行期間不寫。"},
+    {"id": "FW-CACHE-1", "owner": "FW", "check": "review", "text": "COMPRESS 的 doorbell 之前，來源 frame 在所有 core 的 cache 裡沒有還沒寫回 DRAM 的 line。做法是 PTE 寫成 invalid、TLB 清掉之後做一次 cache clean。"},
+    {"id": "FW-CACHE-2", "owner": "FW", "check": "review", "text": "DECOMPRESS 的 completion 之後、PTE 寫成 valid 之前，目的 frame 在所有 core 的 data cache 與 instruction cache 裡的 line 都已經作廢，不論 status 是什麼。DECOMPRESS 的 doorbell 之前，目的 frame 在任何 cache 裡沒有還沒寫回的 line。"},
+    {"id": "FW-CACHE-3", "owner": "FW", "check": "review", "text": "寫 JOB_TAIL 之前，descriptor 的 48 B 已經在 DRAM 裡，不只在 CPU cache 裡。FW 讀 completion 時不經過舊的 cache line。兩個 ring 對應成 non-cacheable，或每個 job 各做一次 clean 與 invalidate。"},
+    {"id": "FW-CACHE-4", "owner": "FW", "check": "review", "text": "把 ENABLE 寫成 1 之前，整個 frame 區與整個 chunk pool 在所有 core 的 cache 裡沒有任何 line：boot loader 放進 chunk pool 的 RO chunk 已經在 DRAM 裡，開機過程留在 frame 區的 line 也已經寫回並作廢。ENABLE 之後 FW 不寫 chunk pool。FW 自己解 stream 而要讀 chunk 時，不經過 HW 寫入之前留下的 cache line。"},
+    {"id": "FW-CACHE-5", "owner": "FW", "check": "review", "text": "HW 會寫的每一塊記憶體，不與 CPU 會寫的其他資料共用同一條 cache line。frame 與 chunk 的大小都是 cache line 的整數倍，本來就成立。completion ring 從 cache line 的開頭開始，尾端補滿整條 line，那幾條 line 不放別的資料；或者把 ring 對應成 non-cacheable。"},
+    {"id": "FW-RST-1", "owner": "FW", "check": "test", "text": "job 逾時後先讀 completion ring。確定沒有 completion 才 soft reset，等 STATUS.BUSY 變 0，把所有未完成的 job 重新送一次。"},
+    {"id": "HW-MEM-1", "owner": "HW", "check": "checker", "text": "硬體只讀寫四種位置：JOB_HEAD 那一格 descriptor、目前 job 的 frame、目前 job 列出的 chunk、CPL_TAIL 那一格 completion。COMPRESS 不寫 frame，DECOMPRESS 不寫 chunk。"},
+    {"id": "HW-MEM-2", "owner": "HW", "check": "checker", "text": "硬體先把 descriptor 的 48 B 讀完才推進 JOB_HEAD，每個 job 只讀一次，之後不再回頭讀。"},
+    {"id": "HW-CPL-1", "owner": "HW", "check": "checker", "text": "每個 job 恰好一個 completion，順序與 job 相同，tag 原樣抄回。"},
+    {"id": "HW-CPL-2", "owner": "HW", "check": "checker", "text": "job 的資料全部寫完、completion 的 16 B 也寫完之後，才推進 CPL_TAIL。"},
+    {"id": "HW-CPL-3", "owner": "HW", "check": "checker", "text": "completion ring 滿的時候硬體停下等 FW，不覆寫還沒被讀走的 completion。"},
+    {"id": "HW-IRQ-1", "owner": "HW", "check": "checker", "text": "interrupt line 等於 (IRQ_STATUS & IRQ_ENABLE) != 0，其中 DONE 等於 CPL_TAIL != CPL_HEAD。"},
+    {"id": "HW-DATA-1", "owner": "HW", "check": "checker", "text": "COMPRESS 回 OK 時：length 不超過 limit，checksum 是 stream 的 CRC-32，stream 解開後與 frame 的 4096 B 相同。"},
+    {"id": "HW-DATA-2", "owner": "HW", "check": "checker", "text": "DECOMPRESS 回 OK 時 frame 等於 stream 解開的 4096 B。回 BAD_STREAM 時 stream 確實有錯。"},
+    {"id": "HW-STATE-1", "owner": "HW", "check": "review", "text": "除了 register，硬體不保留跨 job 的狀態。job 做到一半被 reset，重送同一個 descriptor 會得到相同結果。"},
+    {"id": "HW-RST-1", "owner": "HW", "check": "test", "text": "soft reset：進行中的 bus burst 做完就停，JOB_HEAD、JOB_TAIL、CPL_TAIL、CPL_HEAD、ERR_CODE、IRQ_STATUS 與 CTRL.ENABLE 清成 0，config register 與 IRQ_ENABLE 保留，然後 STATUS.BUSY 變 0。"},
+    {"id": "AUDIT-1", "owner": "FW", "check": "audit", "text": "任何靜止的時刻，bitmap 標成已用的 chunk 等於所有有效 COT entry 列出的 chunk 的聯集，沒有 chunk 被兩個 entry 共用。"},
+    {"id": "AUDIT-2", "owner": "FW", "check": "audit", "text": "任何靜止的時刻，每個 frame 不是空的就是恰好屬於一個 present 的 page。"},
+    {"id": "AUDIT-3", "owner": "FW+HW", "check": "audit", "text": "每個 page 的內容，不論在 frame 裡或壓縮在 chunk 裡，都等於 user SW 最後寫入的內容。"},
+    {"id": "AUDIT-4", "owner": "FW+HW", "check": "audit", "text": "系統靜止時沒有未完成的 job，兩個 ring 都是空的，interrupt line 是低的。"}
+  ]
+}

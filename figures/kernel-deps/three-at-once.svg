@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 520" width="1180" height="520" role="img" aria-label="Two page faults and one eviction at the same time, with the stretches where one waits for the lock or for the LZ4 engine" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L10,5 L0,9 z" fill="#52514e"/></marker>
+<marker id="arrow-bold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,1 L10,5 L0,9 z" fill="#0b0b0b"/></marker>
+<pattern id="standstill" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#eeede8"/><line x1="0" y1="0" x2="0" y2="7" stroke="#8a8983" stroke-width="2"/></pattern>
+</defs>
+<rect width="1180" height="520" fill="#fcfcfb"/>
+<text x="30.0" y="36.0" font-size="21" fill="#0b0b0b" text-anchor="start" font-weight="bold" >Three operations at once: where they stand still for each other</text>
+<text x="30.0" y="60.0" font-size="13.5" fill="#52514e" text-anchor="start" font-weight="normal" >A constructed moment: two faults arrive while the reclaimer compresses a page. Each runs on a core of its own. Assumed step costs.</text>
+<rect x="30" y="81" width="14" height="14" rx="3" fill="#2a78d6"/>
+<text x="50.0" y="93.0" font-size="12.5" fill="#0b0b0b" text-anchor="start" font-weight="normal" >CPU: exception entry and return</text>
+<rect x="276.75" y="81" width="14" height="14" rx="3" fill="#eb6834"/>
+<text x="296.8" y="93.0" font-size="12.5" fill="#0b0b0b" text-anchor="start" font-weight="normal" >kernel, mm_lock held</text>
+<rect x="446.5" y="81" width="14" height="14" rx="3" fill="#1baf7a"/>
+<text x="466.5" y="93.0" font-size="12.5" fill="#0b0b0b" text-anchor="start" font-weight="normal" >kernel, lock not held</text>
+<rect x="30" y="105" width="14" height="14" rx="3" fill="#eda100"/>
+<text x="50.0" y="117.0" font-size="12.5" fill="#0b0b0b" text-anchor="start" font-weight="normal" >LZ4 HW job</text>
+<rect x="144.5" y="105" width="14" height="14" rx="3" fill="#e87ba4"/>
+<text x="164.5" y="117.0" font-size="12.5" fill="#0b0b0b" text-anchor="start" font-weight="normal" >interrupt, handler, wake-up of the thread</text>
+<rect x="448.0" y="105" width="14" height="14" rx="3" fill="url(#standstill)" stroke="#8a8983"/>
+<text x="468.0" y="117.0" font-size="12.5" fill="#0b0b0b" text-anchor="start" font-weight="normal" >stands still, waits for another operation</text>
+<line x1="190.0" y1="142" x2="190.0" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="190.0" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >0</text>
+<line x1="263.8" y1="142" x2="263.8" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="263.8" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >1 µs</text>
+<line x1="337.7" y1="142" x2="337.7" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="337.7" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >2 µs</text>
+<line x1="411.5" y1="142" x2="411.5" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="411.5" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >3 µs</text>
+<line x1="485.4" y1="142" x2="485.4" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="485.4" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >4 µs</text>
+<line x1="559.2" y1="142" x2="559.2" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="559.2" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >5 µs</text>
+<line x1="633.1" y1="142" x2="633.1" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="633.1" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >6 µs</text>
+<line x1="706.9" y1="142" x2="706.9" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="706.9" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >7 µs</text>
+<line x1="780.8" y1="142" x2="780.8" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="780.8" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >8 µs</text>
+<line x1="854.6" y1="142" x2="854.6" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="854.6" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >9 µs</text>
+<line x1="928.5" y1="142" x2="928.5" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="928.5" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >10 µs</text>
+<line x1="1002.3" y1="142" x2="1002.3" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="1002.3" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >11 µs</text>
+<line x1="1076.2" y1="142" x2="1076.2" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="1076.2" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >12 µs</text>
+<line x1="1150.0" y1="142" x2="1150.0" y2="486" stroke="#c9c8c2" stroke-width="1"/>
+<text x="1150.0" y="502.0" font-size="11.5" fill="#52514e" text-anchor="middle" font-weight="normal" >13 µs</text>
+<text x="30.0" y="165.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="bold" >reclaimer: evict_rw</text>
+<text x="30.0" y="182.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >9190 ns, alone 9190 ns</text>
+<rect x="190.0" y="150" width="20.2" height="34" rx="3" fill="#eb6834"><title>clock scan: pick a victim: 300 ns (kernel, mm_lock held)</title></rect>
+<rect x="212.2" y="150" width="16.5" height="34" rx="3" fill="#eb6834"><title>reserve 7 chunks: 250 ns (kernel, mm_lock held)</title></rect>
+<rect x="230.6" y="150" width="5.4" height="34" rx="3" fill="#eb6834"><title>make PTE invalid: 100 ns (kernel, mm_lock held)</title></rect>
+<rect x="238.0" y="150" width="34.9" height="34" rx="3" fill="#eb6834"><title>TLB invalidate, all cores: 500 ns (kernel, mm_lock held)</title></rect>
+<rect x="274.9" y="150" width="9.1" height="34" rx="3" fill="#1baf7a"><title>build job descriptor: 150 ns (kernel, lock not held)</title></rect>
+<rect x="286.0" y="150" width="9.1" height="34" rx="3" fill="#1baf7a"><title>write job ring, doorbell: 150 ns (kernel, lock not held)</title></rect>
+<rect x="297.1" y="150" width="312.6" height="34" rx="3" fill="#eda100"><title>COMPRESS frame to chunks: 4260 ns (LZ4 HW job)</title></rect>
+<text x="453.4" y="171.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >COMPRESS 4260</text>
+<rect x="611.7" y="150" width="230.6" height="34" rx="3" fill="#e87ba4"><title>interrupt, handler, wake thread: 3150 ns (interrupt, handler, wake-up of the thread)</title></rect>
+<text x="727.0" y="171.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >interrupt + wake-up 3150</text>
+<rect x="844.3" y="150" width="3.9" height="34" rx="3" fill="#1baf7a"><title>read completion, check tag: 80 ns (kernel, lock not held)</title></rect>
+<rect x="850.2" y="150" width="9.1" height="34" rx="3" fill="#eb6834"><title>write COT entry: 150 ns (kernel, mm_lock held)</title></rect>
+<rect x="861.3" y="150" width="5.4" height="34" rx="3" fill="#eb6834"><title>give unused chunks back: 100 ns (kernel, mm_lock held)</title></rect>
+<text x="30.0" y="235.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="bold" >core 1: fault_ro</text>
+<text x="30.0" y="252.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >10393 ns, alone 6083 ns</text>
+<rect x="212.2" y="220" width="42.3" height="34" rx="3" fill="#2a78d6"><title>page fault exception: 600 ns (CPU: exception entry and return)</title></rect>
+<rect x="256.5" y="220" width="16.5" height="34" rx="3" fill="url(#standstill)" stroke="#8a8983" stroke-width="1"><title>waits for mm_lock: 250 ns</title></rect>
+<text x="256.5" y="214.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">waits for mm_lock 250 ns</text>
+<rect x="274.9" y="220" width="5.4" height="34" rx="3" fill="#eb6834"><title>take a free frame: 100 ns (kernel, mm_lock held)</title></rect>
+<rect x="282.3" y="220" width="5.4" height="34" rx="3" fill="#eb6834"><title>read COT entry: 100 ns (kernel, mm_lock held)</title></rect>
+<rect x="289.7" y="220" width="9.1" height="34" rx="3" fill="#1baf7a"><title>build job descriptor: 150 ns (kernel, lock not held)</title></rect>
+<rect x="300.8" y="220" width="9.1" height="34" rx="3" fill="#1baf7a"><title>write job ring, doorbell: 150 ns (kernel, lock not held)</title></rect>
+<rect x="311.8" y="220" width="297.8" height="34" rx="3" fill="url(#standstill)" stroke="#8a8983" stroke-width="1"><title>waits for the LZ4 engine: 4060 ns</title></rect>
+<text x="460.8" y="241.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >waits for the LZ4 engine 4060 ns</text>
+<rect x="611.7" y="220" width="90.5" height="34" rx="3" fill="#eda100"><title>DECOMPRESS chunks to frame: 1253 ns (LZ4 HW job)</title></rect>
+<rect x="704.2" y="220" width="230.6" height="34" rx="3" fill="#e87ba4"><title>interrupt, handler, wake thread: 3150 ns (interrupt, handler, wake-up of the thread)</title></rect>
+<text x="819.5" y="241.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >interrupt + wake-up 3150</text>
+<rect x="936.8" y="220" width="3.9" height="34" rx="3" fill="#1baf7a"><title>read completion, check tag: 80 ns (kernel, lock not held)</title></rect>
+<rect x="942.7" y="220" width="5.4" height="34" rx="3" fill="#eb6834"><title>make PTE valid: 100 ns (kernel, mm_lock held)</title></rect>
+<rect x="950.1" y="220" width="27.5" height="34" rx="3" fill="#2a78d6"><title>return from exception: 400 ns (CPU: exception entry and return)</title></rect>
+<text x="30.0" y="305.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="bold" >core 2: fault_rw</text>
+<text x="30.0" y="322.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >11296 ns, alone 6333 ns</text>
+<rect x="256.5" y="290" width="42.3" height="34" rx="3" fill="#2a78d6"><title>page fault exception: 600 ns (CPU: exception entry and return)</title></rect>
+<rect x="300.8" y="290" width="5.4" height="34" rx="3" fill="#eb6834"><title>take a free frame: 100 ns (kernel, mm_lock held)</title></rect>
+<rect x="308.2" y="290" width="5.4" height="34" rx="3" fill="#eb6834"><title>read COT entry: 100 ns (kernel, mm_lock held)</title></rect>
+<rect x="315.5" y="290" width="9.1" height="34" rx="3" fill="#1baf7a"><title>build job descriptor: 150 ns (kernel, lock not held)</title></rect>
+<rect x="326.6" y="290" width="9.1" height="34" rx="3" fill="#1baf7a"><title>write job ring, doorbell: 150 ns (kernel, lock not held)</title></rect>
+<rect x="337.7" y="290" width="364.5" height="34" rx="3" fill="url(#standstill)" stroke="#8a8983" stroke-width="1"><title>waits for the LZ4 engine: 4963 ns</title></rect>
+<text x="519.9" y="311.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >waits for the LZ4 engine 4963 ns</text>
+<rect x="704.2" y="290" width="90.5" height="34" rx="3" fill="#eda100"><title>DECOMPRESS chunks to frame: 1253 ns (LZ4 HW job)</title></rect>
+<rect x="796.7" y="290" width="230.6" height="34" rx="3" fill="#e87ba4"><title>interrupt, handler, wake thread: 3150 ns (interrupt, handler, wake-up of the thread)</title></rect>
+<text x="912.0" y="311.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >interrupt + wake-up 3150</text>
+<rect x="1029.3" y="290" width="3.9" height="34" rx="3" fill="#1baf7a"><title>read completion, check tag: 80 ns (kernel, lock not held)</title></rect>
+<rect x="1035.2" y="290" width="9.1" height="34" rx="3" fill="#eb6834"><title>clear COT entry: 150 ns (kernel, mm_lock held)</title></rect>
+<rect x="1046.3" y="290" width="5.4" height="34" rx="3" fill="#eb6834"><title>give chunks back: 100 ns (kernel, mm_lock held)</title></rect>
+<rect x="1053.7" y="290" width="5.4" height="34" rx="3" fill="#eb6834"><title>make PTE valid: 100 ns (kernel, mm_lock held)</title></rect>
+<rect x="1061.1" y="290" width="27.5" height="34" rx="3" fill="#2a78d6"><title>return from exception: 400 ns (CPU: exception entry and return)</title></rect>
+<text x="30.0" y="375.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="bold" >mm_lock</text>
+<text x="30.0" y="392.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >one holder at a time</text>
+<line x1="190" y1="377.0" x2="1150" y2="377.0" stroke="#c9c8c2" stroke-width="1"/>
+<rect x="190.0" y="360" width="82.9" height="34" rx="3" fill="#eb6834"><title>reclaimer: 1150 ns</title></rect>
+<text x="231.5" y="381.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >reclaimer</text>
+<rect x="850.2" y="360" width="16.5" height="34" rx="3" fill="#eb6834"><title>reclaimer: 250 ns</title></rect>
+<rect x="274.9" y="360" width="12.8" height="34" rx="3" fill="#eb6834"><title>core 1: 200 ns</title></rect>
+<rect x="942.7" y="360" width="5.4" height="34" rx="3" fill="#eb6834"><title>core 1: 100 ns</title></rect>
+<rect x="300.8" y="360" width="12.8" height="34" rx="3" fill="#eb6834"><title>core 2: 200 ns</title></rect>
+<rect x="1035.2" y="360" width="23.8" height="34" rx="3" fill="#eb6834"><title>core 2: 350 ns</title></rect>
+<text x="30.0" y="445.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="bold" >LZ4 engine</text>
+<text x="30.0" y="462.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >one holder at a time</text>
+<line x1="190" y1="447.0" x2="1150" y2="447.0" stroke="#c9c8c2" stroke-width="1"/>
+<rect x="297.1" y="430" width="312.6" height="34" rx="3" fill="#eda100"><title>reclaimer: 4260 ns</title></rect>
+<text x="453.4" y="451.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >reclaimer</text>
+<rect x="611.7" y="430" width="90.5" height="34" rx="3" fill="#eda100"><title>core 1: 1253 ns</title></rect>
+<text x="656.9" y="451.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >core 1</text>
+<rect x="704.2" y="430" width="90.5" height="34" rx="3" fill="#eda100"><title>core 2: 1253 ns</title></rect>
+<text x="749.5" y="451.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >core 2</text>
+</svg>

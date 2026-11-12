@@ -352,6 +352,9 @@ python3 run.py --small --accesses 3000 --variant baseline --lesson out/lesson-co
 | `lz4sim/lesson_assets/` | lesson 原始碼：`kit.js`（stepper、byte 板子、bubble、鏡頭，各 scene 共用）、`stage_base.js`（兩種方案共用的舞台）、`stage_hw.js`（偏硬體方案才有的部分，兩個 HW scene 共用）、`stage_sw.js`（偏軟體方案才有的部分，兩個 SW scene 共用）、`compress_hw_steps.js`（25 步）、`decompress_hw_steps.js`（33 步）、`compress_sw_steps.js`（32 步）、`decompress_sw_steps.js`（29 步）、`shell.html`（版面） |
 | `lz4sim/__main__.py`、`run.py` | 命令列 |
 | `tests/` | 格式、配置器、共用 engine、端到端（含損壞注入與 raw store）、user SW 的 page 歸屬、replay 匯出、lesson 匯出 |
+| `ifsim/` | 有時間的 HW/FW 介面模擬器，見 `ifsim/README.md` |
+| `hostsim/` | 不含時間的 host simulation，用來順算法與 kernel 控制程序，見 `hostsim/README.md` |
+| `hwref/` | LZ4 硬體的 reference model：RTL 要逐 byte 重現的 encoder、decoder 與單一 job 的行為，test vector，以及硬體設計規格的產生器，見 `hwref/README.md` |
 
 ## 下一步
 

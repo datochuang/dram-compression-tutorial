@@ -1,0 +1,202 @@
+"""Does each checker catch the bug it is there for?
+
+Every case plants one deliberate bug in the FW model or the HW model (or feeds
+the checker a hand-made event) and expects one named rule to fire first.
+A checker that never fires proves nothing, so the last test insists that every
+rule marked checker or audit has a case here.
+"""
+import pytest
+
+from lz4sim.config import SMALL
+from ifsim.checkers import Violation
+from ifsim.params import Params
+from ifsim.platform import Ctx
+from ifsim.spec import SPEC
+from ifsim.system import System
+
+WL = dict(hot_ro_pages=100, hot_rw_pages=200)
+
+# (who carries the bug, name of the bug, rule that must fire)
+PLANTED = [
+    ('drv', 'bell_first', 'FW-JOB-1'),       # doorbell before the descriptor is written
+    ('drv', 'cfg_live', 'FW-CFG-1'),         # config register written while enabled
+    ('drv', 'head_ahead', 'FW-CPL-1'),       # CPL_HEAD moved past CPL_TAIL
+    ('drv', 'dup_tag', 'FW-JOB-5'),          # tag of a job still out is used again
+    ('drv', 'slot_rewrite', 'FW-JOB-3'),     # slot written again after the doorbell
+    ('mm', 'pte_early', 'FW-MM-5'),          # PTE made valid before the completion
+    ('mm', 'no_pte_inval', 'FW-MM-1'),       # COMPRESS started on a page still mapped
+    ('mm', 'cot_keep', 'FW-MM-6'),           # RW page mapped back with its COT entry left valid
+    ('mm', 'busy_chunks', 'FW-MM-2'),        # COMPRESS given a chunk that holds another page
+    ('mm', 'no_trim', 'AUDIT-1'),            # unused reserved chunks never returned
+    ('mm', 'cot_wrong_len', 'FW-MM-3'),      # COT entry differs from the completion
+    ('mm', 'decomp_wrong', 'FW-MM-4'),       # DECOMPRESS descriptor differs from the COT entry
+    ('hw', 'wrong_tag', 'HW-CPL-1'),         # completion carries another tag
+    ('hw', 'stray_write', 'HW-MEM-1'),       # write outside the chunks of the job
+    ('hw', 'tail_first', 'HW-CPL-2'),        # CPL_TAIL moved before the completion is in memory
+    ('hw', 'bad_data', 'HW-DATA-1'),         # OK reported for a stream that is not the page
+    ('hw', 'decomp_bad', 'HW-DATA-2'),       # OK reported for a frame that is not the page
+    ('hw', 'irq_stuck', 'HW-IRQ-1'),         # interrupt line not following the ring
+    ('hw', 'reread', 'HW-MEM-2'),            # descriptor read a second time
+]
+
+
+def system(strict=True, **kw):
+    kw.setdefault('reclaim_inflight', 2)
+    return System(SMALL, Params(**kw), seed=3, workload=WL, strict=strict)
+
+
+@pytest.mark.parametrize('who,bug,rule', PLANTED, ids=[b for _, b, _ in PLANTED])
+def test_planted_bug_is_caught(who, bug, rule):
+    s = system()
+    getattr(s, who).mut[bug] = 30
+    with pytest.raises(Violation) as e:
+        s.run(6000)
+        s.audit()
+    assert e.value.rule == rule, str(e.value)
+
+
+def test_ring_deeper_than_the_completion_ring():
+    """FW-JOB-4: more jobs out than the completion ring can hold."""
+    s = system(cpl_entries=4, reclaim_inflight=8)
+    s.drv.slots.cap = 15                      # the bug: depth taken from the job ring only
+    with pytest.raises(Violation) as e:
+        s.run(6000)
+    assert e.value.rule == 'FW-JOB-4'
+
+
+# ---- directed cases: hand-made events straight into the checker
+def booted(strict=True):
+    s = system(strict)
+    s.sim.run(stop=s.sim.process(s.drv.init(Ctx(s.sim, 'boot')), 'init'))
+    s.mm.emit_boot()
+    return s
+
+
+def fw(s, ev, **kw):
+    s.chk.on(s.sim.now, 'fw', ev, kw)
+
+
+def put_job(s, slot, tag, h, frame, chunks):
+    d = dict(opcode=SPEC.enum['opcode'].COMPRESS, count=len(chunks), limit=3072, frame_pa=frame, tag=tag, chunk=chunks)
+    pa = s.drv.job_base + slot * 64
+    s.dram.write(pa, SPEC.pack('job_desc', d))
+    fw(s, 'job', tag=tag, h=h, op=d['opcode'])
+    fw(s, 'mem_w', pa=pa, n=48, what='job_slot')
+
+
+def test_illegal_ring_configuration():
+    s = system()
+    for name, val in (('JOB_BASE', 0x8000_0000), ('JOB_SIZE', 12), ('CPL_BASE', 0x8000_1000), ('CPL_SIZE', 16)):
+        fw(s, 'mmio_w', reg=name, val=val)
+    with pytest.raises(Violation) as e:
+        fw(s, 'mmio_w', reg='CTRL', val=1)
+    assert e.value.rule == 'FW-CFG-2'
+
+
+def test_completion_ring_must_start_on_a_cache_line():
+    """The HW accepts CPL_BASE on any completion slot. The FW rule is stricter, for FW-CACHE-5."""
+    s = system()
+    assert s.drv.cpl_base % SPEC.const.RING_ALIGN == 0 and s.drv.job_base % SPEC.const.RING_ALIGN == 0
+    pool = (('POOL_BASE', s.cfg.pool_base), ('POOL_CHUNKS', s.cfg.pool_chunks))
+    for off, legal in ((SPEC.const.RING_ALIGN, True), (SPEC.const.CPL_SLOT_SIZE, False)):
+        s = system()
+        for name, val in (('JOB_BASE', s.drv.job_base), ('JOB_SIZE', 16), ('CPL_BASE', s.drv.cpl_base + off),
+                          ('CPL_SIZE', 16)) + pool:
+            fw(s, 'mmio_w', reg=name, val=val)
+        if legal:
+            fw(s, 'mmio_w', reg='CTRL', val=1)
+        else:
+            with pytest.raises(Violation) as e:
+                fw(s, 'mmio_w', reg='CTRL', val=1)
+            assert e.value.rule == 'FW-CFG-2'
+
+
+def test_ring_inside_the_chunk_pool():
+    s = system()
+    for name, val in (('JOB_BASE', s.cfg.pool_base), ('JOB_SIZE', 16), ('CPL_BASE', s.drv.cpl_base), ('CPL_SIZE', 16),
+                      ('POOL_BASE', s.cfg.pool_base), ('POOL_CHUNKS', s.cfg.pool_chunks)):
+        fw(s, 'mmio_w', reg=name, val=val)
+    with pytest.raises(Violation) as e:
+        fw(s, 'mmio_w', reg='CTRL', val=1)
+    assert e.value.rule == 'FW-CFG-2'
+
+
+@pytest.mark.parametrize('val', [16, 99])
+def test_doorbell_out_of_range(val):
+    s = booted()
+    with pytest.raises(Violation) as e:
+        fw(s, 'mmio_w', reg='JOB_TAIL', val=val)
+    assert e.value.rule == 'FW-JOB-2'
+
+
+def test_doorbell_overruns_the_ring():
+    s = booted(strict=False)
+    free = [s.cfg.frame_pa(f) for f in s.mm.free_frames][:16]
+    for i in range(15):
+        put_job(s, i, 100 + i, None, free[i % len(free)], ())
+    fw(s, 'mmio_w', reg='JOB_TAIL', val=15)            # 15 of 16 slots: allowed
+    assert not s.chk.nviol['FW-JOB-2']
+    put_job(s, 15, 200, None, free[0], ())
+    fw(s, 'mmio_w', reg='JOB_TAIL', val=0)             # the 16th: head would look like tail
+    assert s.chk.nviol['FW-JOB-2'] == 1
+
+
+def test_two_jobs_on_one_frame():
+    s = booted()
+    frame = s.cfg.frame_pa(s.mm.free_frames[0])
+    free = sorted(s.mm.bitmap.enumerate_free())
+    put_job(s, 0, 100, 5, frame, free[:6])
+    put_job(s, 1, 101, 6, frame, free[6:12])
+    with pytest.raises(Violation) as e:
+        fw(s, 'mmio_w', reg='JOB_TAIL', val=2)
+    assert e.value.rule == 'FW-JOB-6'
+
+
+def test_ro_cot_entry_written_at_run_time():
+    s = booted()
+    h = next(h for h in range(s.cfg.pages) if s.cfg.is_ro(h))
+    with pytest.raises(Violation) as e:
+        fw(s, 'mem_w', pa=s.cfg.entry_pa(h), n=32, what='cot')
+    assert e.value.rule == 'FW-MM-7'
+
+
+def test_completion_ring_overrun():
+    s = booted(strict=False)
+    for i in range(1, 17):
+        s.chk.on(0, 'hw', 'reg', dict(reg='CPL_TAIL', val=i % 16))
+    assert s.chk.nviol['HW-CPL-3'] == 1                # only the 16th step lands on CPL_HEAD
+
+
+def test_audit_catches_a_frame_owned_twice():
+    s = system(strict=False)
+    s.run(3000)
+    assert s.audit()['violations'] == 0
+    s.mm.free_frames.append(s.mm.frame_of[next(iter(s.mm.lru))])
+    s.audit()
+    assert s.chk.nviol['AUDIT-2'] == 1
+
+
+def test_audit_catches_wrong_page_contents():
+    s = system(strict=False)
+    s.run(3000)
+    h = next(iter(s.mm.lru))
+    s.dram.view(s.cfg.frame_pa(s.mm.frame_of[h]), 4096)[100] ^= 0x55
+    s.audit()
+    assert s.chk.nviol['AUDIT-3'] == 1
+
+
+def test_audit_catches_work_left_over():
+    s = system(strict=False)
+    s.run(3000)
+    s.mm.inflight = 1
+    s.audit()
+    assert s.chk.nviol['AUDIT-4'] == 1
+
+
+DIRECTED = {'FW-JOB-4', 'FW-CFG-2', 'FW-JOB-2', 'FW-JOB-6', 'FW-MM-7', 'HW-CPL-3', 'AUDIT-2', 'AUDIT-3', 'AUDIT-4'}
+
+
+def test_every_checker_has_a_case_that_makes_it_fire():
+    covered = {rule for _, _, rule in PLANTED} | DIRECTED
+    need = {rid for rid, r in SPEC.rules.items() if r['check'] in ('checker', 'audit')}
+    assert need <= covered, f'no negative test for {sorted(need - covered)}'
