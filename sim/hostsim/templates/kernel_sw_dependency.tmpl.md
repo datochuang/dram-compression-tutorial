@@ -4,15 +4,16 @@
 > 第 0 節的結論、第 6 到 8 節的建議是對這一版數字手寫的。重跑之後數字有變的話，這幾處要重讀一次。
 > 所有以 ns 表示的步驟成本都是假設，不是晶片的量測。它們只用來比較輕重，不能當作規格。
 > 這份文件只有分析與提案。`kernel.py` 沒有為了效能做任何修改。
+> **2026-11-13：平台前提 P4 指定 LZ4 HW 可以同時接受 N 個 job，N 暫定 4。時間模型 `sim/ifsim` 同一天擴充成 N 個 engine 並重跑，這份文件引用的時間模型數字都換成 {{engines}} 個 engine 的。步驟與相依圖不受影響。和 LZ4 引擎排隊有關的結論逐項列在 0.1。5.4 的例子仍然是一個 engine 的算術，那裡有註明。**
 
 ## 0. 結論
 
 問題是：所有動作都要 kernel 控制，而且一次只做一件事，kernel 會不會卡住系統。把 kernel 的動作拆成 {{n_steps}} 個步驟、{{n_cases}} 個動作之後，答案分成五點。
 
-1. **「一次只做一件事」只對了一部分。** kernel 不是一個單獨的 thread。每個發生 page fault 的 thread 在自己的 core 上跑 fault 的程序，LZ4 job 進行期間它不握 lock。真正一次只能一個的有四樣：`mm_lock` 保護的區段、LZ4 引擎和它的 ring、reclaimer thread、在 lock 裡面做的 clock 掃描。
+1. **「一次只做一件事」只對了一部分。** kernel 不是一個單獨的 thread。每個發生 page fault 的 thread 在自己的 core 上跑 fault 的程序，LZ4 job 進行期間它不握 lock。真正一次只能一個的有四樣：`mm_lock` 保護的區段、LZ4 引擎和它的 ring、reclaimer thread、在 lock 裡面做的 clock 掃描。其中 LZ4 引擎在平台前提 P4 之後是一次 N 個，N 暫定 4，見 0.1。
 2. **單一個動作的相依圖幾乎是一條鏈。** 一次 RO page 的 fault，一步接一步是 {{serial:fault_ro}} ns，圖上最長的路徑是 {{span:fault_ro}} ns。趕出一個 RW page 是 {{serial:evict_rw}} ns 對 {{span:evict_rw}} ns。所以在一個動作裡面把步驟排成平行，最多省幾百 ns。
 3. **時間花在少數幾個重的步驟上。** 一次 RO fault 的 {{fault_ro_serial}} ns 裡，等 interrupt 和叫醒 thread 佔 {{notify_ns}} ns，約 {{notify_share}}。LZ4 HW 的 DECOMPRESS 佔 {{hw_dec}} ns，約 {{hw_dec_share}}。CPU 進出 exception 佔 {{exc_ns}} ns，約 {{exc_share}}。kernel 自己查表改表的部分加起來不到 700 ns。要快，是把重的步驟縮短，不是把步驟並排。
-4. **塞車的位置在動作和動作之間。** 不同 page 的兩個動作之間沒有先後關係，它們只在共用的東西上相遇。在基準負載下，`mm_lock` 有 {{lock_share}} 的時間有人握著，LZ4 引擎忙 {{engine_share}}，reclaimer 忙 {{reclaimer_share}}。負載加重時先撐不住的順序是 reclaimer、LZ4 引擎、`mm_lock`。
+4. **塞車的位置在動作和動作之間。** 不同 page 的兩個動作之間沒有先後關係，它們只在共用的東西上相遇。在基準負載下，`mm_lock` 有 {{lock_share}} 的時間有人握著，{{engines}} 個 LZ4 engine 平均每個忙 {{engine_share}}，reclaimer 忙 {{reclaimer_share}}。負載加重時先撐不住的是 reclaimer，其次是 `mm_lock`。{{engines}} 個 engine 全部有 job 的時間，在所有掃過的執行裡最多 {{all_busy_max}}。
 5. **有兩處會讓個別的 fault 等很久，平均值看不出來。** reclaimer 握一次 lock 最多連續趕出 {{full_victims_max}} 個 page。clock 掃描最長的一次看了 {{full_scan_max}} 個 frame，全程握著 lock。這兩件事在控制程序文件裡是 F6 和 D3，這裡補上了數字。
 
 建議的順序如下，理由在第 6 節和第 7 節。
@@ -20,13 +21,39 @@
 | 順序 | 做法 | 屬於 | 解決什麼 | 證據 |
 |---|---|---|---|---|
 | 1 | 每握一次 lock 只趕出一個 page，而且掃描的 frame 數有上限 | kernel SW | 個別 fault 等 lock 的最長時間 | 5.3 的握 lock 統計 |
-| 2 | reclaimer 同時送出 2 個 COMPRESS | kernel SW | 負載重時等不到 free frame | 6.1 的掃描 |
-| 3 | fault 的 DECOMPRESS 不排在 COMPRESS 後面 | LZ4 HW 介面 | fault 被一個 COMPRESS 擋住約 4 µs | 5.4 的圖，時間模型的 F4 |
+| 2 | reclaimer 同時送出至少 2 個 COMPRESS | kernel SW | 負載重時等不到 free frame | 6.1 的掃描。{{engines}} 個 engine 時 2 到 8 個都可以。時間模型的預設值在 2026-11-13 改成 2，`kernel.py` 還沒改 |
+| 3 | fault 的 DECOMPRESS 不排在 COMPRESS 後面 | LZ4 HW | fault 被一個 COMPRESS 擋住約 4 µs | 平台前提 P4 的 N 個 engine 已經做到大部分，見 0.1。不需要另外的優先權 |
 | 4 | TLB invalidate 和填 0 移到 lock 外面 | kernel SW | 握 lock 的總時間 | 6.3 的試算，尚未執行驗證 |
 | 5 | fault 的 thread 用 polling 等 completion | kernel SW | 一次 fault 少約 3 µs，代價是 CPU | 6.2，取決於用哪顆 CPU |
 | 6 | LZ4 HW 的 master port 接成 coherent | 整合 | 每個 job 少兩次 cache 操作 | 成本未知，見第 8 節 |
 
 不建議現在做的：把 `mm_lock` 拆成幾個 lock、讓硬體管 chunk 或 COT、讓硬體選要趕出的 page、用硬體填 0。理由在 6.4 和 7.2。
+
+### 0.1 平台前提 P4 之後，哪些還成立
+
+平台前提 P4 是 2026-11-13 指定的：LZ4 HW 可以同時接受 N 個 job，N 暫定 4。時間模型 `sim/ifsim` 同一天擴充成 N 個 engine 並重跑。下表右欄有數字的都是模擬的結果，出處是 `sim-results-v0.md`。標成推論的沒有模擬過。
+
+| 這份文件的內容 | {{engines}} 個 engine 之後 |
+|---|---|
+| 第 1 到 4 節：步驟、相依圖、`mm_lock` 保護什麼、哪些步驟要在同一段 | 不變。P4 沒有改 kernel 的任何一步。lock 保護的是 kernel 的表，不是 engine |
+| 結論第 1 點：一次只能一個的有四樣 | LZ4 引擎從一次一個變成一次 {{engines}} 個。job ring 仍然只有一個，`ring_lock` 還在。其餘三樣不變 |
+| 結論第 2、3 點：單一動作是一條鏈，時間花在通知、HW、exception | 不變。一個 job 仍然由一個 engine 從頭做到尾，不會因為 engine 變多而變快 |
+| 結論第 4 點與 5.2：各自多忙，「還能撐幾倍」 | 已經換成 {{engines}} 個 engine 的數字。engine 平均每個忙 {{engine_share}}，比 `mm_lock` 的 {{lock_share}} 還低。先撐不住的順序變成 reclaimer、`mm_lock`、LZ4 引擎 |
+| 結論第 5 點與 5.3：握 lock 的最長時間 | 不變。P4 不影響握 lock 的時間 |
+| 5.4 的例子與 F4：fault 排在一個 COMPRESS 後面多等 4 到 5 µs | 基準負載下，fault 在 ring 裡排隊最長的一次，一個 engine 是 {{q1_base}} ns，{{engines}} 個 engine 是 {{q4_base}} ns。5.4 的圖仍然畫一個 engine，用來說明排隊是怎麼發生的 |
+| 6.1：reclaimer 同時送出 2 個最好 | 只對一個 engine 成立。{{engines}} 個 engine 時 2 到 8 個的 p99 都在 {{in4_p99_lo}} 到 {{in4_p99_hi}} ns 之間。1 個不夠，這一點和 engine 的數量無關 |
+| 「reclaimer 同時在外的 COMPRESS 不超過 N 減 1，就一定有 engine 留給 fault」 | 只對一半。留下來的 engine 可能正在做別的 fault 的 DECOMPRESS。模擬裡 3 個與 4 個分不出差別，見 6.1 |
+| 6.4：不增加 reclaimer thread，因為 LZ4 引擎只有一個 | 理由的前半不成立了。結論不變：照 6.1 讓一個 reclaimer 送出好幾個 job，同樣用得到 {{engines}} 個 engine，而且沒有 reclaimer 之間的競爭。這一項是推論 |
+| 建議順序 1、4、5、6 | 不變 |
+| 建議順序 2 | 方向不變。{{engines}} 個 engine 時至少 2 個，再多也不拖慢 fault |
+| 建議順序 3 與 7.1 的 H1a：DECOMPRESS 不排在 COMPRESS 後面 | {{engines}} 個 engine 時，fault 在 ring 裡排隊最長的一次是 {{full4_q_max}} ns，一個 engine 時是 {{full1_q_max}} ns。H1a 最多拿回這 {{full4_q_max}} ns |
+| 7.1 的 H1b 與 H3：多一份 datapath | P4 已經涵蓋。硬體設計規格現在是 N 個相同的 engine，每個都能做 COMPRESS 與 DECOMPRESS |
+| K5 | 建議不做 H1a，見第 8 節 |
+
+模擬另外看到兩件這份文件原本沒有的事。
+
+1. **engine 共用一個 DRAM port，等的地方從 ring 移了一部分到 port。** 所有 fault 裡 HW 那一段最長的一次，一個 engine 是 {{full1_hw_max}} ns，{{engines}} 個 engine 是 {{full4_hw_max}} ns。這是大機器、負載 10 倍的數字。總帳仍然是賺的，但 HW 那一段的最壞情況變長了。時間模型文件的 F15。
+2. **{{engines}} 個 engine 之後，最慢的 fault 等的是 kernel 自己。** 它碰到的 page 正好在被 reclaimer 趕出去，要等那個 COMPRESS 做完才能解壓縮回來。大機器上這一段最長的一次是 {{full4_i_max}} ns，engine 再多也不會變短。一個 engine 時這種 fault 也有，而且等得更久。時間模型文件的 F16，第 6.5 節。
 
 ## 1. 這些圖是怎麼來的
 
@@ -160,13 +187,13 @@ lock 可以縮短，但下面每一組步驟必須留在同一段 critical secti
 
 {{capacity}}
 
-`mm_lock` 和 LZ4 引擎兩列，由步驟成本算出的數字和時間模型直接量到的數字相符，表示這份拆解沒有漏掉握 lock 或佔引擎的步驟。「還能撐幾倍」只是照比例放大，沒有考慮排隊，真實的極限會更早到。
+`mm_lock` 和 LZ4 引擎兩列，由步驟成本算出的數字和時間模型直接量到的數字相符，表示這份拆解沒有漏掉握 lock 或佔引擎的步驟。LZ4 引擎那一列是 {{engines}} 個 engine 平均每個的忙碌比例。「還能撐幾倍」只是照比例放大，沒有考慮排隊，真實的極限會更早到。reclaimer 那一列照一次一個 page 算，那是 `kernel.py` 現在的做法。時間模型的 reclaimer 從 2026-11-13 起同時送 2 個 COMPRESS，下表是那樣跑出來的。
 
 負載加重時實際發生的事，時間模型掃過一次，用的是小機器：
 
 {{load}}
 
-負載到 40 倍時，LZ4 引擎忙 {{worst_engine}}，`mm_lock` 忙 {{worst_lock}}，都還沒滿。但一次 RO fault 平均要等 {{worst_frame}} ns 才拿得到 free frame。先撐不住的是 reclaimer：它一次只送一個 COMPRESS，等它做完才處理下一個 page。這和時間模型文件的 F5 是同一件事，這裡從拆解的角度再看到一次。
+負載到 40 倍時，{{engines}} 個 LZ4 engine 平均每個忙 {{worst_engine}}，`mm_lock` 忙 {{worst_lock}}，都還沒滿。但一次 RO fault 平均要等 {{worst_frame}} ns 才拿得到 free frame。先撐不住的仍然是 reclaimer。這張表的 reclaimer 同時送 2 個 COMPRESS，是時間模型在 2026-11-13 之後的預設值。負載 10 倍時等 frame 的次數已經很少，20 倍以上還是跟不上。一次只送一個時更早撐不住，見 6.1 與時間模型文件的 F5 和 1.8。
 
 ### 5.3 一次握 lock 握多久
 
@@ -187,7 +214,9 @@ lock 可以縮短，但下面每一組步驟必須留在同一段 critical secti
 
 這是刻意安排的例子：reclaimer 剛送出一個 COMPRESS，兩個 fault 緊接著進來。它是步驟成本的算術，不是時間模型的執行結果。
 
-兩個 fault 幾乎沒有等 lock，卻都等了 LZ4 引擎 4 到 5 µs，因為引擎一次只做一個 job，而 COMPRESS 排在前面。RO fault 從 {{serial:fault_ro}} ns 變成 {{tog_ro}} ns。在基準負載下引擎只忙 {{engine_share}}，所以這種情形不常見，但它決定最慢的那些 fault 有多慢。時間模型量到最慢的 fault 也是這個原因，見時間模型文件的 F4。
+**這個例子刻意只用一個 engine。** 兩個 fault 幾乎沒有等 lock，卻都等了 LZ4 引擎 4 到 5 µs，因為引擎一次只做一個 job，而 COMPRESS 排在前面。RO fault 從 {{serial:fault_ro}} ns 變成 {{tog_ro}} ns。
+
+{{engines}} 個 engine 時，這三個 job 各佔一個 engine，兩個 fault 都不用等引擎。時間模型量到的也是這樣：基準負載下，fault 在 ring 裡排隊最長的一次，一個 engine 是 {{q1_base}} ns，{{engines}} 個 engine 是 {{q4_base}} ns。一個 engine 的數字比一個 COMPRESS 長，因為時間模型的 reclaimer 現在同時送 2 個，fault 前面最多排兩個。見時間模型文件的 F4。
 
 ## 6. Kernel SW 可以怎麼改
 
@@ -199,11 +228,19 @@ lock 可以縮短，但下面每一組步驟必須留在同一段 critical secti
 
 {{inflight}}
 
-2 個最好。再多的話，fault 的 DECOMPRESS 要排在更多 COMPRESS 後面，在 ring 裡排隊的時間變長，p99 反而變差。
+兩種 engine 數都一樣的是：1 個不夠，fault 等不到 free frame。
+
+一個 engine 時 2 個最好。再多的話，fault 的 DECOMPRESS 要排在更多 COMPRESS 後面，在 ring 裡排隊的時間變長，p99 反而變差。
+
+{{engines}} 個 engine 時沒有這個代價。2 到 8 個的 p99 都在 {{in4_p99_lo}} 到 {{in4_p99_hi}} ns 之間，在 ring 裡排隊最長的一次不超過 {{in4_q_max}} ns。3 個與 4 個分不出差別，所以從模擬看不出需要把「不超過 N 減 1」訂成規則。
+
+表的最後一欄是另一種等待：fault 碰到正在被 COMPRESS 的 page，要等那個 COMPRESS 做完。它不是每一次執行都發生，engine 再多也不會消失。見 6.5。
 
 從相依圖看，這個改法不違反任何先後關係。兩個 `evict_rw` 處理不同的 page，4.1 的表列出它們共用的東西，全部只在握 lock 時碰到，而且每個 job 有自己的 tag 與自己的 chunk。要做的是把 reclaimer 改成：握 lock 選兩個 page 並送出，放 lock，等任一個完成，再握 lock 收尾。
 
-`kernel.py` 目前一次一個。改了之後 20 個 mutant 要全部重跑，另外要加一個 mutant：兩個 job 的 completion 對調。
+負責人在 2026-11-13 同意 `reclaim_inflight` 可以改。時間模型的預設值已經從 1 改成 2，改了之後的數字在時間模型文件的 1.8。
+
+`kernel.py` 目前一次一個，還沒有跟著改，所以控制程序的 pseudo code 也還是一次一個。兩個模型在這一點暫時不一致。改 `kernel.py` 之後 20 個 mutant 要全部重跑，另外要加一個 mutant：兩個 job 的 completion 對調。它和 K4 的放 lock 方式是同一段程式，建議一起決定。
 
 ### 6.2 fault 的 thread 怎麼等 completion
 
@@ -234,8 +271,27 @@ TLB invalidate 的實際成本要看 CPU。模型假設 {{tlb_ns}} ns。如果 C
 | 做法 | 為什麼現在不做 |
 |---|---|
 | 把 `mm_lock` 依資源拆成幾個 lock | 基準負載下 lock 只忙 {{lock_share}}，照比例放大到 10 倍也還有餘。4.4 的每一組步驟都跨了不只一類資源，例如讀 state、拿 frame、改 state 要一氣呵成。拆開之後 20 個 mutant 與等待和叫醒的不可分割性都要重新證明 |
-| 增加 reclaimer thread | LZ4 引擎只有一個。多個 reclaimer 只是在 ring 前面排隊，效果等同 6.1，卻多了 reclaimer 之間的競爭 |
+| 增加 reclaimer thread | 一個 reclaimer 照 6.1 同時送出好幾個 COMPRESS，就用得到 {{engines}} 個 engine。多個 reclaimer thread 的效果相同，卻多了 reclaimer 之間的競爭。這一項是推論，沒有模擬 |
 | 發生 fault 的 thread 自己趕 page 出去 | fault 的延遲會多出一整個 COMPRESS。只在 reclaimer 完全跟不上時才有意義，而那時該先做 6.1 |
+
+### 6.5 fault 碰到正在被趕出去的 page
+
+這一節是 2026-11-13 時間模型擴充成 {{engines}} 個 engine 之後才看到的。只記錄，沒有改程式。
+
+reclaimer 選了一個 RW page，送出 COMPRESS。COMPRESS 還在做的時候，user SW 又碰了這個 page。照現在的控制程序，fault 的 thread 要等 COMPRESS 做完、page 變成 COMPRESSED，再送一個 DECOMPRESS 把它解回來。
+
+大機器、負載 10 倍、{{engines}} 個 engine、reclaimer 同時送 2 個時，最慢的一次 fault 是 {{full4_worst}} ns，其中 {{full4_worst_i}} ns 在等這個 COMPRESS。時間模型裡 {{engines}} 個 engine、沒有 fault 等不到 frame 的那些執行，只要出現這種 fault，最慢的一次就是它。
+
+engine 的數量幫不上忙。8 個 engine 時這一段一樣長。一個 engine 時更長，大機器量到 {{full1_i_max}} ns，因為那個 COMPRESS 自己還要在 ring 裡排隊。
+
+可以考慮的做法有兩個，都是 kernel SW 的事。
+
+| 做法 | 省下什麼 | 要注意什麼 |
+|---|---|---|
+| COMPRESS 做完時，如果有 thread 在等這個 page，就丟掉壓縮結果，page 直接回到 PRESENT | 省掉後面那一個 DECOMPRESS，大約是一次 fault 的時間 | COMPRESSING 到 PRESENT 這條路已經有了，INCOMPRESSIBLE 用的就是它。要加的是「有人在等」的判斷，以及釋放剛配的 chunk。這一次 reclaim 沒有拿到 frame，reclaimer 要再選一個 page。要加 mutant |
+| fault 不等 COMPRESS 做完，直接取消它 | 連剩下的 COMPRESS 時間也省掉 | frame 在 COMPRESS 期間 HW 還在讀。這會讓 COMPRESSING 涵蓋的範圍變小，控制程序 3.5 明說這類修改要先加反例。不建議先做 |
+
+這兩項都是效能類的修改。在負責人同意之前程式不動，見 K3。
 
 ## 7. 硬體可以幫什麼
 
@@ -245,14 +301,18 @@ TLB invalidate 的實際成本要看 CPU。模型假設 {{tlb_ns}} ns。如果 C
 
 | 編號 | 做法 | 省下什麼 | 證據 | 硬體是否仍然對每個 job 不保留狀態 |
 |---|---|---|---|---|
-| H1a | 排隊的 job 裡，DECOMPRESS 先做。第二個 ring，或 descriptor 帶優先權 | fault 最多只等正在做的那一個 COMPRESS 做完，不再等排在前面的。6.1 因此可以開到 2 個以上 | 6.1 的掃描：同時送 8 個時 fault 在 ring 裡平均排 5 304 ns。這個做法本身還沒有在時間模型裡跑過 | 是。只改取 job 的順序。介面規格的 O4 就是這一項 |
+| H1a | 排隊的 job 裡，DECOMPRESS 先做。第二個 ring，或 descriptor 帶優先權 | fault 最多只等正在做的那一個 COMPRESS 做完，不再等排在前面的。6.1 因此可以開到 2 個以上 | 6.1 的掃描：一個 engine、同時送 8 個時 fault 在 ring 裡平均排 {{in1_q8}} ns。{{engines}} 個 engine 時是 {{in4_q8}} ns，最長的一次 {{full4_q_max}} ns，所以 {{engines}} 個 engine 時不需要。這個做法本身沒有在時間模型裡跑過 | 是。只改取 job 的順序。介面規格的 O4 就是這一項 |
 | H1b | DECOMPRESS 有自己的 datapath，可以和 COMPRESS 同時進行 | fault 完全不等 COMPRESS，最慢的 fault 少約 {{hw_comp}} ns | 5.4 的例子，時間模型的 F4 | 是。但硬體要多一份 datapath，見下文 |
 | H2 | LZ4 HW 的 master port 和 CPU cache 接成 coherent | 每個 job 少一次 cache clean 或 cache invalidate，一個 page 是 64 條 cache line。程序也少兩條容易做錯的規則 | 成本未知，模型裡是「？」。兩個步驟都在最長路徑上 | 是。這是整合方式，不是 LZ4 HW 內部的功能。控制程序的 D8 |
-| H3 | 第二個 COMPRESS 的 datapath | LZ4 引擎的容量加倍 | 基準負載下引擎只忙 {{engine_share}}，40 倍負載時 {{worst_engine}}。在那之前 reclaimer 先撐不住 | 是。但只有在做完 6.1 之後引擎成為瓶頸時才值得 |
+| H3 | 第二個 COMPRESS 的 datapath | LZ4 引擎的容量加倍 | {{engines}} 個 engine 時，基準負載下平均每個只忙 {{engine_share}}，40 倍負載時 {{worst_engine}}。在那之前 reclaimer 先撐不住 | 是。但只有在做完 6.1 之後引擎成為瓶頸時才值得 |
 
-H1a 和 H1b 差在硬體的代價。硬體設計規格第 0 版的第 5 節裡，encoder 和 decoder 是分開的 block，但 page buffer、兩個 FIFO、CRC-32、packer、讀寫 DRAM 的兩個 block 和 job FSM 只有一份，一次只能服務一個 job。H1b 要把這些再做一份，只有 encoder 和 hash table 不用。照那份規格 5.4 的表，page buffer 加兩個 FIFO 是 49 152 bit，約佔全部記憶體 62 656 bit 的八成。H1a 只動取 job 的邏輯，但正在做的那個 COMPRESS 還是擋得住 fault，最多 {{hw_comp}} ns 左右。
+這張表與下面兩段是平台前提 P4 指定之前寫的。P4 之後硬體設計規格改成 N 個相同的 engine，H1b 與 H3 都已經涵蓋，見 0.1。
 
-建議先在時間模型裡加上 H1a 跑一次，看 p99 剩多少，再決定要不要 H1b。
+H1a 和 H1b 差在硬體的代價。P4 之前的硬體設計規格裡，encoder 和 decoder 是分開的 block，但 page buffer、兩個 FIFO、CRC-32、packer、讀寫 DRAM 的兩個 block 和 job FSM 只有一份，一次只能服務一個 job。H1b 要把這些再做一份，只有 encoder 和 hash table 不用。照那份規格 5.4 的表，page buffer 加兩個 FIFO 是 49 152 bit，約佔全部記憶體 62 656 bit 的八成。H1a 只動取 job 的邏輯，但正在做的那個 COMPRESS 還是擋得住 fault，最多 {{hw_comp}} ns 左右。
+
+當時的建議是先在時間模型裡加上 H1a 跑一次，看 p99 剩多少，再決定要不要 H1b。P4 之後順序改成：先把時間模型擴充成 N 個 engine，再看 H1a 還需不需要。
+
+2026-11-13 擴充並重跑的結果：{{engines}} 個 engine 時，fault 在 ring 裡排隊最長的一次是 {{full4_q_max}} ns，H1a 最多拿回這一段。同一批執行裡，HW 那一段最長的一次因為共用 DRAM port 從 {{full1_hw_max}} ns 變成 {{full4_hw_max}} ns。所以硬體這邊剩下值得看的不是 ring 的順序，是 port 上 DECOMPRESS 的 burst 要不要優先。那是硬體設計規格 12.3 的第 21 項。負責人在 2026-11-13 指示先不用模擬，但要記著，所以這一項留在待辦，沒有數字。
 
 ### 7.2 評估過、不建議的
 
@@ -285,9 +345,9 @@ TLB invalidate 能不能一道指令通知所有 core，是 CPU 的特性，不�
 |---|---|---|
 | K1 | 用哪顆 CPU、哪個 kernel 或 RTOS | 這決定 TLB、interrupt、polling 三件事的成本，先定下來，其餘的才算得準 |
 | K2 | 目標是平均延遲，還是最慢的那些 fault | 建議以最慢的為準。平均已經由通知時間決定，結構上的問題都出在尾端 |
-| K3 | 是否開始為效能修改 `kernel.py` | 建議先做順序 1 和順序 2。兩者都要加 mutant 並重跑全部並行測試。在你同意之前程式不動 |
+| K3 | 是否開始為效能修改 `kernel.py` | 建議先做順序 1 和順序 2。兩者都要加 mutant 並重跑全部並行測試。2026-11-13 負責人同意 `reclaim_inflight` 可以改，時間模型的預設值已經改成 2。`kernel.py` 的 `reclaim` 還沒有動：那是把握 lock 的方式一起改掉的修改，和 K4 是同一段程式，等你確認要不要現在做 |
 | K4 | reclaimer 每趕出一個 page 要不要放一次 lock | 建議要，並採用控制程序 D3 的選項 B：掃描有上限。這也讓兩個模型一致 |
-| K5 | H1 要不要列入 LZ4 HW 的設計規格 | 建議把 H1a 列為需求，這會把介面規格的 O4 定案。H1b 等時間模型跑過 H1a 再決定 |
+| K5 | H1 要不要列入 LZ4 HW 的設計規格 | 平台前提 P4 之後 H1b 不用再決定。H1a 建議不做：{{engines}} 個 engine 時它最多拿回 {{full4_q_max}} ns。這也是介面規格的 O4 |
 
 ## 附錄 A. 其餘四個動作
 

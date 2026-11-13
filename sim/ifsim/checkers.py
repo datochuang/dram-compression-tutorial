@@ -6,6 +6,12 @@ contents. It never reads the internal state of the FW model or the HW model
 while running (the end-of-run audit does, on purpose). Every rule it evaluates
 is one of the rule ids in interface.json; `cov` counts evaluations, `viol`
 keeps the failures. With strict=True the first failure raises Violation.
+
+The HW runs up to CAP.ENGINES jobs at once, so `inhw` is a set of jobs, not one
+job. A burst carries no engine number (one master port, one ID), so HW-MEM-1
+can only ask that a burst lies inside SOME job the HW holds. An engine that
+writes into the range of another engine's job passes HW-MEM-1; only the data
+scoreboard can catch that, at the completion of the job that was hit.
 """
 from collections import Counter, defaultdict, deque
 from math import ceil
@@ -41,12 +47,14 @@ class Checker:
         self.OP, self.ST, self.FL = self.spec.enum['opcode'], self.spec.enum['status'], self.spec.enum['flag']
         self.EN, self.RST = self.spec.bit('CTRL', 'ENABLE'), self.spec.bit('CTRL', 'SOFT_RESET')
         self.reg = {r['name']: r['reset'] for r in self.spec.registers}
+        self.reg['CAP'] = s.hw.mmio_read(self.spec.off['CAP'])      # what the FW would read from this HW instance
+        self.engines = self.spec.get('CAP', 'ENGINES', self.reg['CAP'])
         self.enabled = False
         self.error = False
         self.irq_level = 0
         self._clear_rings()
         self.limbo = {}                 # tag -> job dropped by a soft reset, waiting to be sent again
-        self.grace = None               # (job, slot) the HW may still finish one burst of after a reset
+        self.grace = None               # (jobs, slot) the HW may still finish a burst of after a reset
         self.tag_h = {}                 # probe: tag -> page
         self.frame_page = {}            # frame pa -> page with a valid PTE
         self.page_frame = {}
@@ -75,7 +83,7 @@ class Checker:
         self.slot_owned = set()         # job slots between doorbell and JOB_HEAD passing them
         self.slot_read = False          # the HW has read the slot at JOB_HEAD
         self.cpl_written = False        # the HW has written the slot at CPL_TAIL
-        self.queued, self.inhw, self.posted = deque(), deque(), deque()
+        self.queued, self.inhw, self.posted = deque(), [], deque()    # inhw: fetched, no completion yet
         self.tags = set()
 
     def fail(self, rule, msg):
@@ -158,8 +166,7 @@ class Checker:
         self.chk('FW-CFG-2', ok, 'ring configuration is not legal at ENABLE')
 
     def _soft_reset(self):
-        cur = self.inhw[0] if self.inhw else None
-        self.grace = (cur, self.job_head)
+        self.grace = (list(self.inhw), self.job_head)
         for j in list(self.queued) + list(self.inhw) + list(self.posted):
             self.limbo[j.tag] = j
         self._clear_rings()
@@ -331,6 +338,10 @@ class Checker:
     def _in(self, ranges, pa, n):
         return any(lo <= pa and pa + n <= hi for lo, hi in ranges)
 
+    def _held(self):
+        """The jobs a HW burst may belong to: those in the HW, or after a reset those it was running."""
+        return self.inhw or (self.grace[0] if self.grace else ())
+
     def _hw_mem_r(self, kw):
         pa, n, r = kw['pa'], kw['n'], self.reg
         jb = r['JOB_BASE']
@@ -343,8 +354,8 @@ class Checker:
             if pa == jb + idx * self.JS and n >= self.DS:
                 self.slot_read = True
             return
-        j = self.inhw[0] if self.inhw else (self.grace[0] if self.grace else None)
-        self.chk('HW-MEM-1', j is not None and self._in(j.rd, pa, n), f'HW read {n} B at {pa:#x} outside its current job')
+        self.chk('HW-MEM-1', any(self._in(j.rd, pa, n) for j in self._held()),
+                 f'HW read {n} B at {pa:#x} outside the jobs it holds')
 
     def _hw_mem_w(self, kw):
         pa, n, r = kw['pa'], kw['n'], self.reg
@@ -353,8 +364,8 @@ class Checker:
             self.cov['HW-MEM-1'] += 1
             self.cpl_written = True
             return
-        j = self.inhw[0] if self.inhw else (self.grace[0] if self.grace else None)
-        self.chk('HW-MEM-1', j is not None and self._in(j.wr, pa, n), f'HW wrote {n} B at {pa:#x} outside its current job')
+        self.chk('HW-MEM-1', any(self._in(j.wr, pa, n) for j in self._held()),
+                 f'HW wrote {n} B at {pa:#x} outside the jobs it holds')
 
     def _hw_reg(self, kw):
         name, val, r = kw['reg'], kw['val'], self.reg
@@ -365,6 +376,8 @@ class Checker:
                             f'JOB_HEAD {self.job_head} to {val}: no job there or its descriptor was not read'):
                 if not ok:
                     return
+            self.chk('HW-MEM-2', len(self.inhw) < self.engines,
+                     f'job fetched while the HW holds {len(self.inhw)} jobs, CAP.ENGINES is {self.engines}')
             self.slot_owned.discard(self.job_head)
             self.slot_read = False
             self.job_head = val
@@ -383,12 +396,14 @@ class Checker:
         self.cpl_written = False
         c = self.spec.unpack('completion', self.dram.view(r['CPL_BASE'] + self.cpl_tail * self.CS, self.CS))
         self.cpl_tail = val
-        j = self.inhw[0] if self.inhw else None
-        if not self.chk('HW-CPL-1', j is not None and j.tag == c['tag'],
-                        lambda: f'completion with tag {c["tag"]:#x}, expected ' + (f'{j.tag:#x}' if j else 'none')):
-            if j is None:
+        j = next((x for x in self.inhw if x.tag == c['tag']), None)
+        if not self.chk('HW-CPL-1', j is not None,
+                        lambda: f'completion with tag {c["tag"]:#x}, the HW holds '
+                                + (', '.join(f'{x.tag:#x}' for x in self.inhw) or 'no job')):
+            if not self.inhw:
                 return
-        self.inhw.popleft()
+            j = self.inhw[0]                             # keep the ring picture going: take the oldest
+        self.inhw.remove(j)
         j.cpl = c
         self.posted.append(j)
         self._release(j)

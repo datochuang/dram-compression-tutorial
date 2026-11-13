@@ -20,12 +20,24 @@ host simulation 是普通的 Python 程式，沒有時間。它有兩種跑法�
 | CPU 與 CPU MMU | 查 PTE，無效就進 page fault，回來後重新執行同一道指令。多個 thread 時每個 core 有自己的 TLB | `machine.py`，`conc.py` 的 `instruction` |
 | CPU cache | 每個 frame 與每個 chunk 幾個 flag：CPU cache 裡有沒有它的 line，line 比 DRAM 新還是舊。開機時全部當作有 line 而且還沒寫回 | `cache.py` |
 | kernel | 這份文件的主角。介面規格裡稱為 FW | `kernel.py` |
-| LZ4 HW | 一個函式：收 48 B 的 descriptor，回 16 B 的 completion。可以指定某個 job 失敗，或從某一刻起不再回答 | `hw.py` |
+| LZ4 HW | 一個函式：收 48 B 的 descriptor，回 16 B 的 completion。可以指定某個 job 失敗，或從某一刻起不再回答。沒有時間，也沒有 engine 的概念 | `hw.py` |
 | kernel 自己的 LZ4 decoder | 只會解壓縮的軟體 decoder，由 CPU 執行。不是 LZ4 HW 裡面那一個 | `codec.py` |
 | 壓縮與解壓縮 | 本機的 liblz4。加 `--codec cli` 改成每個 page 呼叫一次本機的 `lz4` 工具，產生的 byte 完全相同 | `codec.py` |
 | DRAM | 一塊 byte array，位址配置與正式設計相同 | `lz4sim/dram.py` |
 
 刻意拿掉的東西：job ring、doorbell、interrupt、等待時間。這些在 `sim/ifsim` 裡，等控制程序定下來再對齊。timeout 與 reset 在這裡只留下結果：`lz4_job` 回 None，表示 driver 等不到 completion，而且已經放棄。
+
+**平台前提 P4，2026-11-13 指定：LZ4 HW 可以同時接受 N 個 job。** N 暫定為 4，同一天指定先用這個值。這份文件的控制程序與 pseudo code 不用改，理由有三點。它們原本是推論；時間模型 `sim/ifsim` 在 2026-11-13 擴充成 N 個 engine 之後，前兩點也由它的 checker 在 4 個 engine 的執行裡檢查過，結果在 `sim-results-v0.md`。
+
+| 項目 | 為什麼不用改 |
+|---|---|
+| 每個 job 怎麼找回自己的 completion | `lz4_job` 是「交出一個 job，等到它自己的 completion」。driver 用 tag 找，不靠順序。completion 不照送出的順序回來也沒有影響 |
+| 兩個同時執行的 job 會不會碰到同一個 frame 或 chunk | 不會。page 在 job 期間的 state 是 DECOMPRESSING 或 COMPRESSING，別的 thread 只會等它。frame 與 chunk 都在握著 `mm_lock` 時配給這個 job。這是介面規格的 `FW-JOB-6`，硬體不檢查，靠的就是這裡的程序 |
+| lock | `mm_lock` 保護的是 kernel 的表，不是 LZ4 HW。job 進行期間本來就不握 lock。engine 變多不會讓它消失，也不會讓它變長 |
+
+多個 thread 的模擬已經讓好幾個 job 同時在外。上面第二點由 7.2 的 `JobRace` 檢查，第一點是 F10 當時修掉的問題，結果在 7.3。這裡的 LZ4 HW 是一個函式，沒有時間，所以 N 不出現在這個模擬裡，數字也都不變。
+
+受 P4 影響的只有一處：3.6 停用 LZ4 HW 的判準，見 D15。
 
 kernel 對外只透過下面這些呼叫，其他什麼都碰不到。這張表也就是 kernel 對平台的全部要求。粗體是為了正確性新增或改了定義的。
 
@@ -207,6 +219,8 @@ LZ4 HW 可能回一個不是 OK 的 status，也可能完全不回。kernel 分�
 {{src:note_hw}}
 
 連續 {{strikes}} 次答錯，或一次沒有 completion，kernel 就設 `lz4_off`，到下次開機為止不再使用 LZ4 HW。沒有 completion 就立刻停用的理由：`lz4_job` 回 None 表示 driver 已經做過 timeout、reset 與重送，都沒有用。再送下一個 job 只是再等一次 timeout。
+
+N 個 engine 時「連續 {{strikes}} 次」這個判準變弱。只有一個 engine 壞掉的話，它答錯的 job 會夾在其他 engine 答對的 job 中間，而上表每一個「計數歸零」都會把計數清掉，連續 {{strikes}} 次可能永遠湊不滿。資料不會因此出錯，因為每一次答錯都各自由 `sw_decode` 或留在 frame 處理掉。受影響的是 kernel 多久之後才停用 HW：壞掉的那個 engine 會一直被用，每次都多付一次 `sw_decode` 或白做一次 COMPRESS。判準要怎麼改見 D15。目前的程式沒有改。
 
 停用之後：
 
@@ -623,7 +637,7 @@ frame 加上開機後 chunk pool 的空位，能放多少個 RW page，取決於
 
 ## 10. 要一起決定的事
 
-D1 到 D7 是第一版就有的。D4 的內容因為 F13 改過。D8 到 D12 是處理正確性問題時新增的。D13 與 D14 是對照 Linux zram 之後新增的。D13 我先替你選了 B 並照它實作，請確認。D6、D8、D11 的內容這次有補充。
+D1 到 D7 是第一版就有的。D4 的內容因為 F13 改過。D8 到 D12 是處理正確性問題時新增的。D13 與 D14 是對照 Linux zram 之後新增的。D15 是平台前提 P4 指定之後新增的。D13 我先替你選了 B 並照它實作，請確認。D6、D8、D11 的內容這次有補充。
 
 | 編號 | 問題 | 選項 | 我的建議 |
 |---|---|---|---|
@@ -641,6 +655,7 @@ D1 到 D7 是第一版就有的。D4 的內容因為 F13 改過。D8 到 D12 是
 | D12 | pin 住的 page 數要不要設上限 | A：不設。B：設上限，超過時 `pin_page` 回錯誤 | B。上限取 frame 數減掉 thread 數乘 `protect` 再留一些餘裕，5.4 的下限就永遠成立。目前的程式還沒有這個上限 |
 | D13 | LZ4 HW 失效時要不要有軟體的後路 | A：沒有。LZ4 HW 沒回 OK 就把同一個 job 重送一次，再失敗就是 LOST。HW 壞了系統就停。B：kernel 帶一個只會解壓縮的 LZ4 decoder，放在壓縮層之外 | B，目前照 B 實作。HW 失效之後 RO 的程式碼還取得回來，系統至少能回報與收尾。也因為有它，3.6 不重送：第二個意見來自另一份實作，比同一個 HW 再做一次可靠。連續 {{strikes}} 次這個門檻是我先定的。選 A 的話，3.6 要改回重送一次，`lz4_off` 之後所有 fault 都會失敗 |
 | D14 | 停用 LZ4 HW 之後系統怎麼辦 | A：繼續跑，立刻回報，由產品決定什麼時候重開機。RW page 只進不出，frame 用完時照 D2。B：立刻進入安全狀態並重開機 | A。停用之後 RO page 還能進出，足夠把狀況報出去。但它只是撐住，見 3.6。需要你決定產品要哪一種 |
+| D15 | N 個 engine 時，停用 LZ4 HW 的判準 | A：維持連續 {{strikes}} 次。B：改成最近若干個 job 裡答錯的次數，不因為中間有答對的就歸零。C：completion 帶 engine 的編號，kernel 對每個 engine 分開計數 | B。只改 kernel，不改介面。C 判斷得最準，但要改 completion 的格式，而且 kernel 沒辦法只停用一個 engine，除非硬體再加一個 register。這是介面規格的 O15、硬體設計規格 12.3 的第 20 項。目前照 A，程式沒有改 |
 
 ## 11. 這一版沒有涵蓋的
 
@@ -648,6 +663,7 @@ D1 到 D7 是第一版就有的。D4 的內容因為 F13 改過。D8 到 D12 是
 |---|---|
 | lock 真的被搶、兩個 core 真的同時執行 | 見 7.6 |
 | job ring、doorbell、interrupt、timeout、reset | 在 `sim/ifsim`。對齊時要補兩件事：好幾個 thread 同時送 job，ring 沒有空格時送的人要等；ring 這一層的 timeout、reset 與重送，怎麼變成 `lz4_job` 回 None。後者的流程在介面規格第 9 節 |
+| LZ4 HW 同時執行 N 個 job | 這裡的 LZ4 HW 沒有時間，所以看不到。正確性所需的兩件事，用 tag 找 completion、job 之間不共用 frame 與 chunk，已經由 7.2 的檢查涵蓋。N 對等待時間的影響要在 `sim/ifsim` 看，它的 model 已經是 N 個 engine，預設 4，結果在 `sim-results-v0.md` |
 | 停用 LZ4 HW 之後的系統行為 | 等 D14。模擬只做到 kernel 這一層：RO page 繼續進出，RW page 不再搬 |
 | `verify` 在量產要不要開 | 等有時間的模擬 |
 | 共用 page 與 kernel mapping 的實際做法 | 等 D11 |

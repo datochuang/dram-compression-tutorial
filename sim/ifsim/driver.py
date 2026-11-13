@@ -101,7 +101,7 @@ class Driver:
         self.tail = nxt
         if not bell_first:
             yield from plat.reg_write(ctx, 'JOB_TAIL', nxt)
-        if len(self.pending) > 1 and self._m('slot_rewrite'):     # the HW is still on an earlier job
+        if len(self.pending) > p.engines and self._m('slot_rewrite'):     # every engine is on an earlier job
             yield from plat.mem_write(ctx, slot_pa, job.raw, p.desc_write_ns, 'job_slot')
         if self._m('cfg_live'):
             yield from plat.reg_write(ctx, 'JOB_SIZE', p.job_entries)

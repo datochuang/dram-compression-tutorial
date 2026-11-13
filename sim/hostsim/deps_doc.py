@@ -248,12 +248,13 @@ def md_demand(cap):
 
 def md_capacity(cap):
     rows = []
-    for k, zh in (('lock', 'mm_lock'), ('engine', 'LZ4 引擎'), ('reclaimer', 'reclaimer thread，一次一個 page')):
+    for k, zh in (('lock', 'mm_lock'), ('engine', f'LZ4 引擎，{cap["engines"]} 個，平均每個'),
+                  ('reclaimer', 'reclaimer thread，一次一個 page')):
         share = cap['share'][k]
         m = cap['measured'].get(k)
         rows.append((zh, ns(round(cap['per_fault_ns'][k])), pct(share, 2), pct(m, 2) if m is not None else '沒有直接量',
                      f'{1 / share:.0f} 倍'))
-    return table(('一次只能一個的東西', '每次 fault 平均用掉 ns', '由步驟成本算出的忙碌比例', '時間模型量到的', '照比例還能撐幾倍負載'), rows)
+    return table(('數量有限的東西', '每次 fault 平均用掉 ns', '由步驟成本算出的忙碌比例', '時間模型量到的', '照比例還能撐幾倍負載'), rows)
 
 
 def md_what_if(cap, w):
@@ -291,18 +292,56 @@ def md_load(T):
         rows.append((ns(key['think_ns']), f'{20000 // key["think_ns"]} 倍', ns(v['p50']), ns(v['p99']), pct(v['engine_util']),
                      pct(v['mm_lock_busy']), ns(v['frame_waits']), ns(round(p['lock'])), ns(round(p['frame'])),
                      ns(round(p['queue']))))
-    return table(('兩次 access 之間 ns', '負載', 'fault p50 ns', 'p99 ns', 'LZ4 引擎忙', 'mm_lock 忙', '等不到 frame 的次數',
+    return table(('兩次 access 之間 ns', '負載', 'fault p50 ns', 'p99 ns', 'LZ4 引擎忙，平均每個', 'mm_lock 忙', '等不到 frame 的次數',
                   '一次 RO fault 裡等 lock ns', '等 frame ns', '在 ring 裡排隊 ns'), rows)
 
 
 def md_inflight(T):
     rows = []
     for key, v in T['sweeps']['reclaim_inflight']['rows']:
+        if key['engines'] not in (1, 4):
+            continue
         p = v['fault_ro_parts']
-        rows.append((key['reclaim_inflight'], ns(v['p50']), ns(v['p99']), ns(v['frame_waits']), ns(round(p['frame'])),
-                     ns(round(p['queue']))))
-    return table(('reclaimer 同時送出的 COMPRESS', 'fault p50 ns', 'p99 ns', '等不到 frame 的次數', '一次 RO fault 裡等 frame ns',
-                  '在 ring 裡排隊 ns'), rows)
+        rows.append((key['engines'], key['reclaim_inflight'], ns(v['p50']), ns(v['p99']), ns(v['max']), ns(v['frame_waits']),
+                     ns(round(p['frame'])), ns(round(p['queue'])), ns(v['part_max']['queue']), ns(v['part_max']['hw']),
+                     ns(v['part_max']['inflight'])))
+    return table(('engine 數', 'reclaimer 同時送出的 COMPRESS', 'fault p50 ns', 'p99 ns', '最大 ns', '等不到 frame 的次數',
+                  '一次 RO fault 裡等 frame ns', '在 ring 裡排隊 ns', '在 ring 裡排隊，最長的一次 ns', 'HW 那一段，最長的一次 ns',
+                  '等同一個 page 的 job，最長的一次 ns'), rows)
+
+
+def all_busy_max(T):
+    """The largest share of time all engines held a job, over every run with the default number of engines."""
+    n = T['base_irq']['engines']
+    shares = [T['base_irq']['hw_all_share']] + [v['hw_all_share'] for s in T['sweeps'].values() for _, v in s['rows']
+                                                  if 'stalled' not in v and v['engines'] == n]
+    return pct(max(shares), 1)
+
+
+def worst_cases(T):
+    """The longest single waits the timed model saw, for the hand-written text about N engines."""
+    def rows(sweep, engines, **fixed):
+        return [v for k, v in T['sweeps'][sweep]['rows']
+                if k['engines'] == engines and all(k[a] == b for a, b in fixed.items())]
+    out = {'q1_base': T['base_irq_e1']['part_max']['queue'], 'q4_base': T['base_irq']['part_max']['queue']}
+    for e in (1, 4):
+        full = rows('full_load', e)
+        out[f'full{e}_q_max'] = max(v['part_max']['queue'] for v in full)
+        out[f'full{e}_hw_max'] = max(v['part_max']['hw'] for v in full)
+        out[f'full{e}_i_max'] = max(v['part_max']['inflight'] for v in full)
+        several = [v for k, v in T['sweeps']['reclaim_inflight']['rows'] if k['engines'] == e and k['reclaim_inflight'] >= 2]
+        out[f'in{e}_p99_lo'] = min(v['p99'] for v in several)
+        out[f'in{e}_p99_hi'] = max(v['p99'] for v in several)
+        out[f'in{e}_q_max'] = max(v['part_max']['queue'] for v in several)
+        out[f'in{e}_q8'] = round(rows('reclaim_inflight', e, reclaim_inflight=8)[0]['fault_ro_parts']['queue'])
+        heavy = rows('engines_load', e, think_ns=500)[0]
+        out[f'heavy{e}_q_max'] = heavy['part_max']['queue']
+        out[f'heavy{e}_hw_max'] = heavy['part_max']['hw']
+    # the slowest fault of the heaviest full-size run that has no frame waits: N engines, 10 times the load, 2 COMPRESS out
+    w = rows('full_load', 4, think_ns=2000, reclaim_inflight=2)[0]['worst']
+    out['full4_worst'] = w['ns']
+    out['full4_worst_i'] = w['parts'].get('inflight', 0)
+    return {k: ns(v) for k, v in out.items()}
 
 
 def md_parts(T):
@@ -353,6 +392,7 @@ def render(nums):
         'hw_dec_share': pct(w['hw_decompress'] / sch['fault_ro']['serial'], 0),
         'exc_ns': ns(w['fault_entry_ns'] + w['fault_exit_ns']),
         'exc_share': pct((w['fault_entry_ns'] + w['fault_exit_ns']) / sch['fault_ro']['serial'], 0),
+        'engines': cap['engines'], **worst_cases(T), 'all_busy_max': all_busy_max(T),
         'faults_per_s': ns(round(cap['faults_per_s'])), 'lock_share': pct(cap['share']['lock'], 1),
         'engine_share': pct(cap['share']['engine'], 1), 'reclaimer_share': pct(cap['share']['reclaimer'], 1),
         'lock_first_share': pct(cap['lock_by_case']['first_touch'], 0),

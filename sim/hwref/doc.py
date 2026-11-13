@@ -27,6 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SPEC_DIR = os.path.normpath(os.path.join(HERE, '..', '..', 'spec'))
 TEMPLATE = os.path.join(HERE, 'templates', 'lz4_hw_design_spec.tmpl.md')
 DOC, NUMBERS = 'lz4-hw-design-spec-v0.md', 'lz4-hw-design-spec-v0.json'
+IFSIM_RESULTS = 'sim-results-v0.json'      # section 9.5 quotes the port-sharing rows of the interface simulator
 SHOWN = {'hash4': C.hash4, 'put_length': C.put_length, 'put_sequence': C.put_sequence, 'encode': C.encode,
          'decode': C.decode, 'check': J.check, 'compress': J.compress, 'decompress': J.decompress}
 SLOT = 5                       # ring slot of the worked example, both rings
@@ -283,16 +284,16 @@ def md_bad_desc():
 
 
 HW_RULES = {
-    'HW-MEM-1': ('`lz4_ctrl`、`lz4_rdma`、`lz4_wdma`', 'bus monitor：每個 burst 的位址與方向都在 `hwref.job.allowed` 列出的範圍內，或是 ring 的那一格'),
-    'HW-MEM-2': ('`lz4_ctrl`', 'bus monitor：每個 job 恰好一次 6 個 beat 的讀，位址是 `JOB_HEAD` 那一格；`JOB_HEAD` 在最後一個 beat 之後才變'),
-    'HW-CPL-1': ('`lz4_ctrl`', 'scoreboard：completion 的順序與 tag 對得上送進去的 job'),
-    'HW-CPL-2': ('`lz4_ctrl`、`lz4_wdma`', 'monitor：`CPL_TAIL` 改變的那個 cycle，這個 job 所有寫入 burst 的 response 都已經回來，completion 的也是'),
-    'HW-CPL-3': ('`lz4_ctrl`', '測試：bench 故意不推 `CPL_HEAD`。monitor 確認 ring 滿的時候沒有寫入 completion ring 的 burst'),
+    'HW-MEM-1': ('`lz4_sched`、`lz4_ctrl`、`lz4_rdma`、`lz4_wdma`', 'bus monitor：每個 burst 的位址與方向都在某一個執行中的 job 的 `hwref.job.allowed` 範圍內，或是 ring 的那一格；執行中的 job 不超過 `ENGINES` 個'),
+    'HW-MEM-2': ('`lz4_sched`', 'bus monitor：每個 job 恰好一次 6 個 beat 的讀，位址是 `JOB_HEAD` 那一格，照 ring 的順序；`JOB_HEAD` 在最後一個 beat 之後才變'),
+    'HW-CPL-1': ('`lz4_sched`', 'scoreboard：每個被取走的 job 恰好一筆 completion，tag 相同。比對的是集合，不比順序'),
+    'HW-CPL-2': ('`lz4_sched`、`lz4_wdma`', 'monitor：`CPL_TAIL` 改變的那個 cycle，那筆 completion 所屬的 job 所有寫入 burst 的 response 都已經回來，completion 的也是；`CPL_TAIL` 一次只加 1'),
+    'HW-CPL-3': ('`lz4_sched`', '測試：bench 故意不推 `CPL_HEAD`。monitor 確認 ring 滿的時候沒有寫入 completion ring 的 burst'),
     'HW-IRQ-1': ('`lz4_csr`', 'assertion：每個 cycle 拿 `irq` 與 register 的值比'),
     'HW-DATA-1': ('`lz4_enc`、`lz4_pack`、`lz4_crc32`', 'scoreboard：chunk 與 completion 逐 byte 比對 `hwref.job`'),
     'HW-DATA-2': ('`lz4_dec`、`lz4_crc32`', 'scoreboard：frame 與 completion 逐 byte 比對 `hwref.job`；壞的 stream 一律回 `BAD_STREAM`'),
-    'HW-STATE-1': ('全部，特別是 hash table 的 valid、兩個 FIFO、CRC', '同一個 job 接在不同的 job 後面、接在 reset 後面各做一次，結果相同'),
-    'HW-RST-1': ('`lz4_ctrl`、`lz4_csr`、兩個 DMA', '在 job FSM 的每一個 state 注入 soft reset'),
+    'HW-STATE-1': ('全部，特別是 hash table 的 valid、兩個 FIFO、CRC', '同一個 job 接在不同的 job 後面、接在 reset 後面、與不同的 job 同時執行、分到不同的 engine 各做一次，結果相同'),
+    'HW-RST-1': ('`lz4_sched`、`lz4_ctrl`、`lz4_csr`、兩個 DMA', '在每個 FSM 的每一個 state 注入 soft reset，包含好幾個 engine 同時有 job 的時候'),
 }
 
 
@@ -356,6 +357,7 @@ def render(nums):
         'bin_over': f"{base['binaries']['over_rw_limit_pct']:.0f}",
         'heap_pct': f"{100 * base['heap']['mean_len'] / C.PAGE:.0f}", 'heap_chunks': f"{base['heap']['mean_chunks']:.2f}",
         'rd_lat': S.RD_LAT, 'wr_resp': S.WR_RESP,
+        'ifsim:port': md_ifsim_port(),
     })
     extra.update({'study:' + k: md_study(v['rows']) for k, v in sets.items()})
     for k in sets:
@@ -364,6 +366,24 @@ def render(nums):
                 extra[f'cyc:{k}.{key}.{q}'] = f"{sets[k]['cycles'][key][q]:.0f}"
     with open(TEMPLATE, encoding='utf-8') as f:
         return fill(f.read(), extra)
+
+
+def md_ifsim_port():
+    """Port sharing as sim/ifsim measured it: read from the results JSON, so the two documents cannot disagree."""
+    with open(os.path.join(SPEC_DIR, IFSIM_RESULTS), encoding='utf-8') as f:
+        r = json.load(f)
+    us = lambda ns: f'{ns / 1000:.2f}'
+    rows = []
+    for label, key in (('基準負載，1 個 engine', 'base_irq_e1'), (f"基準負載，{r['base_irq']['engines']} 個 engine", 'base_irq')):
+        m = r[key]
+        rows.append((label, f"{m['arb_wait_per_burst']:.1f}", us(m['hw_job_ns']['DECOMPRESS']['p50']), us(m['part_max']['hw'])))
+    heavy = min(kv['think_ns'] for kv, _ in r['sweeps']['engines_load']['rows'])
+    for kv, m in r['sweeps']['engines_load']['rows']:
+        if kv['think_ns'] == heavy:
+            rows.append((f"重負載，{kv['engines']} 個 engine", f"{m['arb_wait_per_burst']:.1f}",
+                         us(m['hw_job_p50']['DECOMPRESS']), us(m['hw_max'])))
+    return table(('情況', '在 port 等其他 job，攤到每個 burst，ns', 'DECOMPRESS 的 HW 時間 p50 µs',
+                  '所有 fault 裡 `hw` 最長的一次 µs'), rows)
 
 
 def _desc_table(d):

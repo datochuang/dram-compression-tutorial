@@ -20,7 +20,7 @@
 結論有六點。
 
 1. **kernel 自己查表改表的工作很小。** 一次 RO page 的 fault，kernel 量得到的步驟加起來是 137 道指令、9 條新的 cache line、2 次 register 寫入。照第 1 節的模型是 337 到 1 137 cycle。同一批步驟在 `ifsim.params` 裡原本假設 680 ns，量級相符。
-2. **一次 fault 的時間不在 kernel 的表上。** 同一次 RO fault 還要加上假設的 exception 進出、interrupt、叫醒 thread 共 4 150 ns，以及 LZ4 HW 模型的 1 253 ns。合計約 5 740 到 6 540 ns，kernel 的表只佔 6% 到 17%。所以 K1 的答案比任何表的最佳化都重要。
+2. **一次 fault 的時間不在 kernel 的表上。** 同一次 RO fault 還要加上假設的 exception 進出、interrupt、叫醒 thread 共 4 150 ns，以及 LZ4 HW 模型的 1 269 ns。合計約 5 756 到 6 556 ns，kernel 的表只佔 6% 到 17%。所以 K1 的答案比任何表的最佳化都重要。
 3. **在 kernel 的表上，cache line 比指令重要。** RO fault 的上限 1 137 cycle 裡，79% 是把 line 從 DRAM 讀進來。原因是每個 page 的資訊分散在 `state`、`frame_of`、`fresh_n`、`pins`、`cot`、`pte` 六張表，各佔一條 line。
 4. **唯一不小的是 clock 掃描。** 全尺寸的執行裡每選一個 page 平均看 4.9 個 frame。每路過一個 frame 最多碰 4 條新的 line。照模型是 83 到 2 299 cycle，原本的假設是 300 ns。最長的一次看了 35 841 個 frame，整段握著 `mm_lock`，照模型約 1.4 到 15.8 ms。
 5. **在 bitmap 找空位不需要硬體幫忙。** 找一個 0 是 `MVN`、`RBIT`、`CLZ` 三道指令。保留 7 個 chunk 量到 111 道指令。全尺寸的執行裡每次平均掃 1.06 個 word，最多 2 個。
@@ -134,9 +134,9 @@ Python 的模型把表放在抽象的容器裡，看不出一個步驟要幾道�
 | `wake_check` | FW | `free_top` R 4 B，kernel 記憶體（pinned） | 比較 `free_top <= fc_low`。比較成立時叫醒 reclaimer 是一次 OS 呼叫，沒有算進去 | 2 | 0 | 量測 |
 | `desc` | FW | `tag` RW 4 B，kernel 記憶體（pinned） | `tag` 做 atomic 加 1；在 stack 上填 48 B：opcode、chunk 數、limit、frame 位址、長度、CRC-32、tag、8 個 3 B 的 chunk 編號 | 26 或 55 | 0 | 量測 |
 | `submit` | FW | `job_tail` RW 4 B，kernel 記憶體（pinned）<br>`job_ring[tail]` W 48 B，ring 記憶體（pinned）<br>`JOB_TAIL` W 4 B，LZ4 HW register | 把 48 B 複製到 `job_ring[tail]`（3 個 16 B 的 store）；`tail = (tail + 1) & 15`；寫 register `JOB_TAIL`。`FW-CACHE-3`：ring 是 cacheable 的話，寫 doorbell 之前還要 clean 這一條 line | 13 | `job_ring` 1 條 | 量測 |
-| `hw_decompress` | HW | 無 | LZ4 HW：讀 descriptor、讀 chunk、核對 CRC-32、解壓縮寫進 frame、寫 completion、拉 interrupt | 模型 1 253 ns | 0 | LZ4 HW 模型 |
-| `hw_fail` | HW | 無 | LZ4 HW：沒有把 page 交出來，completion 的 status 不是 OK | 模型 1 253 ns | 0 | LZ4 HW 模型 |
-| `hw_compress` | HW | 無 | LZ4 HW：讀 descriptor、讀 frame、壓縮寫進 chunk、算 CRC-32、寫 completion、拉 interrupt | 模型 4 260 ns | 0 | LZ4 HW 模型 |
+| `hw_decompress` | HW | 無 | LZ4 HW：讀 descriptor、讀 chunk、核對 CRC-32、解壓縮寫進 frame、寫 completion、拉 interrupt | 模型 1 269 ns | 0 | LZ4 HW 模型 |
+| `hw_fail` | HW | 無 | LZ4 HW：沒有把 page 交出來，completion 的 status 不是 OK | 模型 1 269 ns | 0 | LZ4 HW 模型 |
+| `hw_compress` | HW | 無 | LZ4 HW：讀 descriptor、讀 frame、壓縮寫進 chunk、算 CRC-32、寫 completion、拉 interrupt | 模型 4 266 ns | 0 | LZ4 HW 模型 |
 | `notify` | FW | 無 | interrupt 進 CPU；handler 確認是 LZ4 HW；OS 把睡著的 thread 排回去跑 | 假設 3 150 ns | 0 | 假設 |
 | `cpl_read` | FW | `cpl_head` RW 4 B，kernel 記憶體（pinned）<br>`cpl_ring[head]` R 16 B，ring 記憶體（pinned）<br>`CPL_HEAD` W 4 B，LZ4 HW register | 從 `cpl_ring[head]` 讀 16 B；`head = (head + 1) & 15`；寫 register `CPL_HEAD`；比對 tag。這 16 B 是 LZ4 HW 剛寫的，CPU cache 裡不會有：一定是一次 DRAM 讀取 | 12 | `cpl_ring` 1 條，一定從 DRAM | 量測 |
 | `cache_invalidate` | FW | `frame[f]` W 4096 B，DRAM 的 frame 區 | 對 frame 的 64 條 line 各做一次 `DC IVAC`，instruction cache 另做 | 64 次 cache 操作 | `frame` 64 條 | 計數 |
@@ -225,13 +225,13 @@ Python 的模型把表放在抽象的容器裡，看不出一個步驟要幾道�
 | 場景 | 指令數 | 新的 line | register 寫入 | 模型 cycle | 同一批步驟原本的假設 ns | CPU 與 OS 的假設 ns | LZ4 HW 模型 ns | 沒有數字的步驟 |
 |---|---|---|---|---|---|---|---|---|
 | `first_touch` | 403 | 6 | 0 | 403 到 1 003 | 600 | 1 000 |  |  |
-| `fault_ro` | 137 | 9 | 2 | 337 到 1 137 | 680 | 4 150 | 1 253 | `cache_invalidate` |
-| `fault_rw` | 221 | 10 | 2 | 421 到 1 321 | 930 | 4 150 | 1 253 | `cache_invalidate` |
-| `fault_rescue` | 1012 | 10 | 2 | 1 212 到 2 112 | 930 | 4 150 | 1 253 | `cache_invalidate`、`sw_decode`、`sw_clean` |
-| `fault_lost` | 123 | 6 | 2 | 323 到 823 | 580 | 3 750 | 1 253 | `cache_invalidate`、`sw_decode` |
+| `fault_ro` | 137 | 9 | 2 | 337 到 1 137 | 680 | 4 150 | 1 269 | `cache_invalidate` |
+| `fault_rw` | 221 | 10 | 2 | 421 到 1 321 | 930 | 4 150 | 1 269 | `cache_invalidate` |
+| `fault_rescue` | 1012 | 10 | 2 | 1 212 到 2 112 | 930 | 4 150 | 1 269 | `cache_invalidate`、`sw_decode`、`sw_clean` |
+| `fault_lost` | 123 | 6 | 2 | 323 到 823 | 580 | 3 750 | 1 269 | `cache_invalidate`、`sw_decode` |
 | `evict_ro` | 59 | 5 | 0 | 59 到 559 | 400 | 500 |  |  |
-| `evict_rw` | 342 | 9 | 2 | 542 到 1 342 | 1 280 | 3 650 | 4 260 | `cache_clean` |
-| `evict_rw_incompressible` | 332 | 8 | 2 | 532 到 1 232 | 1 230 | 3 650 | 4 260 | `cache_clean` |
+| `evict_rw` | 342 | 9 | 2 | 542 到 1 342 | 1 280 | 3 650 | 4 266 | `cache_clean` |
+| `evict_rw_incompressible` | 332 | 8 | 2 | 532 到 1 232 | 1 230 | 3 650 | 4 266 | `cache_clean` |
 
 ### 4.1 `first_touch`：第一次碰一個 RW page（沒有 LZ4 job）
 
@@ -269,7 +269,7 @@ kernel 自己跑、量得到的步驟共 16 個：137 道指令，9 條新的 ca
 |  | `unlock` | kernel |  | `mm_lock` W 1 B | 2 |  | 2 |  |
 | 7 | `desc` | kernel |  | `tag` RW 4 B | 26 |  | 26 | 4 `take_frame`（資料：f）；5 `cot_read`（資料：e） |
 | 8 | `submit` | kernel |  | `job_tail` RW 4 B<br>`job_ring[tail]` W 48 B<br>`JOB_TAIL` W 4 B | 13 | 1 | 63 到 163 | 6 `mark_decompressing`（規則）；7 `desc`（資料：desc） |
-| 9 | `hw_decompress` | LZ4 HW |  |  |  |  | 模型 1 253 | 8 `submit`（資料：job_ring） |
+| 9 | `hw_decompress` | LZ4 HW |  |  |  |  | 模型 1 269 | 8 `submit`（資料：job_ring） |
 | 10 | `notify` | kernel |  |  |  |  | 假設 3 150 | 9 `hw_decompress`（資料：irq） |
 | 11 | `cpl_read` | kernel |  | `cpl_head` RW 4 B<br>`cpl_ring[head]` R 16 B<br>`CPL_HEAD` W 4 B | 12 | 1 | 162 | 10 `notify`（資料：wake） |
 | 12 | `cache_invalidate` | kernel |  | `frame[f]` W 4096 B |  |  | 64 次 cache 操作，時間未知 | 11 `cpl_read`（規則） |
@@ -300,7 +300,7 @@ kernel 自己跑、量得到的步驟共 18 個：221 道指令，10 條新的 c
 |  | `unlock` | kernel |  | `mm_lock` W 1 B | 2 |  | 2 |  |
 | 7 | `desc` | kernel |  | `tag` RW 4 B | 26 |  | 26 | 4 `take_frame`（資料：f）；5 `cot_read`（資料：e） |
 | 8 | `submit` | kernel |  | `job_tail` RW 4 B<br>`job_ring[tail]` W 48 B<br>`JOB_TAIL` W 4 B | 13 | 1 | 63 到 163 | 6 `mark_decompressing`（規則）；7 `desc`（資料：desc） |
-| 9 | `hw_decompress` | LZ4 HW |  |  |  |  | 模型 1 253 | 8 `submit`（資料：job_ring） |
+| 9 | `hw_decompress` | LZ4 HW |  |  |  |  | 模型 1 269 | 8 `submit`（資料：job_ring） |
 | 10 | `notify` | kernel |  |  |  |  | 假設 3 150 | 9 `hw_decompress`（資料：irq） |
 | 11 | `cpl_read` | kernel |  | `cpl_head` RW 4 B<br>`cpl_ring[head]` R 16 B<br>`CPL_HEAD` W 4 B | 12 | 1 | 162 | 10 `notify`（資料：wake） |
 | 12 | `cache_invalidate` | kernel |  | `frame[f]` W 4096 B |  |  | 64 次 cache 操作，時間未知 | 11 `cpl_read`（規則） |
@@ -333,7 +333,7 @@ kernel 自己跑、量得到的步驟共 19 個：1012 道指令，10 條新的 
 |  | `unlock` | kernel |  | `mm_lock` W 1 B | 2 |  | 2 |  |
 | 7 | `desc` | kernel |  | `tag` RW 4 B | 26 |  | 26 | 4 `take_frame`（資料：f）；5 `cot_read`（資料：e） |
 | 8 | `submit` | kernel |  | `job_tail` RW 4 B<br>`job_ring[tail]` W 48 B<br>`JOB_TAIL` W 4 B | 13 | 1 | 63 到 163 | 6 `mark_decompressing`（規則）；7 `desc`（資料：desc） |
-| 9 | `hw_fail` | LZ4 HW |  |  |  |  | 模型 1 253 | 8 `submit`（資料：job_ring） |
+| 9 | `hw_fail` | LZ4 HW |  |  |  |  | 模型 1 269 | 8 `submit`（資料：job_ring） |
 | 10 | `notify` | kernel |  |  |  |  | 假設 3 150 | 9 `hw_fail`（資料：irq） |
 | 11 | `cpl_read` | kernel |  | `cpl_head` RW 4 B<br>`cpl_ring[head]` R 16 B<br>`CPL_HEAD` W 4 B | 12 | 1 | 162 | 10 `notify`（資料：wake） |
 | 12 | `cache_invalidate` | kernel |  | `frame[f]` W 4096 B |  |  | 64 次 cache 操作，時間未知 | 11 `cpl_read`（規則） |
@@ -369,7 +369,7 @@ kernel 自己跑、量得到的步驟共 14 個：123 道指令，6 條新的 ca
 |  | `unlock` | kernel |  | `mm_lock` W 1 B | 2 |  | 2 |  |
 | 7 | `desc` | kernel |  | `tag` RW 4 B | 26 |  | 26 | 4 `take_frame`（資料：f）；5 `cot_read`（資料：e） |
 | 8 | `submit` | kernel |  | `job_tail` RW 4 B<br>`job_ring[tail]` W 48 B<br>`JOB_TAIL` W 4 B | 13 | 1 | 63 到 163 | 6 `mark_decompressing`（規則）；7 `desc`（資料：desc） |
-| 9 | `hw_decompress` | LZ4 HW |  |  |  |  | 模型 1 253 | 8 `submit`（資料：job_ring） |
+| 9 | `hw_decompress` | LZ4 HW |  |  |  |  | 模型 1 269 | 8 `submit`（資料：job_ring） |
 | 10 | `notify` | kernel |  |  |  |  | 假設 3 150 | 9 `hw_decompress`（資料：irq） |
 | 11 | `cpl_read` | kernel |  | `cpl_head` RW 4 B<br>`cpl_ring[head]` R 16 B<br>`CPL_HEAD` W 4 B | 12 | 1 | 162 | 10 `notify`（資料：wake） |
 | 12 | `cache_invalidate` | kernel |  | `frame[f]` W 4096 B |  |  | 64 次 cache 操作，時間未知 | 11 `cpl_read`（規則） |
@@ -415,7 +415,7 @@ kernel 自己跑、量得到的步驟共 18 個：342 道指令，9 條新的 ca
 | 8 | `cache_clean` | kernel |  | `frame[f]` W 4096 B |  |  | 64 次 cache 操作，時間未知 | 4 `find_frame`（資料：f）；6 `tlb_inval`（規則） |
 | 9 | `desc` | kernel |  | `tag` RW 4 B | 55 |  | 55 | 3 `reserve`（資料：c）；4 `find_frame`（資料：f） |
 | 10 | `submit` | kernel |  | `job_tail` RW 4 B<br>`job_ring[tail]` W 48 B<br>`JOB_TAIL` W 4 B | 13 | 1 | 63 到 163 | 7 `mark_compressing`（規則）；8 `cache_clean`（規則）；9 `desc`（資料：desc） |
-| 11 | `hw_compress` | LZ4 HW |  |  |  |  | 模型 4 260 | 10 `submit`（資料：job_ring） |
+| 11 | `hw_compress` | LZ4 HW |  |  |  |  | 模型 4 266 | 10 `submit`（資料：job_ring） |
 | 12 | `notify` | kernel |  |  |  |  | 假設 3 150 | 11 `hw_compress`（資料：irq） |
 | 13 | `cpl_read` | kernel |  | `cpl_head` RW 4 B<br>`cpl_ring[head]` R 16 B<br>`CPL_HEAD` W 4 B | 12 | 1 | 162 | 12 `notify`（資料：wake） |
 |  | `lock` | kernel |  | `mm_lock` RW 1 B | 4 |  | 4 |  |
@@ -445,7 +445,7 @@ kernel 自己跑、量得到的步驟共 18 個：332 道指令，8 條新的 ca
 | 8 | `cache_clean` | kernel |  | `frame[f]` W 4096 B |  |  | 64 次 cache 操作，時間未知 | 4 `find_frame`（資料：f）；6 `tlb_inval`（規則） |
 | 9 | `desc` | kernel |  | `tag` RW 4 B | 55 |  | 55 | 3 `reserve`（資料：c）；4 `find_frame`（資料：f） |
 | 10 | `submit` | kernel |  | `job_tail` RW 4 B<br>`job_ring[tail]` W 48 B<br>`JOB_TAIL` W 4 B | 13 | 1 | 63 到 163 | 7 `mark_compressing`（規則）；8 `cache_clean`（規則）；9 `desc`（資料：desc） |
-| 11 | `hw_compress` | LZ4 HW |  |  |  |  | 模型 4 260 | 10 `submit`（資料：job_ring） |
+| 11 | `hw_compress` | LZ4 HW |  |  |  |  | 模型 4 266 | 10 `submit`（資料：job_ring） |
 | 12 | `notify` | kernel |  |  |  |  | 假設 3 150 | 11 `hw_compress`（資料：irq） |
 | 13 | `cpl_read` | kernel |  | `cpl_head` RW 4 B<br>`cpl_ring[head]` R 16 B<br>`CPL_HEAD` W 4 B | 12 | 1 | 162 | 12 `notify`（資料：wake） |
 |  | `lock` | kernel |  | `mm_lock` RW 1 B | 4 |  | 4 |  |
@@ -463,7 +463,7 @@ kernel 自己跑、量得到的步驟共 18 個：332 道指令，8 條新的 ca
 
 ### 5.1 kernel 的表格工作不是瓶頸，K1 才是
 
-RO fault 的 5 740 到 6 540 ns 裡，kernel 量得到的部分是 337 到 1 137 cycle。其餘 4 150 ns 是 exception 進出、interrupt 與叫醒 thread，這三項到現在都是假設。相依圖文件的結論在這裡得到另一個角度的支持：要讓 fault 變快，先決定 CPU 與 OS，再決定等 completion 的方式。
+RO fault 的 5 756 到 6 556 ns 裡，kernel 量得到的部分是 337 到 1 137 cycle。其餘 4 150 ns 是 exception 進出、interrupt 與叫醒 thread，這三項到現在都是假設。相依圖文件的結論在這裡得到另一個角度的支持：要讓 fault 變快，先決定 CPU 與 OS，再決定等 completion 的方式。
 
 ### 5.2 把每個 page 的小欄位併成一筆
 

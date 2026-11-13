@@ -577,8 +577,10 @@ def demand(case, w):
 
 def capacity(results):
     """Share of time each serial resource is busy in the baseline run of the timed model, from step costs
-    times how often each case happened there, beside what that run measured."""
+    times how often each case happened there, beside what that run measured. The LZ4 HW has `engines`
+    engines; its share is the mean over them, which is also what the timed model reports."""
     w, t = weights(results), results['t_end_ns']
+    engines = results.get('engines', 1)
     rows, use = [], Counter()
     for case, (a, b) in COUNT_OF.items():
         n, d = results[a][b], demand(case, w)
@@ -588,8 +590,8 @@ def capacity(results):
         if case.startswith('evict'):
             use['reclaimer'] += n * d['chain']
     faults = sum(results['results'][k] for k in ('first', 'fault_ro', 'fault_rw'))
-    share = {k: v / t for k, v in use.items()}
-    return {'rows': rows, 'use_ns': dict(use), 'share': share, 't_end_ns': t, 'faults': faults,
+    share = {k: v / (t * engines if k == 'engine' else t) for k, v in use.items()}
+    return {'rows': rows, 'use_ns': dict(use), 'share': share, 't_end_ns': t, 'faults': faults, 'engines': engines,
             'faults_per_s': faults / t * 1e9, 'per_fault_ns': {k: v / faults for k, v in use.items()},
             'measured': {'lock': results['mm_lock']['busy_share'], 'engine': results['engine_util']},
             'lock_by_case': {r['case']: r['n'] * r['lock'] / use['lock'] for r in rows}}

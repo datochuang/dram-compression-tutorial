@@ -39,6 +39,7 @@ def collect(s, name=''):
     lat['waited'] = _dist(waited)
     parts = {k: {q: mm.parts[k][q] / len(mm.lat[k]) for q in PARTS} for k in mm.lat if mm.lat[k]}
     worst = {k: {'ns': w[0], 'parts': w[1], 'page': w[2], 't': w[3]} for k, w in mm.worst.items()}
+    part_max = {q: max((mm.part_max[k][q] for k in WAITED if k in mm.part_max), default=0) for q in PARTS}
     kcpu = {'fault': sum(c.kcpu for c in env.ctxs), 'irq': drv.irq_ctx.kcpu, 'reclaim': mm.rctx.kcpu}
     occ = dict(sorted(drv.occ.items()))
     clients = []
@@ -47,13 +48,22 @@ def collect(s, name=''):
         faults = n - st['hit']
         clients.append({'name': c['name'], 'accesses': n, 'faults': faults, 'stall_ns': st['wait_ns'],
                         'stall_share': st['wait_ns'] / t, 'mean_stall_ns': st['wait_ns'] / faults if faults else 0})
+    conc = hw.conc()
+    conc[0] = t - sum(conc[k] for k in range(1, hw.n + 1))      # the run is measured up to the last access, like busy_ns
+    arb = {ch: {'bursts': a.bursts, 'waited': a.waited, 'wait_ns': a.wait_ns} for ch, a in zip(('read', 'write'), hw.arb)}
     m = {
         'name': name, 'seed': s.seed, 'accesses': s.accesses, 't_end_ns': s.t_end, 'events': s.sim.events,
         'wait_mode': p.wait_mode, 'cores': p.cores, 'reclaim_inflight': p.reclaim_inflight,
         'frames': cfg.frames, 'pages': cfg.pages, 'pool_chunks': cfg.pool_chunks,
-        'results': dict(env.results), 'lat': lat, 'parts': parts, 'worst': worst,
+        'results': dict(env.results), 'lat': lat, 'parts': parts, 'worst': worst, 'part_max': part_max,
         'hw_jobs': hw.st['jobs'], 'hw_job_ns': {s.spec.enum_name['opcode'].get(op, str(op)): _dist(v) for op, v in hw.job_ns.items()},
-        'engine_util': hw.busy_ns / t,
+        'engines': hw.n,
+        'engine_util': hw.busy_ns / (t * hw.n),             # mean over the engines
+        'hw_conc': [conc[k] / t for k in range(hw.n + 1)],  # share of the time with k engines holding a job
+        'hw_any_share': 1 - conc[0] / t, 'hw_all_share': conc[hw.n] / t, 'hw_peak': hw.peak,
+        'overtook': hw.st['overtook'],                      # completions posted before a job fetched earlier
+        'arb': arb,
+        'arb_wait_per_burst': sum(a['wait_ns'] for a in arb.values()) / max(1, sum(a['bursts'] for a in arb.values())),
         'bus_share': s.bus.busy_ns['hw'] / t, 'bus_wait_per_burst': s.bus.wait_ns['hw'] / max(1, s.bus.bursts['hw']),
         'bus_bytes': s.bus.bytes['hw'],
         'kcpu_ns': kcpu, 'kernel_cpu_share': sum(kcpu.values()) / (p.cores * t),
@@ -82,7 +92,7 @@ def check_budgets(m, b=None):
         ('fault_p99_ns', '同上，第 99 百分位', b.fault_p99_ns, w['p99']),
         ('fault_max_ns', '同上，最大值', b.fault_max_ns, w['max']),
         ('kernel_cpu_share', 'kernel 花在壓縮層的 CPU 時間佔全部 core 時間', b.kernel_cpu_share, m['kernel_cpu_share']),
-        ('engine_util', 'LZ4 engine 忙碌時間比例', b.engine_util, m['engine_util']),
+        ('engine_util', '每個 LZ4 engine 手上有 job 的時間比例，取所有 engine 的平均', b.engine_util, m['engine_util']),
         ('job_ring_peak', 'job ring 最高佔用除以可用格數', b.job_ring_peak, m['ring_peak_share']),
         ('frame_waits', '找不到 free frame 而要等的 fault 次數', b.frame_waits, m['frame_waits']),
         ('lost_pages', '遺失的 page 數', b.lost_pages, m['lost_pages']),
@@ -164,10 +174,19 @@ def md_resources(m):
     k = m['kcpu_ns']
     tot = sum(k.values()) or 1
     occ = '、'.join(f'{n} 個 job：{c} 次' for n, c in m['ring_occ'].items())
+    arb = m['arb']
     rows = [
-        ('LZ4 engine 忙碌比例', f"{m['engine_util'] * 100:.1f}%"),
+        ('LZ4 engine 數', m['engines']),
+        ('每個 engine 手上有 job 的時間比例，平均', f"{m['engine_util'] * 100:.1f}%"),
+        ('至少一個 engine 有 job 的時間比例', f"{m['hw_any_share'] * 100:.1f}%"),
+        ('剛好 k 個 engine 有 job 的時間比例，k 從 0 起', '、'.join(f'{x * 100:.2f}%' for x in m['hw_conc'])),
+        ('同時在 HW 裡的 job 最多幾個', m['hw_peak']),
+        ('比先取走的 job 早寫出的 completion', f"{m['overtook']} / {m['hw_jobs']}"),
+        ('在 master port 等其他 job 的 burst 數 / 全部 burst 數',
+         '、'.join(f"{zh} {arb[c]['waited']} / {arb[c]['bursts']}" for c, zh in (('read', '讀'), ('write', '寫')))),
+        ('上一列等的時間，攤到每個 burst', f"{m['arb_wait_per_burst']:.1f} ns"),
         ('DRAM port 被 LZ4 HW 佔用的比例', f"{m['bus_share'] * 100:.1f}%"),
-        ('LZ4 HW 每個 burst 平均等 DRAM port', f"{m['bus_wait_per_burst']:.1f} ns"),
+        ('每個 burst 平均等 CPU 與 HRT 的流量', f"{m['bus_wait_per_burst']:.1f} ns"),
         ('COMPRESS job 的 HW 時間 p50 / 最大', ' / '.join(us(m['hw_job_ns'].get('COMPRESS', {}).get(x, 0)) for x in ('p50', 'max')) + ' µs'),
         ('DECOMPRESS job 的 HW 時間 p50 / 最大', ' / '.join(us(m['hw_job_ns'].get('DECOMPRESS', {}).get(x, 0)) for x in ('p50', 'max')) + ' µs'),
         ('kernel CPU 佔全部 core 時間', f"{m['kernel_cpu_share'] * 100:.2f}%"),
@@ -216,7 +235,12 @@ def md_budget_defs(b=None):
 def sweep_row(m):
     w = m['lat']['waited']
     return {'p50': w['p50'], 'p99': w['p99'], 'max': w['max'], 'engine_util': m['engine_util'],
+            'engines': m['engines'], 'hw_any_share': m['hw_any_share'], 'hw_all_share': m['hw_all_share'],
+            'hw_peak': m['hw_peak'], 'overtook': m['overtook'], 'arb_wait_per_burst': m['arb_wait_per_burst'],
+            'hw_job_p50': {op: d['p50'] for op, d in m['hw_job_ns'].items()},
+            'queue_max': m['part_max']['queue'], 'hw_max': m['part_max']['hw'], 'part_max': m['part_max'],
             'kernel_cpu_share': m['kernel_cpu_share'], 'ring_peak': m['ring_peak'], 'frame_waits': m['frame_waits'],
+            'during_compress': m['mm'].get('fault_during_compress', 0),
             't_end_ns': m['t_end_ns'], 'violations': m['violations'],
             'fails': [n for n, _, _, _, ok in check_budgets(m) if not ok]}
 
@@ -229,14 +253,24 @@ SWEEP_COLS = {
     'p50': ('p50 µs', lambda r: us(r['p50'])),
     'p99': ('p99 µs', lambda r: us(r['p99'])),
     'max': ('最大 µs', lambda r: us(r['max'])),
-    'engine': ('engine 忙碌', lambda r: f"{r['engine_util'] * 100:.1f}%"),
+    'engine': ('engine 忙碌，平均', lambda r: f"{r['engine_util'] * 100:.1f}%"),
+    'allbusy': ('engine 全滿', lambda r: f"{r['hw_all_share'] * 100:.2f}%"),
+    'peak': ('同時最多幾個 job', lambda r: r['hw_peak']),
+    'arb': ('port 互等 ns/burst', lambda r: f"{r['arb_wait_per_burst']:.1f}"),
+    'dec': ('DECOMPRESS 的 HW 時間 p50 µs', lambda r: us(r['hw_job_p50'].get('DECOMPRESS', 0))),
+    'comp': ('COMPRESS 的 HW 時間 p50 µs', lambda r: us(r['hw_job_p50'].get('COMPRESS', 0))),
     'kcpu': ('kernel CPU', lambda r: f"{r['kernel_cpu_share'] * 100:.2f}%"),
     'ring': ('ring 最高', lambda r: r['ring_peak']),
     'fwaits': ('等 frame 次數', lambda r: r['frame_waits']),
+    'fdc': ('fault 碰到正在 COMPRESS 的 page，次數', lambda r: r['during_compress']),
     'tend': ('完成時間 ms', lambda r: f"{r['t_end_ns'] / 1e6:.1f}"),
     'stall': ('停頓最多的 user SW', lambda r: f"{r['stall_share'] * 100:.1f}%"),
     'submit': ('`submit` µs', _part('submit')),
     'queue': ('`queue` µs', _part('queue')),
+    'qmax': ('`queue` 最長 µs', lambda r: us(r['queue_max'])),
+    'hwmax': ('`hw` 最長 µs', lambda r: us(r['hw_max'])),
+    'imax': ('`inflight` 最長 µs', lambda r: us(r['part_max']['inflight'])),
+    'lmax': ('`lock` 最長 µs', lambda r: us(r['part_max']['lock'])),
     'frame': ('`frame` µs', _part('frame')),
     'hw': ('`hw` µs', _part('hw')),
     'notify': ('`notify` µs', _part('notify')),
@@ -257,6 +291,18 @@ def md_sweep(rows, keys, cols=DEFAULT_COLS):
     return table([f'`{k}`' for k in keys] + [SWEEP_COLS[c][0] for c in cols], out)
 
 
+def md_sweep_worst(rows, keys):
+    """The slowest fault of each run of a sweep and where its time went."""
+    out = []
+    for kv, r in rows:
+        w = r.get('worst')
+        if not w:
+            continue
+        top = sorted(w['parts'].items(), key=lambda q: -q[1])[:3]
+        out.append([kv[k] for k in keys] + [KIND_ZH[w['kind']], us(w['ns']), '、'.join(f'`{q}` {us(v)}' for q, v in top if v)])
+    return table([f'`{k}`' for k in keys] + ['最慢的一次是哪一種 fault', '合計 µs', '時間最多的三個階段 µs'], out)
+
+
 def md_wait_compare(a, b):
     """The stages of an RO fault and the headline numbers of two baseline runs side by side."""
     rows = []
@@ -272,6 +318,32 @@ def md_wait_compare(a, b):
                      ('polling 讀 `CPL_TAIL` 的次數', lambda m: m['drv'].get('poll_spins', 0))):
         rows.append((label, '', f(a), f(b)))
     return table(('項目', '內容', 'interrupt', 'polling'), rows)
+
+
+def md_engine_compare(runs):
+    """Baseline runs that differ only in the number of engines, side by side. runs: [metrics]."""
+    part = lambda q: (lambda m: us(m['parts']['fault_ro'][q]))
+    lat = lambda q: (lambda m: us(m['lat']['waited'][q]))
+    rows = [('要等 LZ4 HW 的 fault，p50 µs', lat('p50')), ('同上，p99 µs', lat('p99')), ('同上，最大 µs', lat('max')),
+            ('RO fault 的 `queue`，平均 µs', part('queue')), ('RO fault 的 `hw`，平均 µs', part('hw')),
+            ('RO fault 的 `notify`，平均 µs', part('notify')),
+            ('RO fault 合計，平均 µs', lambda m: us(sum(m['parts']['fault_ro'].values()))),
+            ('所有 fault 裡 `queue` 最長的一次 µs', lambda m: us(m['part_max']['queue'])),
+            ('所有 fault 裡 `hw` 最長的一次 µs', lambda m: us(m['part_max']['hw'])),
+            ('COMPRESS job 的 HW 時間 p50 / 最大 µs', lambda m: ' / '.join(us(m['hw_job_ns']['COMPRESS'][x]) for x in ('p50', 'max'))),
+            ('DECOMPRESS job 的 HW 時間 p50 / 最大 µs', lambda m: ' / '.join(us(m['hw_job_ns']['DECOMPRESS'][x]) for x in ('p50', 'max'))),
+            ('每個 engine 有 job 的時間比例，平均', lambda m: f"{m['engine_util'] * 100:.2f}%"),
+            ('至少一個 engine 有 job 的時間比例', lambda m: f"{m['hw_any_share'] * 100:.2f}%"),
+            ('兩個以上 engine 同時有 job 的時間比例', lambda m: f"{sum(m['hw_conc'][2:]) * 100:.3f}%"),
+            ('同時在 HW 裡的 job 最多幾個', lambda m: m['hw_peak']),
+            ('比先取走的 job 早寫出的 completion', lambda m: m['overtook']),
+            ('在 master port 等其他 job 的 burst', lambda m: sum(a['waited'] for a in m['arb'].values())),
+            ('上一列等的時間，攤到每個 burst，ns', lambda m: f"{m['arb_wait_per_burst']:.1f}"),
+            ('kernel CPU 佔全部 core 時間', lambda m: f"{m['kernel_cpu_share'] * 100:.2f}%"),
+            ('interrupt 次數', lambda m: m['drv'].get('irqs', 0)),
+            ('模擬時間 ms', lambda m: f"{m['t_end_ns'] / 1e6:.1f}"),
+            ('checker 違規', lambda m: m['violations'])]
+    return table(['項目'] + [f"{m['engines']} 個 engine" for m in runs], [[label] + [f(m) for m in runs] for label, f in rows])
 
 
 FAULT_ZH = {
@@ -305,8 +377,11 @@ def results_extra(data, spec):
                         ('worst', md_worst), ('resources', md_resources), ('clients', md_clients)):
             ex[f'{key}:{name}'] = f(m)
     ex['compare'] = md_wait_compare(data['base_irq'], data['base_poll'])
+    ex['engines'] = Params().engines
+    ex['compare_engines'] = md_engine_compare([data['base_irq_e1'], data['base_irq']])
     ex['rules'] = md_rules(data['base_irq'], spec)
     for key, s in data['sweeps'].items():
         ex['sweep:' + key] = md_sweep(s['rows'], s['keys'], s.get('cols') or DEFAULT_COLS)
+        ex['worst:' + key] = md_sweep_worst(s['rows'], s['keys'])
     ex['faults'] = md_faults(data['faults'])
     return ex

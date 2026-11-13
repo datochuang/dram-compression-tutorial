@@ -40,14 +40,20 @@ PLANTED = [
 ]
 
 
+# FW-JOB-3 can only fire while a job waits in the ring. With several engines the HW has
+# usually fetched the job before the FW gets to rewrite its slot, so this bug runs with one.
+ONE_ENGINE_ONLY = {'slot_rewrite'}
+CASES = [(w, b, r, n) for w, b, r in PLANTED for n in (1, 4) if n == 1 or b not in ONE_ENGINE_ONLY]
+
+
 def system(strict=True, **kw):
     kw.setdefault('reclaim_inflight', 2)
     return System(SMALL, Params(**kw), seed=3, workload=WL, strict=strict)
 
 
-@pytest.mark.parametrize('who,bug,rule', PLANTED, ids=[b for _, b, _ in PLANTED])
-def test_planted_bug_is_caught(who, bug, rule):
-    s = system()
+@pytest.mark.parametrize('who,bug,rule,engines', CASES, ids=[f'{b}-{n}' for _, b, _, n in CASES])
+def test_planted_bug_is_caught(who, bug, rule, engines):
+    s = system(engines=engines)
     getattr(s, who).mut[bug] = 30
     with pytest.raises(Violation) as e:
         s.run(6000)
@@ -65,8 +71,8 @@ def test_ring_deeper_than_the_completion_ring():
 
 
 # ---- directed cases: hand-made events straight into the checker
-def booted(strict=True):
-    s = system(strict)
+def booted(strict=True, **kw):
+    s = system(strict, **kw)
     s.sim.run(stop=s.sim.process(s.drv.init(Ctx(s.sim, 'boot')), 'init'))
     s.mm.emit_boot()
     return s
@@ -165,6 +171,88 @@ def test_completion_ring_overrun():
     for i in range(1, 17):
         s.chk.on(0, 'hw', 'reg', dict(reg='CPL_TAIL', val=i % 16))
     assert s.chk.nviol['HW-CPL-3'] == 1                # only the 16th step lands on CPL_HEAD
+
+
+# ---- several jobs in the HW at once (CAP.ENGINES)
+def hw(s, ev, **kw):
+    s.chk.on(s.sim.now, 'hw', ev, kw)
+
+
+def hand_over(s, jobs):
+    """jobs: [(tag, page, frame number, chunks)], all COMPRESS. Written to the ring and handed over with one doorbell."""
+    for i, (tag, h, f, chunks) in enumerate(jobs):
+        put_job(s, i, tag, h, s.cfg.frame_pa(f), chunks)
+    fw(s, 'mmio_w', reg='JOB_TAIL', val=len(jobs))
+
+
+def fetch(s, slot):
+    hw(s, 'mem_r', pa=s.drv.job_base + slot * 64, n=48)
+    hw(s, 'reg', reg='JOB_HEAD', val=slot + 1)
+
+
+def post(s, slot, tag, status):
+    pa = s.drv.cpl_base + slot * 16
+    s.dram.write(pa, SPEC.pack('completion', dict(status=status, flags=0, length=0, checksum=0, tag=tag, aux=0)))
+    hw(s, 'mem_w', pa=pa, n=16)
+    hw(s, 'reg', reg='CPL_TAIL', val=slot + 1)
+    hw(s, 'irq', level=1)
+
+
+def three_jobs(s):
+    frames = s.mm.free_frames[:3]
+    free = sorted(s.mm.bitmap.enumerate_free())
+    return [(100 + i, None, frames[i], free[6 * i:6 * i + 6]) for i in range(3)]
+
+
+def test_checker_takes_the_engine_count_from_cap():
+    for n in (1, 2, 4):
+        s = system(engines=n)
+        assert s.chk.engines == n == SPEC.get('CAP', 'ENGINES', s.hw.mmio_read(SPEC.off['CAP']))
+
+
+def test_fetch_with_every_engine_holding_a_job():
+    """HW-MEM-2: the HW takes a job only when an engine is idle."""
+    s = booted(engines=2)
+    hand_over(s, three_jobs(s))
+    fetch(s, 0)
+    fetch(s, 1)                                        # two engines, two jobs: allowed
+    hw(s, 'mem_r', pa=s.drv.job_base + 2 * 64, n=48)
+    with pytest.raises(Violation) as e:
+        hw(s, 'reg', reg='JOB_HEAD', val=3)
+    assert e.value.rule == 'HW-MEM-2'
+
+
+def test_completions_in_another_order_than_the_fetches():
+    """HW-CPL-1: the completion names a job the HW holds, whichever was fetched first."""
+    s = booted(engines=2)
+    hand_over(s, three_jobs(s))
+    fetch(s, 0)
+    fetch(s, 1)
+    post(s, 0, 101, SPEC.enum['status'].INCOMPRESSIBLE)        # the second job ends first
+    fetch(s, 2)                                                # so an engine is idle again
+    post(s, 1, 100, SPEC.enum['status'].INCOMPRESSIBLE)
+    assert not s.chk.nviol and s.chk.cov['HW-CPL-1'] == 2
+    with pytest.raises(Violation) as e:
+        post(s, 2, 101, SPEC.enum['status'].INCOMPRESSIBLE)    # that job already has its completion
+    assert e.value.rule == 'HW-CPL-1'
+
+
+def test_burst_is_checked_against_every_job_in_the_hw():
+    """HW-MEM-1 with several engines. A burst has no engine number, so the checker asks that it lies
+    inside some job the HW holds. A write into ANOTHER job's chunk therefore passes: a known limit."""
+    s = booted(engines=2)
+    jobs = three_jobs(s)
+    hand_over(s, jobs)
+    fetch(s, 0)
+    fetch(s, 1)
+    chunk = lambda j, k=0: s.cfg.chunk_pa(jobs[j][3][k])
+    hw(s, 'mem_r', pa=s.cfg.frame_pa(jobs[1][2]), n=256)       # job 1 reads its frame while job 0 is older
+    hw(s, 'mem_w', pa=chunk(1), n=256)
+    hw(s, 'mem_w', pa=chunk(0, 5), n=8)                        # whichever engine wrote this, it is accepted
+    assert not s.chk.nviol
+    with pytest.raises(Violation) as e:
+        hw(s, 'mem_w', pa=chunk(2), n=8)                       # job 2 is still in the ring: nobody may write there
+    assert e.value.rule == 'HW-MEM-1'
 
 
 def test_audit_catches_a_frame_owned_twice():

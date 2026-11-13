@@ -49,6 +49,7 @@ class PageManager:
         self.lat = defaultdict(list)                # kind -> fault latencies, ns
         self.parts = defaultdict(Counter)           # kind -> where that time went
         self.worst = {}                             # kind -> (ns, parts) of the slowest fault
+        self.part_max = defaultdict(Counter)        # kind -> the longest each stage ever took in one fault
         self.min_free = len(self.free_frames)
         self.peak_pool = 0
         self.mut = {}
@@ -199,6 +200,10 @@ class PageManager:
         part['cpu'] = total - sum(part.values())
         self.lat[kind].append(total)
         self.parts[kind].update(part)
+        pm = self.part_max[kind]
+        for q, v in part.items():
+            if v > pm[q]:
+                pm[q] = v
         if total > self.worst.get(kind, (0,))[0]:
             self.worst[kind] = (total, dict(part), h, t0)
         return kind

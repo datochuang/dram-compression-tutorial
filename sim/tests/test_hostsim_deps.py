@@ -113,7 +113,9 @@ def test_lock_and_engine_shares_agree_with_the_timed_model(base):
     cap = deps.capacity(base)
     for name in ('lock', 'engine'):
         assert cap['share'][name] == pytest.approx(cap['measured'][name], rel=0.01), name
-    assert cap['share']['reclaimer'] > cap['share']['engine'] > cap['share']['lock']
+    # the engine share is the mean per engine; with the 4 engines of platform premise P4 it falls below the lock's
+    assert cap['engines'] == 4
+    assert cap['share']['reclaimer'] > cap['share']['lock'] > cap['share']['engine']
     assert sum(cap['lock_by_case'].values()) == pytest.approx(1)
 
 

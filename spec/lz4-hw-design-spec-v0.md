@@ -24,9 +24,20 @@
 | 單一 job | `sim/hwref/job.py` | 一個 descriptor 進去之後，哪些記憶體被讀寫、completion 的 16 B |
 | Ring 與 register | `sim/ifsim/hw.py` | CSR、job ring、completion ring、halt、soft reset |
 
+平台前提 P4 在 2026-11-13 指定：LZ4 HW 可以同時接受 N 個 job。這份規格照它改成 N 個 engine。三份 model 的適用範圍因此不同：
+
+| Model | N 個 engine 之後 |
+|---|---|
+| LZ4 core、單一 job | 不變。它們描述一個 engine 做一個 job，N 個 engine 時每個 job 各自適用 |
+| Ring 與 register | 2026-11-13 已經擴充成 N 個 engine，N 是參數，預設 4。取 job 的順序、completion 的順序、同時執行、halt 與 reset 影響的 job 都有可執行的 model。它是事件層級的時間 model，不是 cycle 層級；共用 master port 的仲裁是簡化的，見 12.4 |
+
+本文第 12.2 節的提案 P1 到 P4 是對介面規格的提案，與平台前提的 P1 到 P4 是兩套編號。本文提到平台前提時一律寫「平台前提 P4」。
+
 ## 1. 範圍與前提
 
 這顆硬體只做一件事：照 kernel（以下稱 FW）給的 descriptor，把一個 4096 B 的 page 壓成 LZ4 stream 寫進指定的 chunk，或把 chunk 裡的 stream 解回一個 page frame。
+
+硬體裡有 N 個相同的 engine，同一時間最多做 N 個這樣的 job。N 是參數 `ENGINES`，暫定為 4，負責人在 2026-11-13 指定先用這個值。每個 engine 就是一套完整的單一 job datapath。Ring、register 與 AXI master port 各只有一份，由所有 engine 共用。
 
 系統採偏 SW 的設計，分工如下。
 
@@ -35,9 +46,9 @@
 | FW | COT、chunk bitmap、page 狀態機、選哪個 page 壓、配 chunk 與 frame、填 descriptor、收 completion、所有 policy |
 | HW | 讀 descriptor、搬資料、LZ4 encode 與 decode、CRC、寫 completion |
 
-硬體在兩個 job 之間不保留任何與資料有關的狀態（HW-STATE-1）。它不讀 COT，不知道 page 屬於誰，不做任何配置決定。
+硬體在兩個 job 之間不保留任何與資料有關的狀態，同時執行的 job 之間也不共用這類狀態（HW-STATE-1）。它不讀 COT，不知道 page 屬於誰，不做任何配置決定。
 
-這一版不包含：多個 engine 平行、LZ4 以外的演算法、跨 page 的字典、硬體自己處理 page fault、DFT 與 power intent 的細節。
+這一版不包含：多個 job ring、功能不同的 engine、LZ4 以外的演算法、跨 page 的字典、硬體自己處理 page fault、DFT 與 power intent 的細節。
 
 ### 1.1 假設
 
@@ -48,16 +59,20 @@
 | A1 | Register 走 APB，資料走 AXI4 master，data 64 bit | 第 3 節，`lz4_rdma`、`lz4_wdma`、`lz4_csr` |
 | A2 | APB 與 AXI 同一個 clock，頻率未定 | 第 3 節要加 CDC；第 9 節的時間 |
 | A3 | Reset 非同步 assert、同步 deassert，低態有效 | 第 3 節 |
-| A4 | 只有一個 engine，job 一個接一個做 | 第 5、6 節 |
+| A4 | N 個相同的 engine，N 是參數 `ENGINES`。平台前提 P4 指定的是「可以同時接受 N 個 job」。N 暫定為 4，2026-11-13 指定。用 N 個相同的 engine 來做，這一點還沒確認 | 第 5、6 節 |
 | A5 | 有 byte write enable 的 dual-port SRAM macro 可用 | 第 5.4 節的 page buffer 組織 |
 | A6 | Interconnect 接受 64 beat 的 INCR burst | `BURST_BEATS` 參數與第 9 節 |
 | A7 | 實體位址 32 bit | 介面的 descriptor 也要跟著改 |
 | A8 | 內部記憶體不加 ECC 或 parity | 第 5.4 節 |
-| A9 | 這一版不做 power gating | 第 12 節 P4 |
+| A9 | 這一版不做 power gating | 第 12.2 節的提案 P4 |
+| A10 | N 個 engine 共用一個 AXI master port 與一個 ID，以 burst 為單位輪流 | AXI-2、`lz4_arb`、第 6.5 節的排空、第 9.5 節 |
+| A11 | Job ring 與 completion ring 各只有一個 | 第 4.3 節、`lz4_sched`、介面的 register |
 
 ## 2. 一個 job 走過硬體
 
 先用一個實際的 job 看完整個流程，後面各節再給通用的規則。這個 job 與介面規格第 5 節的範例是同一個，所有數字都是 reference model 跑出來的。
+
+下面寫的是一個 engine 裡發生的事。其他 engine 同時在做別的 job 時，這個 job 的每一步與結果都不變，只有等 bus 的時間不同。
 
 Page 的內容是 `vectors.records_page()`：一串長短不一的紀錄，有重複的欄位也有不重複的資料。壓出來 1837 B，要 4 個 chunk。
 
@@ -306,17 +321,19 @@ Descriptor 的 slot 是 64 B，硬體只讀前 48 B。
 | 編號 | 等級 | 要求 |
 |---|---|---|
 | AXI-1 | 必須 | 每個 beat 的 bit [7:0] 是位址最低的那個 byte。記憶體裡的多 byte 欄位都是 little endian |
-| AXI-2 | 必須 | 同一時間最多一個 read burst、一個 write burst 還沒結束。只用一個 ID |
+| AXI-2 | 必須 | 整顆硬體同一時間最多一個 read burst、一個 write burst 還沒結束，不論有幾個 engine。只用一個 ID |
 | AXI-3 | 必須 | 所有 write beat 的 `wstrb` 全為 1。唯一例外是 soft reset 排空時補送的 beat，`wstrb` 為 0（RST-3） |
 | AXI-4 | 必須 | 不發跨 4 KB 邊界的 burst。在 base 位址對齊的前提下這自動成立，見第 12 節 P1 |
 | AXI-5 | 必須 | `rresp` 或 `bresp` 不是 OKAY 就算 bus error。出錯的 burst 仍然照協定收完或送完 |
-| AXI-6 | 必須 | 結果不可以因為 `arready`、`rvalid`、`awready`、`wready`、`bvalid` 來得早或晚而不同。寫進記憶體的 byte、completion 與 access 的集合都一樣，只有時間不同 |
+| AXI-6 | 必須 | 結果不可以因為 `arready`、`rvalid`、`awready`、`wready`、`bvalid` 來得早或晚而不同。寫進記憶體的 byte、completion 與 access 的集合都一樣，只有時間不同。也不可以因為其他 engine 同時在做什麼、bus 輪到誰而不同 |
 | AXI-7 | 必須 | 不讀也不寫 descriptor 沒有授權的位址（HW-MEM-1、HW-MEM-2）。授權的範圍由 `job.allowed()` 定義 |
 | AXI-8 | 基準 | Read burst 期間 `rready` 一直是 1：發 AR 之前先確認內部有 64 個 word 的空位 |
 | AXI-9 | 基準 | Write burst 的 beat 之間 `wvalid` 不掉下來：64 個 word 都備妥才發 AW。W 不早於 AW。`bready` 固定為 1 |
 | AXI-10 | 基準 | Chunk 與 frame 的 burst 長度由參數 `BURST_BEATS` 決定，預設 64。改小時一個 chunk 拆成多個 burst，結果不變 |
 
 AXI-8 與 AXI-9 讓硬體不會佔著 bus 卻不傳資料，對同一條 bus 上的其他 master 比較友善。
+
+N 個 engine 共用這一個 master port，**假設** A10。不同 engine 的 burst 以整個 burst 為單位交錯，不在 burst 中間換手。AXI-8 與 AXI-9 在這裡多一個作用：engine 拿到 bus 之後不停頓，其他 engine 等的時間才有上限。
 
 ### 3.4 參數
 
@@ -325,6 +342,7 @@ AXI-8 與 AXI-9 讓硬體不會佔著 bus 卻不傳資料，對同一條 bus 上
 | `HASH_BITS` | 10 | 10 到 12 | Hash table 有 2^`HASH_BITS` 個 entry。改這個值會改變 stream，reference model 要用同一個值 |
 | `ID_W` | 4 | 1 以上 | AXI ID 寬度 |
 | `BURST_BEATS` | 64 | 16、32、64 | Chunk 與 frame 的 burst 長度 |
+| `ENGINES` | 4，暫定 | 1 到 15 | Engine 的數量，也就是平台前提 P4 的 N。`CAP.ENGINES` 回報這個值。負責人在 2026-11-13 指定先用 4。`sim/hwref` 與第 9.1 到 9.4 節的數字是單一 job；`sim/ifsim` 的 model 照 `ENGINES` 個 engine 跑，預設 4 |
 
 ## 4. SW 控制介面
 
@@ -335,7 +353,7 @@ AXI-8 與 AXI-9 讓硬體不會佔著 bus 卻不傳資料，對同一條 bus 上
 | Offset | Register | 存取 | Reset 值 | config | 說明 |
 |---|---|---|---|---|---|
 | 0x00 | `ID` | RO | 0x4C5A0001 |  | 固定值 0x4C5A0001。FW 在 probe 時確認 |
-| 0x04 | `CAP` | RO | 0x0001AC98 |  | 硬體能力 |
+| 0x04 | `CAP` | RO | 0x0004AC98 |  | 硬體能力 |
 | 0x08 | `CTRL` | RW | 0x00000000 |  | 控制 |
 | 0x0C | `STATUS` | RO | 0x00000000 |  | 狀態 |
 | 0x10 | `IRQ_STATUS` | RO/W1C | 0x00000000 |  | interrupt 來源 |
@@ -363,8 +381,8 @@ AXI-8 與 AXI-9 讓硬體不會佔著 bus 卻不傳資料，對同一條 bus 上
 | 3:0 | `CHUNK_SLOTS` | RO | 一個 job 最多的 chunk 數，目前是 8 |
 | 7:4 | `CHUNK_SHIFT` | RO | log2(chunk size)，目前是 9 |
 | 11:8 | `PAGE_SHIFT` | RO | log2(page size)，目前是 12 |
-| 15:12 | `RING_SHIFT_MAX` | RO | ring 最多 2^N 格，目前是 10 |
-| 19:16 | `ENGINES` | RO | LZ4 engine 的數量，目前是 1 |
+| 15:12 | `RING_SHIFT_MAX` | RO | ring 最多 2^RING_SHIFT_MAX 格，目前是 10 |
+| 19:16 | `ENGINES` | RO | LZ4 engine 的數量 N，也就是同時執行的 job 數上限，1 到 15。N 暫定為 4，負責人在 2026-11-13 指定先用這個值。reset 值與模擬器的預設都照 4 |
 
 **`CTRL`，offset 0x08**
 
@@ -377,7 +395,7 @@ AXI-8 與 AXI-9 讓硬體不會佔著 bus 卻不傳資料，對同一條 bus 上
 
 | Bit | 欄位 | 存取 | 說明 |
 |---|---|---|---|
-| 0 | `BUSY` | RO | 1 表示有 job 正在執行，或 reset 還沒收尾 |
+| 0 | `BUSY` | RO | 1 表示至少有一個 engine 正在執行 job，或 reset 還沒收尾 |
 | 1 | `HALTED` | RO | 1 表示硬體因為 ERR_CODE 所列的原因停下，只有 soft reset 能解除 |
 
 **`IRQ_STATUS`，offset 0x10**
@@ -414,13 +432,13 @@ AXI-8 與 AXI-9 讓硬體不會佔著 bus 卻不傳資料，對同一條 bus 上
 | CSR-1 | 必須 | 寫 `CTRL` 時 `SOFT_RESET` 為 1：執行 soft reset（第 6.5 節），同一次寫入的其他 bit 忽略。`SOFT_RESET` 讀回永遠是 0 |
 | CSR-2 | 必須 | `ENABLE` 從 0 變 1 時檢查設定：`JOB_SIZE` 與 `CPL_SIZE` 是 2 的次方且在 2 到 2^`RING_SHIFT_MAX` 之間，`JOB_BASE` 是 64 的倍數，`CPL_BASE` 是 16 的倍數。不通過就 halt，代碼 BAD_RING_CFG，`ENABLE` 維持 0 |
 | CSR-3 | 基準 | CSR-2 另外檢查 `POOL_BASE` 是 512 的倍數、`FRAME_BASE` 是 4096 的倍數。這比介面 0.1-draft 嚴格，是第 12 節的提案 P1 |
-| CSR-4 | 必須 | `ENABLE` 從 1 變 0：正在做的 job 做完並寫出 completion，之後不再取新的 job |
+| CSR-4 | 必須 | `ENABLE` 從 1 變 0：已經取走的 job 全部做完並寫出 completion，之後不再取新的 job |
 | CSR-5 | 必須 | `ENABLE` 為 1 時，寫 `JOB_BASE`、`JOB_SIZE`、`CPL_BASE`、`CPL_SIZE`、`POOL_BASE`、`POOL_CHUNKS`、`FRAME_BASE`、`FRAME_COUNT` 沒有作用 |
 | CSR-6 | 必須 | 寫 `JOB_TAIL` 的值大於等於 `JOB_SIZE`，或寫 `CPL_HEAD` 的值大於等於 `CPL_SIZE`：halt，代碼 BAD_INDEX，值不存進去 |
 | CSR-7 | 必須 | 寫唯讀 register 沒有作用。讀沒有定義的 offset 得到 0，寫沒有作用 |
 | CSR-8 | 必須 | `IRQ_STATUS.DONE` 不是 latch：它等於 `CPL_TAIL != CPL_HEAD`。`IRQ_STATUS.ERROR` 寫 1 清除 |
 | CSR-9 | 必須 | `irq` = (`DONE` 且 `IRQ_ENABLE[0]`) 或 (`ERROR` 且 `IRQ_ENABLE[1]`)（HW-IRQ-1） |
-| CSR-10 | 必須 | `STATUS.BUSY` 在硬體取走一個 descriptor 到它的 completion 寫完之間為 1，soft reset 排空期間也為 1 |
+| CSR-10 | 必須 | 只要有一個 job 處在 descriptor 被取走到 completion 寫完之間，`STATUS.BUSY` 就為 1。soft reset 排空期間也為 1 |
 | CSR-11 | 必須 | Halt 時 `STATUS.HALTED` 與 `IRQ_STATUS.ERROR` 變 1，`ERR_CODE` 記下代碼，較晚發生的代碼蓋掉較早的。只有 soft reset 能離開 halt |
 
 ### 4.3 Ring
@@ -432,14 +450,20 @@ AXI-8 與 AXI-9 讓硬體不會佔著 bus 卻不傳資料，對同一條 bus 上
 | Job | `JOB_BASE + i × 64` | FW | FW 推 `JOB_TAIL`，HW 推 `JOB_HEAD` |
 | Completion | `CPL_BASE + i × 16` | HW | HW 推 `CPL_TAIL`，FW 推 `CPL_HEAD` |
 
-Index 加 1 之後與 size − 1 做 AND。Ring 空的條件是 head 等於 tail，滿的條件是 tail 的下一格等於 head，所以 size 為 N 的 ring 最多放 N − 1 筆。
+Index 加 1 之後與 size − 1 做 AND。Ring 空的條件是 head 等於 tail，滿的條件是 tail 的下一格等於 head，所以 size 為 S 的 ring 最多放 S − 1 筆。
 
 | 編號 | 等級 | 要求 |
 |---|---|---|
-| JOB-1 | 必須 | Descriptor 的 48 B 讀完且沒有 bus error，`JOB_HEAD` 才前進，而且立刻前進，不等 job 做完。每個 job 只讀一次 descriptor（HW-MEM-2） |
-| JOB-2 | 必須 | Completion 照 job 被取走的順序寫出，每個被取走的 descriptor 剛好一筆（HW-CPL-1）。例外只有 halt 代碼 RING_BUS_ERROR 與 soft reset 打斷的 job |
+| JOB-1 | 必須 | 照 ring 的順序取 job，有 engine 空著才讀下一個 descriptor。Descriptor 的 48 B 讀完且沒有 bus error，`JOB_HEAD` 才前進，而且立刻前進，不等 job 做完。每個 job 只讀一次 descriptor（HW-MEM-2） |
+| JOB-2 | 必須 | 每個被取走的 descriptor 剛好一筆 completion（HW-CPL-1）。Completion 照 job 做完的順序寫出，一次一筆，不保證與取走的順序相同。例外只有 halt 代碼 RING_BUS_ERROR 與 soft reset 打斷的 job |
 | JOB-3 | 必須 | Completion ring 滿的時候硬體等待，不覆蓋、不丟棄（HW-CPL-3）。`CPL_TAIL` 在這個 job 所有資料的 write response 與 completion 的 write response 都回來之後才前進（HW-CPL-2） |
 | JOB-4 | 必須 | `tag` 原封不動抄進 completion（HW-CPL-1） |
+| JOB-10 | 必須 | 同一時間執行中的 job 不超過 `ENGINES` 個。執行中指 descriptor 被取走之後、completion 寫完之前 |
+| JOB-11 | 必須 | 有 engine 空著、`JOB_HEAD != JOB_TAIL`、`ENABLE` 為 1 而且沒有 halt 時，硬體取走下一個 job，不等其他 engine 的 job 做完 |
+| JOB-12 | 必須 | 硬體不檢查同時執行的 job 有沒有用到同一個 frame 或 chunk，這由 FW 保證（FW-JOB-6）。沒有重疊時，每個 job 的 completion 與有定義的記憶體範圍，和它單獨執行時逐 byte 相同（HW-STATE-1） |
+| JOB-13 | 基準 | 好幾個 job 都做完時，先做完的先寫 completion。同一個 cycle 做完的，engine 編號小的先 |
+
+JOB-5 到 JOB-9 在第 5.4 與 6.4 節。
 
 ### 4.4 FW 的操作順序
 
@@ -546,16 +570,16 @@ Flag：
 
 | 編號 | 規則，原文來自介面規格 | 主要由哪個 block 負責 | RTL bench 怎麼驗 |
 |---|---|---|---|
-| `HW-MEM-1` | 硬體只讀寫四種位置：JOB_HEAD 那一格 descriptor、目前 job 的 frame、目前 job 列出的 chunk、CPL_TAIL 那一格 completion。COMPRESS 不寫 frame，DECOMPRESS 不寫 chunk。 | `lz4_ctrl`、`lz4_rdma`、`lz4_wdma` | bus monitor：每個 burst 的位址與方向都在 `hwref.job.allowed` 列出的範圍內，或是 ring 的那一格 |
-| `HW-MEM-2` | 硬體先把 descriptor 的 48 B 讀完才推進 JOB_HEAD，每個 job 只讀一次，之後不再回頭讀。 | `lz4_ctrl` | bus monitor：每個 job 恰好一次 6 個 beat 的讀，位址是 `JOB_HEAD` 那一格；`JOB_HEAD` 在最後一個 beat 之後才變 |
-| `HW-CPL-1` | 每個 job 恰好一個 completion，順序與 job 相同，tag 原樣抄回。 | `lz4_ctrl` | scoreboard：completion 的順序與 tag 對得上送進去的 job |
-| `HW-CPL-2` | job 的資料全部寫完、completion 的 16 B 也寫完之後，才推進 CPL_TAIL。 | `lz4_ctrl`、`lz4_wdma` | monitor：`CPL_TAIL` 改變的那個 cycle，這個 job 所有寫入 burst 的 response 都已經回來，completion 的也是 |
-| `HW-CPL-3` | completion ring 滿的時候硬體停下等 FW，不覆寫還沒被讀走的 completion。 | `lz4_ctrl` | 測試：bench 故意不推 `CPL_HEAD`。monitor 確認 ring 滿的時候沒有寫入 completion ring 的 burst |
+| `HW-MEM-1` | 硬體只讀寫四種位置：JOB_HEAD 那一格 descriptor、執行中的 job 的 frame、執行中的 job 列出的 chunk、CPL_TAIL 那一格 completion。執行中的 job 最多 CAP.ENGINES 個。COMPRESS 不寫 frame，DECOMPRESS 不寫 chunk。 | `lz4_sched`、`lz4_ctrl`、`lz4_rdma`、`lz4_wdma` | bus monitor：每個 burst 的位址與方向都在某一個執行中的 job 的 `hwref.job.allowed` 範圍內，或是 ring 的那一格；執行中的 job 不超過 `ENGINES` 個 |
+| `HW-MEM-2` | 硬體照 ring 的順序取 job，有 engine 空著才取。先把 descriptor 的 48 B 讀完才推進 JOB_HEAD，每個 job 只讀一次，之後不再回頭讀。 | `lz4_sched` | bus monitor：每個 job 恰好一次 6 個 beat 的讀，位址是 `JOB_HEAD` 那一格，照 ring 的順序；`JOB_HEAD` 在最後一個 beat 之後才變 |
+| `HW-CPL-1` | 每個 job 恰好一個 completion，tag 原樣抄回。completion 照 job 做完的順序寫出，不保證與 job 被取走的順序相同。 | `lz4_sched` | scoreboard：每個被取走的 job 恰好一筆 completion，tag 相同。比對的是集合，不比順序 |
+| `HW-CPL-2` | 一個 job 的資料全部寫完、它的 completion 的 16 B 也寫完之後，才推進 CPL_TAIL。completion 一次寫一筆，CPL_TAIL 一次加 1。 | `lz4_sched`、`lz4_wdma` | monitor：`CPL_TAIL` 改變的那個 cycle，那筆 completion 所屬的 job 所有寫入 burst 的 response 都已經回來，completion 的也是；`CPL_TAIL` 一次只加 1 |
+| `HW-CPL-3` | completion ring 滿的時候，做完的 job 等著，不覆寫也不丟棄還沒被讀走的 completion。 | `lz4_sched` | 測試：bench 故意不推 `CPL_HEAD`。monitor 確認 ring 滿的時候沒有寫入 completion ring 的 burst |
 | `HW-IRQ-1` | interrupt line 等於 (IRQ_STATUS & IRQ_ENABLE) != 0，其中 DONE 等於 CPL_TAIL != CPL_HEAD。 | `lz4_csr` | assertion：每個 cycle 拿 `irq` 與 register 的值比 |
 | `HW-DATA-1` | COMPRESS 回 OK 時：length 不超過 limit，checksum 是 stream 的 CRC-32，stream 解開後與 frame 的 4096 B 相同。 | `lz4_enc`、`lz4_pack`、`lz4_crc32` | scoreboard：chunk 與 completion 逐 byte 比對 `hwref.job` |
 | `HW-DATA-2` | DECOMPRESS 回 OK 時 frame 等於 stream 解開的 4096 B。回 BAD_STREAM 時 stream 確實有錯。 | `lz4_dec`、`lz4_crc32` | scoreboard：frame 與 completion 逐 byte 比對 `hwref.job`；壞的 stream 一律回 `BAD_STREAM` |
-| `HW-STATE-1` | 除了 register，硬體不保留跨 job 的狀態。job 做到一半被 reset，重送同一個 descriptor 會得到相同結果。 | 全部，特別是 hash table 的 valid、兩個 FIFO、CRC | 同一個 job 接在不同的 job 後面、接在 reset 後面各做一次，結果相同 |
-| `HW-RST-1` | soft reset：進行中的 bus burst 做完就停，JOB_HEAD、JOB_TAIL、CPL_TAIL、CPL_HEAD、ERR_CODE、IRQ_STATUS 與 CTRL.ENABLE 清成 0，config register 與 IRQ_ENABLE 保留，然後 STATUS.BUSY 變 0。 | `lz4_ctrl`、`lz4_csr`、兩個 DMA | 在 job FSM 的每一個 state 注入 soft reset |
+| `HW-STATE-1` | 除了 register，硬體不保留跨 job 的狀態。一個 job 的結果只由它的 descriptor 與它列出的 frame、chunk 的內容決定，與同時在其他 engine 執行的 job 無關，也與它被分到哪一個 engine 無關。job 做到一半被 reset，重送同一個 descriptor 會得到相同結果。 | 全部，特別是 hash table 的 valid、兩個 FIFO、CRC | 同一個 job 接在不同的 job 後面、接在 reset 後面、與不同的 job 同時執行、分到不同的 engine 各做一次，結果相同 |
+| `HW-RST-1` | soft reset：進行中的 bus burst 做完就停，所有 engine 手上的 job 都放棄，不寫 completion。JOB_HEAD、JOB_TAIL、CPL_TAIL、CPL_HEAD、ERR_CODE、IRQ_STATUS 與 CTRL.ENABLE 清成 0，config register 與 IRQ_ENABLE 保留，然後 STATUS.BUSY 變 0。 | `lz4_sched`、`lz4_ctrl`、`lz4_csr`、兩個 DMA | 在每個 FSM 的每一個 state 注入 soft reset，包含好幾個 engine 同時有 job 的時候 |
 
 ## 5. Block 切分
 
@@ -564,27 +588,43 @@ Flag：
 ### 5.1 總覽
 
 ```
-                 APB                                   irq
-                  |                                     ^
-            +-----v------+     start, desc      +-------+------+
-            |  lz4_csr   |<-------------------->|   lz4_ctrl   |
-            | registers  |  head/tail, halt     |   job FSM    |
-            +------------+                      +---+------+---+
-                                                    |      |
-                             cmd (addr, beats)      |      |      cmd (addr, beats)
-                         +--------------------------+      +--------------------------+
-                         v                                                            v
-   AXI AR/R  <--->  +----------+     +-----------------------------+     +----------+  <---> AXI AW/W/B
-                    | lz4_rdma |---->|          datapath           |---->| lz4_wdma |
-                    +----------+     |  pagebuf  enc  dec  pack    |     +----------+
-                                     |  fifo x2  crc32             |
-                                     +-----------------------------+
+        APB                                                          irq
+         |                                                            ^
+   +-----v------+        head/tail, enable, halt             +--------+-------+
+   |  lz4_csr   |<------------------------------------------>|   lz4_sched    |
+   | registers  |                                            | fetch and post |
+   +------------+                                            +---+--------+---+
+                                             desc, start         |        ^   done, completion fields
+                 +-------------------+---------------------------+        |
+                 v                   v                   v                |
+          +--------------+    +--------------+    +--------------+        |
+          | lz4_engine 0 |    | lz4_engine 1 | .. | lz4_engine   |--------+
+          |   lz4_ctrl   |    |              |    |   N-1        |
+          |   datapath   |    |              |    |              |
+          +------+-------+    +------+-------+    +------+-------+
+                 |                   |                   |
+                 +-------------------+---------+---------+
+                    read cmd, write cmd,       |
+                    data streams         +-----v-----+   ring bursts
+                                         |  lz4_arb  |<-------------- lz4_sched
+                                         +--+-----+--+
+                                            |     |
+        AXI AR/R  <--->  +----------+ <-----+     +-----> +----------+  <---> AXI AW/W/B
+                         | lz4_rdma |                     | lz4_wdma |
+                         +----------+                     +----------+
+
+   one lz4_engine = lz4_ctrl (job FSM) + pagebuf, enc, dec, pack, unpack, fifo x2, crc32
 ```
+
+只有一份的 block：`lz4_csr`、`lz4_sched`、`lz4_arb`、`lz4_rdma`、`lz4_wdma`。其餘的都在 `lz4_engine` 裡面，每個 engine 各一份，共 `ENGINES` 份。
 
 | Block | 功能 | 主要記憶體 |
 |---|---|---|
 | `lz4_csr` | APB slave、所有 register、設定檢查、halt 與 `ERR_CODE`、`irq` | 只有 flop |
-| `lz4_ctrl` | Job 的 FSM：取 descriptor、檢查、啟動 datapath、決定 completion、soft reset 排空 | Descriptor 的 48 B register |
+| `lz4_sched` | Ring 這一側：有 engine 空著時取 descriptor 並交給它；engine 做完時寫 completion；halt 與 soft reset 時通知所有 engine；產生 `BUSY` | 取 descriptor 時暫存的 48 B register |
+| `lz4_arb` | 把 N 個 engine 與 `lz4_sched` 的讀命令排給 `lz4_rdma`，寫命令排給 `lz4_wdma`，以 burst 為單位。`lz4_sched` 的 ring burst 優先，engine 之間輪流 | 無 |
+| `lz4_engine` | 一個 job 的全部。裡面是 `lz4_ctrl` 與下面從 `lz4_pagebuf` 到 `lz4_crc32` 的 block | 見各 block |
+| `lz4_ctrl` | 一個 job 的 FSM：檢查 descriptor、啟動 datapath、決定 completion 的內容、halt 與 soft reset 時停下 | Descriptor 的 48 B register |
 | `lz4_rdma` | AXI AR 與 R。收到一個命令（位址、beat 數）發一個 burst，把 beat 送進內部 stream，回報 `rresp` | 無 |
 | `lz4_wdma` | AXI AW、W、B。收到命令後從內部 stream 取 beat 送出，回報 `bresp` | 無 |
 | `lz4_pagebuf` | 4096 B 的 page buffer：COMPRESS 時放整個 page，DECOMPRESS 時放已經解出的 byte | 2 × 256 × 64 bit |
@@ -596,6 +636,8 @@ Flag：
 | `lz4_crc32` | CRC-32，每 cycle 最多 8 個 byte | 無 |
 
 Block 之間的資料一律用同一種 stream 介面：`valid`、`ready`、`data[63:0]`、`bytes[3:0]`（1 到 8）、`last`。Byte 0 在 `data[7:0]`。
+
+第 5.2 與 5.3 節畫的是一個 engine 的裡面。圖上的 `lz4_rdma` 與 `lz4_wdma` 是共用的那一份，engine 的命令與資料經過 `lz4_arb` 才到它們。Engine 備妥一整個 burst 才向 `lz4_arb` 提出要求（AXI-8、AXI-9），所以拿到 bus 之後不會停頓。
 
 ### 5.2 COMPRESS 的資料路徑
 
@@ -649,6 +691,8 @@ Block 之間的資料一律用同一種 stream 介面：`valid`、`ready`、`dat
 | decoder 的 history | 24 × 8 bit | 192 | flop |
 | **合計** |  | 62656 |  |
 
+上表是一個 engine 的量。每個 engine 各有一份，總量乘上 `ENGINES`。Engine 之間不共用任何記憶體。這是做到 HW-STATE-1 裡「與其他 engine 的 job 無關」最直接的方法，也讓單一 job 的 model 與 vector 不用改。
+
 **Page buffer 分成偶數與奇數兩個 bank。** Encoder 每 cycle 要從任意 byte 位置讀 8 個連續的 byte，這個視窗會橫跨兩個相鄰的 word。把 word `w` 放在 bank `w & 1` 的位址 `w >> 1`，相鄰的兩個 word 就一定在不同的 bank，每個 bank 用一個 port 就能讀到。兩個 bank 各有兩個 port，所以同一個 cycle 可以讀兩個不對齊的視窗：一個在目前位置，一個在候選位置。寫入需要 byte write enable，因為 decoder 的輸出不對齊 word。
 
 **Hash table 的 valid bit 用 flop，不放進 RAM。** 每個 job 開始時必須在一個 cycle 內全部清成 0。這是 HW-STATE-1 的要求，也是輸出與 reference model 一致的必要條件：上一個 page 留下的 entry 會讓 encoder 找到不同的候選位置。Entry 本身存 12 bit 的位置，不必清。
@@ -657,32 +701,53 @@ Block 之間的資料一律用同一種 stream 介面：`valid`、`ready`、`dat
 
 | 編號 | 等級 | 要求 |
 |---|---|---|
-| JOB-5 | 必須 | 每個 job 開始時，hash table 的 valid bit、兩個 FIFO、packer、CRC、所有位置計數器都回到初始值。任何 job 的結果不受之前的 job 影響（HW-STATE-1） |
+| JOB-5 | 必須 | 每個 job 開始時，那個 engine 的 hash table valid bit、兩個 FIFO、packer、CRC、所有位置計數器都回到初始值。任何 job 的結果不受之前的 job 影響，也不受其他 engine 影響（HW-STATE-1） |
 
 ## 6. 控制流程
 
-### 6.1 Job FSM
+### 6.1 Scheduler 與 engine 的 FSM
 
-`lz4_ctrl` 的狀態。**基準**，但每個狀態的進出條件對應的外部行為是 **必須**。
+一個 engine 時，取 job、做 job、寫 completion 是同一個 FSM。N 個 engine 時分成兩邊：`lz4_sched` 管 ring，只有一份；`lz4_ctrl` 管一個 job，每個 engine 一份。**基準**，但每個狀態的進出條件對應的外部行為是 **必須**。
+
+`lz4_sched` 裡有兩個互不等待的小 FSM。取 job 用 read channel，寫 completion 用 write channel，兩邊可以同時進行。
+
+取 job：
 
 | 狀態 | 做什麼 | 離開的條件與去向 |
 |---|---|---|
-| IDLE | `BUSY` 為 0 | `ENABLE` 為 1、沒有 halt、`JOB_HEAD != JOB_TAIL`：到 FETCH |
-| FETCH | 讀 descriptor，6 beat | 沒有 bus error：`JOB_HEAD` 前進，到 CHECK。有 bus error：halt，代碼 RING_BUS_ERROR，`JOB_HEAD` 不動，到 HALTED |
-| CHECK | 五項檢查；清 valid bit、FIFO、CRC、計數器 | 不通過：到 POST，status BAD_DESC。COMPRESS：到 C_LOAD。DECOMPRESS：到 D_RUN |
+| F_IDLE | 等 | `ENABLE` 為 1、沒有 halt、`JOB_HEAD != JOB_TAIL`、至少一個 engine 在 IDLE：到 F_FETCH |
+| F_FETCH | 讀 descriptor，6 beat | 沒有 bus error：`JOB_HEAD` 前進，把 48 B 交給編號最小的 IDLE engine，回 F_IDLE。有 bus error：halt，代碼 RING_BUS_ERROR，`JOB_HEAD` 不動 |
+
+寫 completion：
+
+| 狀態 | 做什麼 | 離開的條件與去向 |
+|---|---|---|
+| P_IDLE | 等 | 有 engine 在 DONE：照 JOB-13 選一個，到 P_POST |
+| P_POST | 等 completion ring 有空位，寫 2 beat，等 response | 沒有 bus error：`CPL_TAIL` 前進，那個 engine 回 IDLE，回 P_IDLE。有 bus error：halt，代碼 RING_BUS_ERROR，`CPL_TAIL` 不動 |
+
+`lz4_ctrl`，每個 engine 一份：
+
+| 狀態 | 做什麼 | 離開的條件與去向 |
+|---|---|---|
+| IDLE | 這個 engine 空著 | `lz4_sched` 交來 descriptor：到 CHECK |
+| CHECK | 五項檢查；清 valid bit、FIFO、CRC、計數器 | 不通過：到 DONE，status BAD_DESC。COMPRESS：到 C_LOAD。DECOMPRESS：到 D_RUN |
 | C_LOAD | 讀 frame 進 page buffer，8 個 burst | 讀完：到 C_ENCODE |
-| C_ENCODE | Encoder 執行，stream 邊產生邊寫 chunk | 正常結束：到 C_DRAIN。Stream 超過上限且 `limit` 為 4096：到 C_RAW。超過上限且 `limit` 小於 4096：等進行中的 burst 結束後到 POST，status INCOMPRESSIBLE |
-| C_RAW | 等進行中的 burst 結束，清 packer、FIFO、CRC，把 page buffer 依序寫到 `chunk[0..7]` | 寫完：到 POST，status OK，flags RAW |
-| C_DRAIN | 最後一個 chunk 補 0 後寫出 | Response 回來：到 POST，status OK |
+| C_ENCODE | Encoder 執行，stream 邊產生邊寫 chunk | 正常結束：到 C_DRAIN。Stream 超過上限且 `limit` 為 4096：到 C_RAW。超過上限且 `limit` 小於 4096：等進行中的 burst 結束後到 DONE，status INCOMPRESSIBLE |
+| C_RAW | 等進行中的 burst 結束，清 packer、FIFO、CRC，把 page buffer 依序寫到 `chunk[0..7]` | 寫完：到 DONE，status OK，flags RAW |
+| C_DRAIN | 最後一個 chunk 補 0 後寫出 | Response 回來：到 DONE，status OK |
 | D_RUN | 讀 chunk、decode、寫 frame | Decoder 結束或檢查失敗：到 D_DRAIN |
-| D_DRAIN | 成功：把剩下的 word 寫完。失敗：等進行中的 burst 結束，不再發新的 | 到 POST，status OK 或 BAD_STREAM |
-| POST | 等 completion ring 有空位，寫 2 beat，等 response | 沒有 bus error：`CPL_TAIL` 前進，到 IDLE。有 bus error：halt，代碼 RING_BUS_ERROR，`CPL_TAIL` 不動，到 HALTED |
-| HALTED | 不動 | 只有 soft reset 能離開 |
+| D_DRAIN | 成功：把剩下的 word 寫完。失敗：等進行中的 burst 結束，不再發新的 | 到 DONE，status OK 或 BAD_STREAM |
+| DONE | 保留 completion 的內容，等 `lz4_sched` 把它寫出 | Completion 寫完：到 IDLE |
+| STOPPED | Halt 代碼是 RING_BUS_ERROR 時進來：等自己進行中的 burst 結束，不再發新的 | 只有 soft reset 能離開 |
 | RST_DRAIN | 見第 6.5 節 | 排空完成：到 IDLE |
 
-Halt 可能在任何狀態由 `lz4_csr` 觸發，例如 FW 寫了超出範圍的 `JOB_TAIL`。這時 **必須** 把正在做的 job 做完並寫出 completion，然後才停在 HALTED。只有 FETCH 與 POST 自己的 bus error 會讓 job 沒有 completion。
+`BUSY` 為 0 的條件：兩個小 FSM 都在 IDLE，所有 engine 也都在 IDLE，而且沒有在排空。
 
-POST 等待空位的時候如果 FW 一直不推進 `CPL_HEAD`，硬體就一直等。這不是錯誤狀態，soft reset 可以解開。
+DONE 的 engine 要等 completion 寫出才空下來。第 9.1 節估寫一筆 completion 是 5 cycle，相對於一個 job 很短，所以這一版不另外加 completion 的暫存。
+
+Halt 可能在任何時候由 `lz4_csr` 觸發，例如 FW 寫了超出範圍的 `JOB_TAIL`。這時 **必須** 不再取新的 job，把已經取走的 job 全部做完並寫出 completion，然後才停下。只有取 descriptor 與寫 completion 自己的 bus error 會讓 job 沒有 completion，見第 6.3 節。
+
+P_POST 等待空位的時候如果 FW 一直不推進 `CPL_HEAD`，硬體就一直等。其他 engine 做完之後也等在 DONE，還在執行的 engine 不受影響。所有 engine 都等在 DONE 時硬體不再取 job。這不是錯誤狀態，soft reset 可以解開。
 
 ### 6.2 Descriptor 的檢查
 
@@ -723,11 +788,13 @@ BAD_DESC 的 completion：`status` 為 BAD_DESC，`aux` 為上表的代碼，`ta
 
 ### 6.3 Halt
 
-| 代碼 | 觸發的條件 | 當時的 job |
-|---|---|---|
-| BAD_RING_CFG | `ENABLE` 從 0 變 1 時設定檢查不通過 | 沒有 job |
-| RING_BUS_ERROR | 讀 descriptor 或寫 completion 時 bus error | 這個 job 沒有 completion，FW 在 reset 之後重送 |
-| BAD_INDEX | FW 寫了超出範圍的 `JOB_TAIL` 或 `CPL_HEAD` | 做完並寫出 completion |
+| 代碼 | 觸發的條件 | 出錯的那個 job | 同時在其他 engine 執行的 job |
+|---|---|---|---|
+| BAD_RING_CFG | `ENABLE` 從 0 變 1 時設定檢查不通過 | 沒有 job | 沒有 job |
+| RING_BUS_ERROR | 讀 descriptor 或寫 completion 時 bus error | 沒有 completion，FW 在 reset 之後重送 | 硬體不再碰兩個 ring。這些 job 在自己進行中的 burst 結束後停下，沒有 completion，目的地的內容視為未定義。FW 在 reset 之後重送 |
+| BAD_INDEX | FW 寫了超出範圍的 `JOB_TAIL` 或 `CPL_HEAD` | 沒有這樣的 job | 不再取新的 job。已經取走的全部做完並寫出 completion |
+
+RING_BUS_ERROR 時讓其他 engine 停下，是因為 ring 已經不可信：completion 寫不出去，FW 反正要 reset 並全部重送。這是這份規格的選擇，列在 12.3。
 
 ### 6.4 資料的 bus error
 
@@ -735,9 +802,9 @@ BAD_DESC 的 completion：`status` 為 BAD_DESC，`aux` 為上表的代碼，`ta
 
 | 編號 | 要求 |
 |---|---|
-| JOB-6 | 出錯的 burst 照協定完成。之後不再發新的資料 burst |
+| JOB-6 | 出錯的 burst 照協定完成。這個 job 之後不再發新的資料 burst |
 | JOB-7 | Completion 的 `status` 為 BUS_ERROR，`tag` 照抄，其他欄位為 0 |
-| JOB-8 | 不 halt。下一個 job 正常執行 |
+| JOB-8 | 不 halt。其他 engine 正在做的 job 不受影響，之後的 job 正常執行 |
 | JOB-9 | 目的地的內容視為未定義：COMPRESS 是 descriptor 列出的 chunk，DECOMPRESS 是 frame |
 
 ### 6.5 Reset
@@ -749,7 +816,10 @@ BAD_DESC 的 completion：`status` 為 BAD_DESC，`aux` 為上表的代碼，`ta
 | RST-3 | 必須 | Soft reset 排空時補送的 write beat `wstrb` 為 0，不再改變記憶體。收到的 read beat 丟棄 |
 | RST-4 | 必須 | 排空期間 `BUSY` 為 1。排空完成後 `JOB_HEAD`、`JOB_TAIL`、`CPL_TAIL`、`CPL_HEAD`、`ERR_CODE`、`CTRL` 為 0，`HALTED` 與 `ERROR` 為 0，`BUSY` 為 0（HW-RST-1） |
 | RST-5 | 必須 | Soft reset 不改變 base、size、`IRQ_ENABLE`。排空期間寫 `CTRL.ENABLE` 沒有作用 |
-| RST-6 | 必須 | 被 soft reset 打斷的 job 沒有 completion。它已經寫過的 chunk 或 frame 內容視為未定義 |
+| RST-6 | 必須 | 被 soft reset 打斷的 job 都沒有 completion，最多 `ENGINES` 個。已經做完、completion 還沒寫出的 job 也算被打斷。它們已經寫過的 chunk 或 frame 內容視為未定義 |
+| RST-7 | 必須 | Soft reset 之後 `lz4_sched` 與所有 engine 都回到 IDLE，不論之前有幾個 engine 有 job、有沒有 halt |
+
+共用一個 master port（A10）讓排空很單純：整顆硬體最多只有一個 read burst 與一個 write burst 要收尾，與 engine 的數量無關。
 
 Soft reset 之後內部記憶體的內容不必清。JOB-5 保證下一個 job 不會看到它們。
 
@@ -1192,6 +1262,41 @@ Clock 頻率還沒決定（A2），下表用 200、400、800 MHz 三個值換算
 3. DECOMPRESS 的時間有一大部分是固定的搬運：讀 chunk 與寫 8 個 frame burst。Decoder 核心再快，整個 job 也不會低於大約 600 cycle。
 4. 兩個不改變輸出的加速方向留到 RTL 有量測之後再決定：frame 還在讀的時候就開始搜尋；decoder 把 token 與上一個 sequence 的複製重疊。
 
+### 9.5 N 個 job 同時執行
+
+第 9.1 到 9.4 節的數字都是一個 job 獨佔 master port 的情況。N 個 engine 共用一個 port（A10）時，bus 是共用資源。這一節只用上面的數字算佔用比例，不是 cycle 層級的模擬。排隊的等待另外由 `sim/ifsim` 用事件層級的 model 估過，見這一節最後。
+
+| Job，heap page 平均 | 整個 job | 其中 read channel 最多佔用 | 比例 |
+|---|---|---|---|
+| COMPRESS | 3667 cycle | 536 cycle，讀整個 frame 的 8 個 burst | 約 15% |
+| DECOMPRESS | 1720 cycle | 536 cycle，最多 8 個 chunk | 約 31% |
+
+Write channel 的佔用也不超過 8 個 burst，同一個量級。
+
+讀法：
+
+1. 一個 job 大部分的時間花在 engine 自己的 encoder 或 decoder，不在 bus 上。所以 engine 數不大時，多一個 engine 接近多一份 throughput。
+2. 照上表的比例，read channel 大約在 3 個 DECOMPRESS 或 6 個 COMPRESS 同時進行時排滿。超過之後再加 engine，每個 job 都會變慢。這是決定 N 與決定 A10 要不要改的主要依據。
+3. 一個 burst 是 67 cycle。Engine 要等的時間以 burst 為單位：前面排了 k 個別人的 burst，就多等大約 k 乘 67 cycle。
+4. `lz4_sched` 的 ring burst 優先，所以取 job 與寫 completion 不會被資料 burst 拖很久：最多等一個進行中的 burst。
+
+`sim/ifsim` 在 2026-11-13 擴充成 N 個 engine 之後，用它的時間假設跑過 4 個 engine 共用一個 port 的情況。它的 arbiter 是簡化的：讀寫各一個 channel，一次一個 burst，ring burst 優先，engine 之間輪流。結果在 `sim-results-v0.md` 的 F15 與 5.9：
+
+| 情況 | 在 port 等其他 job，攤到每個 burst，ns | DECOMPRESS 的 HW 時間 p50 µs | 所有 fault 裡 `hw` 最長的一次 µs |
+|---|---|---|---|
+| 基準負載，1 個 engine | 0.0 | 1.24 | 1.66 |
+| 基準負載，4 個 engine | 1.0 | 1.24 | 2.90 |
+| 重負載，1 個 engine | 0.0 | 1.24 | 1.61 |
+| 重負載，2 個 engine | 6.6 | 1.30 | 2.36 |
+| 重負載，4 個 engine | 13.2 | 1.36 | 3.52 |
+| 重負載，8 個 engine | 14.2 | 1.39 | 3.90 |
+
+「重負載」是 `sim-results-v0.md` 第 5.9 節最重的那一組，用的是小的 memory map，所以和基準負載的兩列不能直接比，只能各自看 engine 數量的影響。
+
+這些數字用的是 `sim/ifsim` 的時間假設，不是上面的 cycle 估計，兩者不能直接相加。能用的是趨勢：平均幾乎不變，最長的一次是單獨執行的 1.5 到 2.4 倍，而且 engine 越多越長。這和讀法第 2 點一致。
+
+RTL 完成後要量的：`ENGINES` 個 job 同時執行時，每個 job 的 cycle 數相對於單獨執行多了多少。
+
 ## 10. 參數選擇的依據
 
 ### 10.1 量測用的 page
@@ -1309,7 +1414,10 @@ RTL 的每一個外部行為都與 reference model 逐 byte 比對。Model 分�
 |---|---|---|---|
 | Core | `hwref.lz4core` | `lz4_enc`、`lz4_dec`、`lz4_crc32` 各自的 block bench | Stream 的 byte、解出的 page、哪一項檢查失敗、CRC |
 | Job | `hwref.job` | 整顆硬體，一次一個 job | Completion 的 16 B、有定義的記憶體範圍、access 沒有超出授權 |
-| Ring 與 CSR | `sim/ifsim/hw.py` 的行為 | 整顆硬體，連續的 job 與 register 操作 | Register 讀值、index、halt、`irq`、completion 的順序 |
+| Ring 與 CSR | `sim/ifsim/hw.py` 的行為 | 整顆硬體，連續的 job 與 register 操作 | Register 讀值、index、halt、`irq`、每個 job 恰好一筆 completion。`ENGINES` 為 1 時另外比 completion 的順序 |
+| 同時執行 | 每個 job 各自對 `hwref.job`，沒有新的 model | 整顆硬體，`ENGINES` 大於 1，好幾個 job 同時執行 | 每個 job 的 completion 與有定義的記憶體範圍和它單獨執行時相同；completion 的集合；執行中的 job 不超過 `ENGINES` 個 |
+
+第四層不需要新的 model，是 JOB-12 的直接結果：job 之間沒有重疊時，每個 job 的結果與單獨執行相同。Scoreboard 用 tag 找出 completion 屬於哪個 job，不假設順序。
 
 ### 11.2 Test bench 的組成
 
@@ -1332,7 +1440,7 @@ RTL 的每一個外部行為都與 reference model 逐 byte 比對。Model 分�
 | FW driver | 照第 4.4 節的順序操作 register 與 ring。可以故意違規，用來測錯誤處理 |
 | AXI slave memory model | 稀疏的記憶體。每個 channel 可以隨機插入等待。可以指定某個位址範圍回 SLVERR |
 | Access log | 記下 DUT 每一個 burst 的方向、位址、長度 |
-| Scoreboard | Job 結束時比對 completion，比對 model 標成有定義的記憶體範圍，跳過未定義的範圍，確認其他記憶體沒變 |
+| Scoreboard | Job 結束時用 tag 找到它的預期結果，比對 completion，比對 model 標成有定義的記憶體範圍，跳過未定義的範圍，確認其他記憶體沒變 |
 | Rule monitor | 第 4.6 節每條 HW 規則一個，持續檢查 |
 | AXI protocol checker | 標準的 AXI4 assertion |
 
@@ -1414,9 +1522,13 @@ Vector 是固定的回歸測試，另外要有隨機測試，model 在模擬時�
 | Bus 的時間 | 每個 channel 的等待 0 到數十 cycle；長時間不給 `arready` 或 `wready`；`rvalid` 斷斷續續 |
 | Ring | 各種 size；ring 滿與空；FW 很慢才收 completion；一次敲進很多 job |
 | 錯誤注入 | 每一種 burst 的每一個 beat 位置回 SLVERR |
-| Reset | 在 FSM 的每個狀態、burst 的每個階段下 soft reset，之後接正常的 job |
+| Reset | 在 FSM 的每個狀態、burst 的每個階段下 soft reset，之後接正常的 job。包含好幾個 engine 同時有 job、有 engine 等在 DONE 的時候 |
+| 同時執行 | 一次敲進比 `ENGINES` 多的 job；長短 job 混合，讓後取走的先做完；COMPRESS 與 DECOMPRESS 同時；bench 配給各 job 不重疊的 frame 與 chunk |
+| 同時執行時的錯誤 | 一個 job 回 BUS_ERROR、BAD_STREAM 或 BAD_DESC 時，其他 engine 有 job。三種 halt 各自發生時其他 engine 有 job |
 
 **結果與時間無關是一項獨立的檢查。** 同一個 job 用至少三種不同的 bus 等待設定各跑一次，completion、記憶體與 access 的順序必須完全相同（AXI-6）。
+
+**結果與同伴無關是另一項獨立的檢查。** 同一個 job 單獨執行一次，再與不同的 job 同時執行、分到不同的 engine 各跑一次。它的 completion、記憶體與它自己那些 access 的順序必須完全相同（AXI-6、JOB-12）。不同 job 的 access 之間怎麼交錯不比對。
 
 ### 11.5 Block 層的 bench
 
@@ -1427,6 +1539,8 @@ Vector 是固定的回歸測試，另外要有隨機測試，model 在模擬時�
 | `lz4_crc32` | 檢查值；1 到 8 B 的每種尾端長度 |
 | `lz4_pagebuf` | 不對齊的 8 B 視窗在每個 byte 偏移的讀寫；兩個 port 同時讀同一個 word |
 | `lz4_csr` | 第 4.2 節的每一條 |
+| `lz4_sched` | 第 4.3 節的每一條。Engine 以各種順序做完；兩個 engine 同一個 cycle 做完；completion ring 滿；取 job 與寫 completion 同時；每一種 halt |
+| `lz4_arb` | 每一種同時請求的組合；ring burst 優先；engine 之間沒有被餓死的；burst 中間不換手 |
 | `lz4_rdma`、`lz4_wdma` | AXI 協定；error response 在每個 beat；soft reset 排空 |
 
 ### 11.6 Coverage
@@ -1441,7 +1555,10 @@ Functional coverage 至少包含：
 - 每一個 status；每一個 `aux` 代碼；每一個 halt 代碼。
 - Decoder 的四項檢查各自在每個可能的狀態發生；CRC 不符。
 - Forwarding 的三種情況；forward 之後 match 與不 match。
-- Job FSM 的每個狀態轉移；POST 等待 ring 空位。
+- `lz4_sched` 兩個小 FSM 與 `lz4_ctrl` 的每個狀態轉移；P_POST 等待 ring 空位。
+- 同時執行的 job 數從 1 到 `ENGINES` 的每個值；每個 engine 都做過 COMPRESS 與 DECOMPRESS。
+- Completion 的順序與取走的順序不同；兩個 engine 在同一個 cycle 做完；有 engine 等在 DONE 時其他 engine 繼續執行。
+- `lz4_arb` 每一種同時請求的組合。
 - 兩個 FIFO 的滿與空；read burst 與 write burst 同時進行。
 - 每個狀態下的 soft reset 與 halt。
 - 連續的 job 之間沒有 idle cycle；COMPRESS 與 DECOMPRESS 交錯。
@@ -1461,6 +1578,7 @@ Code coverage 的目標是 line、branch、FSM、toggle 都到 100%，達不到�
 5. 每條 HW 規則與每個有編號的要求都有對應的檢查，對照表完成。
 6. Synthesis 與 CDC、lint 檢查乾淨。
 7. 量到的 cycle 數已經回填第 9 節與 `sim/ifsim`。
+8. 以上各項在 `ENGINES` 為 1 與目標值兩種設定下都通過。
 
 ## 12. 決策、提案與待確認事項
 
@@ -1475,7 +1593,11 @@ Code coverage 的目標是 line、branch、FSM、toggle 都到 100%，達不到�
 | Decoder 用 24 B 的 history register | 短 offset 不必等 RAM | 7.4 |
 | Store-behind | Fault 延遲 | 7.5 |
 | Decoder 不檢查 encoder 的結尾規定 | 少三個比較器，行為由 model 定義 | 7.4 |
-| 一個 engine | 先把一個做對 | 1 |
+| N 個相同的 engine，N 是參數 `ENGINES` | 平台前提 P4。每個 engine 就是原本一個 job 的 datapath，單一 job 的 model 與 vector 不用改 | 1、5 |
+| N 個 engine 共用一個 AXI master port，以 burst 為單位輪流 | AXI-2 不變，soft reset 要收尾的 burst 仍然最多一讀一寫。代價是 bus 成為共用資源 | 3.3、5.1、9.5 |
+| 一個 job ring、一個 completion ring | Register 與 FW 都不用改 | 4.3 |
+| Completion 照做完的順序 | 短的 job 不等長的 job。FW 本來就用 tag | 4.3 |
+| 硬體不檢查同時執行的 job 有沒有重疊 | 這個檢查要比對最多 N 組 frame 與 chunk，而 FW 在 `mm_lock` 之下本來就保證 | 4.3 |
 
 ### 12.2 對介面規格的提案
 
@@ -1509,6 +1631,13 @@ Code coverage 的目標是 line、branch、FSM、toggle 都到 100%，達不到�
 | 13 | 能不能取得目標 SoC 的 firmware image 與 RW 記憶體的 dump | 沒有 | 第 10 節的壓縮率目前來自開發機的資料 |
 | 14 | 製程的 SRAM macro 有沒有 byte write enable 與 dual port | 有 | 沒有的話 page buffer 的組織要改 |
 | 15 | `limit` 是 4096 而 stream 剛好 4096 B 時走 RAW | 是，2026-11-12 定案 | 規則是 ENC-6。`hwref`、`ifsim`、`hostsim` 三個 model 已經一致 |
+| 16 | `ENGINES` 的值，也就是平台前提 P4 的 N | 暫定 4，2026-11-13 指定先用這個值。RTL 仍以參數處理 | 面積大致與 N 成正比，每個 engine 有自己的一份第 5.4 節的記憶體。Throughput 見 9.5。介面規格 O7 |
+| 17 | N 個 engine 怎麼接到 DRAM | 共用一個 AXI master port、一個 ID，以 burst 為單位輪流（A10） | 改成每個 engine 一個 ID 或一個 port 的話，AXI-2、soft reset 的排空與 bus monitor 都要改。介面規格 O14 |
+| 18 | Engine 是否完全相同 | 是，每個都能做 COMPRESS 與 DECOMPRESS | 只做 DECOMPRESS 的 engine 不需要 hash table 與 encoder，小很多。但 `lz4_sched` 要照 opcode 分派，而且 ring 最前面是 COMPRESS、能做 COMPRESS 的 engine 都在忙時，後面的 DECOMPRESS 會被擋住，除非硬體跳著取 |
+| 19 | RING_BUS_ERROR 時其他 engine 的 job 怎麼辦 | 停下，沒有 completion，FW 在 reset 之後重送 | 另一個做法是讓它們把資料寫完。FW 這一側兩種做法相同，因為一律重送 |
+| 20 | Completion 要不要帶 engine 的編號 | 不帶 | 帶的話 FW 能分辨是哪一個 engine 常答錯，介面規格 O15。可用的欄位是 `aux`，與提案 P3 搶同一個欄位 |
+| 21 | `lz4_arb` 要不要讓 DECOMPRESS 的 burst 優先 | 不分。Ring burst 優先，engine 之間輪流 | 等 page fault 的是 DECOMPRESS。優先的話 COMPRESS 變慢，還要保證不被餓死。`sim/ifsim` 照不分優先跑的結果是 DECOMPRESS 最長的一次明顯變長，見 9.5 最後。優先權可以把它拿回來，這還沒有模擬。負責人 2026-11-13 的指示：先不用模擬，但這一項要記著 |
+| 22 | 要不要為 `ENGINES` 大於 1 的 ring 行為寫可執行的 model | 已處理，2026-11-13。`sim/ifsim/hw.py` 是 N 個 engine，預設 4 | 第 11.1 節第四層可以拿它當 ring 行為的 reference。它不是 cycle 層級，completion 的先後在 RTL 可能不同，所以比對時只比每個 tag 的 completion 內容，不比順序。介面規格 O17 |
 
 ### 12.4 Model 之間已知的差異
 
@@ -1518,6 +1647,10 @@ Code coverage 的目標是 line、branch、FSM、toggle 都到 100%，達不到�
 | BAD_STREAM 時 model 不寫 frame | RTL 基準是 store-behind | Model 把 frame 標成未定義，test bench 不比對 |
 | `hwref.job` 一次讀完所有 chunk 再處理 | RTL 邊讀邊解 | Access 的集合相同，順序不同。Test bench 比對集合，順序另外用 AXI-6 的方式檢查 |
 | `ifsim` 沒有 P1 的對齊檢查 | 見 P1 | P1 定案後補 |
+| `sim/ifsim/hw.py` 是事件層級的 N 個 engine，不是 cycle 層級 | 好幾個 job 同時做時，誰先做完在 RTL 可能不同。共用 master port 的仲裁是簡化的 | 比對時只比每個 tag 的 completion 內容。`ENGINES` 設成 1 時 completion 的順序也可以比 |
+| `ifsim` 的 checker 對 HW-MEM-1 分不出 burst 是哪一個 engine 的 | 一個 engine 寫到另一個執行中 job 的範圍時抓不到 | RTL 的 bus monitor 看得到 engine 編號，要在那一層檢查。A10 改成每個 engine 一個 ID 的話 checker 也能做 |
+| `sim/hwref` 仍然是單一 job | 第 9.1 到 9.4 節的 cycle 數是一個 job 獨佔 port 的數字 | 同時執行的影響見 9.5，RTL 完成後量 |
+| 第 9 節的 cycle 數是一個 job 獨佔 master port | N 個 job 同時執行時每個 job 會變慢 | 見 9.5，RTL 完成後量 |
 | kernel 自己的 LZ4 decoder 比這顆硬體嚴格 | 第 7.4 節那種不守 encoder 結尾規定的 stream，硬體接受，kernel 的 decoder 拒絕 | 存進 chunk pool 的 stream 都出自守 ENC 規則的 encoder，所以碰不到。之後換 encoder 要重新確認。見控制程序 3.6 |
 
 ## 13. 檔案與指令

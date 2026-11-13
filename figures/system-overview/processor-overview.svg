@@ -1,0 +1,310 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1330" width="1800" height="1330" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" role="img" aria-label="Each core has its own MMU, TLB and L1 cache. All cores share one L2 cache, the DRAM, one copy of the kernel SW, the page table, the COT and one LZ4 HW. Shared tables and the job ring are guarded by locks.">
+<defs>
+<marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#4A5568"/></marker>
+<marker id="a-ink-s" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10 0 L0 5 L10 10 z" fill="#4A5568"/></marker>
+<marker id="a-exc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#C05621"/></marker>
+<marker id="a-exc-s" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10 0 L0 5 L10 10 z" fill="#C05621"/></marker>
+<marker id="a-kern" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#6B46C1"/></marker>
+<marker id="a-kern-s" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10 0 L0 5 L10 10 z" fill="#6B46C1"/></marker>
+<marker id="a-lz4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#2F855A"/></marker>
+<marker id="a-lz4-s" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10 0 L0 5 L10 10 z" fill="#2F855A"/></marker>
+<marker id="a-cpu" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#2B6CB0"/></marker>
+<marker id="a-cpu-s" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10 0 L0 5 L10 10 z" fill="#2B6CB0"/></marker>
+<pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="#ECEEF1"/><line x1="0" y1="0" x2="0" y2="10" stroke="#8A94A3" stroke-width="3"/></pattern>
+</defs>
+<rect x="0" y="0" width="1800" height="1330" rx="0" fill="#FFFFFF" stroke="none" stroke-width="0"/>
+<text xml:space="preserve" x="30" y="45" font-size="28" font-weight="bold" text-anchor="start" fill="#1A202C">Processor and compression layer: what is per core, what is shared</text>
+<text xml:space="preserve" x="30" y="72" font-size="14" font-weight="normal" text-anchor="start" fill="#4A5568">Platform assumptions: P1 no hardware page table walk · P2 per-core L1, one shared L2 · P3 one TLB per core, shared by its threads · P4 LZ4 HW takes N jobs at once. The number of cores and threads is illustrative.</text>
+<rect x="30" y="95" width="1310" height="610" rx="12" fill="#FAFBFC" stroke="#4A5568" stroke-width="2.5"/>
+<text xml:space="preserve" x="70" y="121" font-size="15" font-weight="bold" text-anchor="start" fill="#4A5568">PROCESSOR: several cores, several hardware threads per core</text>
+<rect x="70" y="135" width="390" height="445" rx="10" fill="#FFFFFF" stroke="#2B6CB0" stroke-width="2"/>
+<text xml:space="preserve" x="84" y="160" font-size="18" font-weight="bold" text-anchor="start" fill="#1A202C">Core 0</text>
+<text xml:space="preserve" x="446" y="160" font-size="12" font-weight="normal" text-anchor="end" fill="#4A5568">hardware, one set per core</text>
+<rect x="85" y="175" width="175" height="135" rx="6" fill="#FDFDFD" stroke="#4A5568" stroke-width="1.2"/>
+<text xml:space="preserve" x="95" y="193" font-size="13" font-weight="normal" text-anchor="start" fill="#4A5568">hardware thread T0</text>
+<rect x="95" y="202" width="155" height="44" rx="6" fill="#FFF3D1" stroke="#B7791F" stroke-width="1.5"/>
+<text xml:space="preserve" x="172" y="221" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">user SW thread</text>
+<text xml:space="preserve" x="172" y="238" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">asks with a VA</text>
+<rect x="95" y="254" width="155" height="48" rx="6" fill="#EFE7FF" stroke="#6B46C1" stroke-width="2" stroke-dasharray="6 4"/>
+<text xml:space="preserve" x="172" y="273" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">kernel SW instance</text>
+<text xml:space="preserve" x="172" y="290" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">same code · own stack</text>
+<rect x="270" y="175" width="175" height="135" rx="6" fill="#FDFDFD" stroke="#4A5568" stroke-width="1.2"/>
+<text xml:space="preserve" x="280" y="193" font-size="13" font-weight="normal" text-anchor="start" fill="#4A5568">hardware thread T1</text>
+<rect x="280" y="202" width="155" height="44" rx="6" fill="#FFF3D1" stroke="#B7791F" stroke-width="1.5"/>
+<text xml:space="preserve" x="357" y="221" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">user SW thread</text>
+<text xml:space="preserve" x="357" y="238" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">asks with a VA</text>
+<rect x="280" y="254" width="155" height="48" rx="6" fill="#EFE7FF" stroke="#6B46C1" stroke-width="2" stroke-dasharray="6 4"/>
+<text xml:space="preserve" x="357" y="273" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">kernel SW instance</text>
+<text xml:space="preserve" x="357" y="290" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">same code · own stack</text>
+<rect x="85" y="365" width="360" height="105" rx="6" fill="#E3F0FC" stroke="#2B6CB0" stroke-width="1.5"/>
+<rect x="97" y="377" width="336" height="56" rx="6" fill="#BFDDF7" stroke="#2B6CB0" stroke-width="1.5"/>
+<text xml:space="preserve" x="265" y="400" font-size="17" font-weight="bold" text-anchor="middle" fill="#1A202C">TLB:  VA → PA</text>
+<text xml:space="preserve" x="265" y="421" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">one per core, shared by both threads (P3)</text>
+<text xml:space="preserve" x="97" y="455" font-size="15" font-weight="bold" text-anchor="start" fill="#1A202C">CPU MMU</text>
+<text xml:space="preserve" x="433" y="455" font-size="12" font-weight="bold" text-anchor="end" fill="#C05621">no HW page walk (P1): miss → exception</text>
+<path d="M 115 310 L 115 375" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="121" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">VA</text>
+<path d="M 175 377 L 175 312" fill="none" stroke="#C05621" stroke-width="2" marker-end="url(#a-exc)"/>
+<text xml:space="preserve" x="170" y="345" font-size="12" font-weight="bold" text-anchor="end" fill="#C05621">miss</text>
+<path d="M 220 310 L 220 375" fill="none" stroke="#6B46C1" stroke-width="2" marker-end="url(#a-kern)"/>
+<text xml:space="preserve" x="226" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#6B46C1">refill</text>
+<path d="M 300 310 L 300 375" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="306" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">VA</text>
+<path d="M 360 377 L 360 312" fill="none" stroke="#C05621" stroke-width="2" marker-end="url(#a-exc)"/>
+<text xml:space="preserve" x="355" y="345" font-size="12" font-weight="bold" text-anchor="end" fill="#C05621">miss</text>
+<path d="M 405 310 L 405 375" fill="none" stroke="#6B46C1" stroke-width="2" marker-end="url(#a-kern)"/>
+<text xml:space="preserve" x="411" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#6B46C1">refill</text>
+<rect x="85" y="500" width="360" height="60" rx="6" fill="#E3F0FC" stroke="#2B6CB0" stroke-width="1.5"/>
+<text xml:space="preserve" x="265" y="524" font-size="15" font-weight="bold" text-anchor="middle" fill="#1A202C">L1 cache (I and D)</text>
+<text xml:space="preserve" x="265" y="544" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">private to this core · looked up with the PA</text>
+<path d="M 265 470 L 265 498" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="273" y="489" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">PA</text>
+<path d="M 265 560 L 265 613" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="273" y="600" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">PA, on an L1 miss</text>
+<rect x="500" y="135" width="390" height="445" rx="10" fill="#FFFFFF" stroke="#2B6CB0" stroke-width="2"/>
+<text xml:space="preserve" x="514" y="160" font-size="18" font-weight="bold" text-anchor="start" fill="#1A202C">Core 1</text>
+<text xml:space="preserve" x="876" y="160" font-size="12" font-weight="normal" text-anchor="end" fill="#4A5568">hardware, one set per core</text>
+<rect x="515" y="175" width="175" height="135" rx="6" fill="#FDFDFD" stroke="#4A5568" stroke-width="1.2"/>
+<text xml:space="preserve" x="525" y="193" font-size="13" font-weight="normal" text-anchor="start" fill="#4A5568">hardware thread T0</text>
+<rect x="525" y="202" width="155" height="44" rx="6" fill="#FFF3D1" stroke="#B7791F" stroke-width="1.5"/>
+<text xml:space="preserve" x="602" y="221" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">user SW thread</text>
+<text xml:space="preserve" x="602" y="238" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">asks with a VA</text>
+<rect x="525" y="254" width="155" height="48" rx="6" fill="#EFE7FF" stroke="#6B46C1" stroke-width="2" stroke-dasharray="6 4"/>
+<text xml:space="preserve" x="602" y="273" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">kernel SW instance</text>
+<text xml:space="preserve" x="602" y="290" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">same code · own stack</text>
+<rect x="700" y="175" width="175" height="135" rx="6" fill="#FDFDFD" stroke="#4A5568" stroke-width="1.2"/>
+<text xml:space="preserve" x="710" y="193" font-size="13" font-weight="normal" text-anchor="start" fill="#4A5568">hardware thread T1</text>
+<rect x="710" y="202" width="155" height="44" rx="6" fill="#FFF3D1" stroke="#B7791F" stroke-width="1.5"/>
+<text xml:space="preserve" x="787" y="221" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">user SW thread</text>
+<text xml:space="preserve" x="787" y="238" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">asks with a VA</text>
+<rect x="710" y="254" width="155" height="48" rx="6" fill="#EFE7FF" stroke="#6B46C1" stroke-width="2" stroke-dasharray="6 4"/>
+<text xml:space="preserve" x="787" y="273" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">kernel SW instance</text>
+<text xml:space="preserve" x="787" y="290" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">same code · own stack</text>
+<rect x="515" y="365" width="360" height="105" rx="6" fill="#E3F0FC" stroke="#2B6CB0" stroke-width="1.5"/>
+<rect x="527" y="377" width="336" height="56" rx="6" fill="#BFDDF7" stroke="#2B6CB0" stroke-width="1.5"/>
+<text xml:space="preserve" x="695" y="400" font-size="17" font-weight="bold" text-anchor="middle" fill="#1A202C">TLB:  VA → PA</text>
+<text xml:space="preserve" x="695" y="421" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">one per core, shared by both threads (P3)</text>
+<text xml:space="preserve" x="527" y="455" font-size="15" font-weight="bold" text-anchor="start" fill="#1A202C">CPU MMU</text>
+<text xml:space="preserve" x="863" y="455" font-size="12" font-weight="bold" text-anchor="end" fill="#C05621">no HW page walk (P1): miss → exception</text>
+<path d="M 545 310 L 545 375" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="551" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">VA</text>
+<path d="M 605 377 L 605 312" fill="none" stroke="#C05621" stroke-width="2" marker-end="url(#a-exc)"/>
+<text xml:space="preserve" x="600" y="345" font-size="12" font-weight="bold" text-anchor="end" fill="#C05621">miss</text>
+<path d="M 650 310 L 650 375" fill="none" stroke="#6B46C1" stroke-width="2" marker-end="url(#a-kern)"/>
+<text xml:space="preserve" x="656" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#6B46C1">refill</text>
+<path d="M 730 310 L 730 375" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="736" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">VA</text>
+<path d="M 790 377 L 790 312" fill="none" stroke="#C05621" stroke-width="2" marker-end="url(#a-exc)"/>
+<text xml:space="preserve" x="785" y="345" font-size="12" font-weight="bold" text-anchor="end" fill="#C05621">miss</text>
+<path d="M 835 310 L 835 375" fill="none" stroke="#6B46C1" stroke-width="2" marker-end="url(#a-kern)"/>
+<text xml:space="preserve" x="841" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#6B46C1">refill</text>
+<rect x="515" y="500" width="360" height="60" rx="6" fill="#E3F0FC" stroke="#2B6CB0" stroke-width="1.5"/>
+<text xml:space="preserve" x="695" y="524" font-size="15" font-weight="bold" text-anchor="middle" fill="#1A202C">L1 cache (I and D)</text>
+<text xml:space="preserve" x="695" y="544" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">private to this core · looked up with the PA</text>
+<path d="M 695 470 L 695 498" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="703" y="489" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">PA</text>
+<path d="M 695 560 L 695 613" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="703" y="600" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">PA, on an L1 miss</text>
+<rect x="930" y="135" width="390" height="445" rx="10" fill="#FFFFFF" stroke="#2B6CB0" stroke-width="2"/>
+<text xml:space="preserve" x="944" y="160" font-size="18" font-weight="bold" text-anchor="start" fill="#1A202C">Core N</text>
+<text xml:space="preserve" x="1306" y="160" font-size="12" font-weight="normal" text-anchor="end" fill="#4A5568">hardware, one set per core</text>
+<rect x="945" y="175" width="175" height="135" rx="6" fill="#FDFDFD" stroke="#4A5568" stroke-width="1.2"/>
+<text xml:space="preserve" x="955" y="193" font-size="13" font-weight="normal" text-anchor="start" fill="#4A5568">hardware thread T0</text>
+<rect x="955" y="202" width="155" height="44" rx="6" fill="#FFF3D1" stroke="#B7791F" stroke-width="1.5"/>
+<text xml:space="preserve" x="1032" y="221" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">user SW thread</text>
+<text xml:space="preserve" x="1032" y="238" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">asks with a VA</text>
+<rect x="955" y="254" width="155" height="48" rx="6" fill="#EFE7FF" stroke="#6B46C1" stroke-width="2" stroke-dasharray="6 4"/>
+<text xml:space="preserve" x="1032" y="273" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">kernel SW instance</text>
+<text xml:space="preserve" x="1032" y="290" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">same code · own stack</text>
+<rect x="1130" y="175" width="175" height="135" rx="6" fill="#FDFDFD" stroke="#4A5568" stroke-width="1.2"/>
+<text xml:space="preserve" x="1140" y="193" font-size="13" font-weight="normal" text-anchor="start" fill="#4A5568">hardware thread T1</text>
+<rect x="1140" y="202" width="155" height="44" rx="6" fill="#FFF3D1" stroke="#B7791F" stroke-width="1.5"/>
+<text xml:space="preserve" x="1217" y="221" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">user SW thread</text>
+<text xml:space="preserve" x="1217" y="238" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">asks with a VA</text>
+<rect x="1140" y="254" width="155" height="48" rx="6" fill="#EFE7FF" stroke="#6B46C1" stroke-width="2" stroke-dasharray="6 4"/>
+<text xml:space="preserve" x="1217" y="273" font-size="13" font-weight="bold" text-anchor="middle" fill="#1A202C">kernel SW instance</text>
+<text xml:space="preserve" x="1217" y="290" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">same code · own stack</text>
+<rect x="945" y="365" width="360" height="105" rx="6" fill="#E3F0FC" stroke="#2B6CB0" stroke-width="1.5"/>
+<rect x="957" y="377" width="336" height="56" rx="6" fill="#BFDDF7" stroke="#2B6CB0" stroke-width="1.5"/>
+<text xml:space="preserve" x="1125" y="400" font-size="17" font-weight="bold" text-anchor="middle" fill="#1A202C">TLB:  VA → PA</text>
+<text xml:space="preserve" x="1125" y="421" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">one per core, shared by both threads (P3)</text>
+<text xml:space="preserve" x="957" y="455" font-size="15" font-weight="bold" text-anchor="start" fill="#1A202C">CPU MMU</text>
+<text xml:space="preserve" x="1293" y="455" font-size="12" font-weight="bold" text-anchor="end" fill="#C05621">no HW page walk (P1): miss → exception</text>
+<path d="M 975 310 L 975 375" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="981" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">VA</text>
+<path d="M 1035 377 L 1035 312" fill="none" stroke="#C05621" stroke-width="2" marker-end="url(#a-exc)"/>
+<text xml:space="preserve" x="1030" y="345" font-size="12" font-weight="bold" text-anchor="end" fill="#C05621">miss</text>
+<path d="M 1080 310 L 1080 375" fill="none" stroke="#6B46C1" stroke-width="2" marker-end="url(#a-kern)"/>
+<text xml:space="preserve" x="1086" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#6B46C1">refill</text>
+<path d="M 1160 310 L 1160 375" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="1166" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">VA</text>
+<path d="M 1220 377 L 1220 312" fill="none" stroke="#C05621" stroke-width="2" marker-end="url(#a-exc)"/>
+<text xml:space="preserve" x="1215" y="345" font-size="12" font-weight="bold" text-anchor="end" fill="#C05621">miss</text>
+<path d="M 1265 310 L 1265 375" fill="none" stroke="#6B46C1" stroke-width="2" marker-end="url(#a-kern)"/>
+<text xml:space="preserve" x="1271" y="345" font-size="12" font-weight="bold" text-anchor="start" fill="#6B46C1">refill</text>
+<rect x="945" y="500" width="360" height="60" rx="6" fill="#E3F0FC" stroke="#2B6CB0" stroke-width="1.5"/>
+<text xml:space="preserve" x="1125" y="524" font-size="15" font-weight="bold" text-anchor="middle" fill="#1A202C">L1 cache (I and D)</text>
+<text xml:space="preserve" x="1125" y="544" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">private to this core · looked up with the PA</text>
+<path d="M 1125 470 L 1125 498" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="1133" y="489" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">PA</text>
+<path d="M 1125 560 L 1125 613" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="1133" y="600" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">PA, on an L1 miss</text>
+<rect x="70" y="615" width="1250" height="70" rx="6" fill="#A9D1F5" stroke="#2B6CB0" stroke-width="2"/>
+<text xml:space="preserve" x="695" y="644" font-size="18" font-weight="bold" text-anchor="middle" fill="#1A202C">L2 cache: ONE, shared by all cores (P2)</text>
+<text xml:space="preserve" x="695" y="667" font-size="13" font-weight="normal" text-anchor="middle" fill="#1A202C">sees physical addresses only · kernel tables and user SW data compete for it</text>
+<rect x="1360" y="95" width="410" height="222" rx="6" fill="#FFFFFF" stroke="#4A5568" stroke-width="1.5"/>
+<text xml:space="preserve" x="1375" y="119" font-size="16" font-weight="bold" text-anchor="start" fill="#1A202C">One access, three outcomes</text>
+<text xml:space="preserve" x="1375" y="143" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">1  TLB hit: hardware only.</text>
+<text xml:space="preserve" x="1375" y="161" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">    VA → PA, then L1, L2, DRAM.</text>
+<text xml:space="preserve" x="1375" y="187" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">2  TLB miss, page is in a frame: the thread that</text>
+<text xml:space="preserve" x="1375" y="205" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">    missed enters kernel SW, which reads the page</text>
+<text xml:space="preserve" x="1375" y="223" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">    table and refills its core's TLB.</text>
+<text xml:space="preserve" x="1375" y="249" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">3  TLB miss, page is compressed: kernel takes</text>
+<text xml:space="preserve" x="1375" y="267" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">    mm_lock, reads the COT, takes a frame; LZ4 HW</text>
+<text xml:space="preserve" x="1375" y="285" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">    decompresses; kernel takes mm_lock again</text>
+<text xml:space="preserve" x="1375" y="303" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">    and maps the page.</text>
+<rect x="1440" y="335" width="330" height="370" rx="10" fill="#DDF3E2" stroke="#2F855A" stroke-width="2.5"/>
+<text xml:space="preserve" x="1605" y="366" font-size="22" font-weight="bold" text-anchor="middle" fill="#1A202C">LZ4 HW</text>
+<text xml:space="preserve" x="1605" y="389" font-size="14" font-weight="bold" text-anchor="middle" fill="#2F855A">N engines, up to N jobs at once (P4)</text>
+<rect x="1458" y="400" width="68" height="28" rx="4" fill="#FFFFFF" stroke="#2F855A" stroke-width="1.5"/>
+<text xml:space="preserve" x="1492" y="419" font-size="11" font-weight="bold" text-anchor="middle" fill="#1A202C">engine 0</text>
+<rect x="1532" y="400" width="68" height="28" rx="4" fill="#FFFFFF" stroke="#2F855A" stroke-width="1.5"/>
+<text xml:space="preserve" x="1566" y="419" font-size="11" font-weight="bold" text-anchor="middle" fill="#1A202C">engine 1</text>
+<rect x="1606" y="400" width="68" height="28" rx="4" fill="#FFFFFF" stroke="#2F855A" stroke-width="1.5"/>
+<text xml:space="preserve" x="1640" y="419" font-size="11" font-weight="bold" text-anchor="middle" fill="#1A202C">…</text>
+<rect x="1680" y="400" width="68" height="28" rx="4" fill="#FFFFFF" stroke="#2F855A" stroke-width="1.5"/>
+<text xml:space="preserve" x="1714" y="419" font-size="11" font-weight="bold" text-anchor="middle" fill="#1A202C">engine N−1</text>
+<text xml:space="preserve" x="1458" y="456" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">· a free engine takes the next job</text>
+<text xml:space="preserve" x="1458" y="476" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">· completions in finish order, found by tag</text>
+<text xml:space="preserve" x="1458" y="496" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">· DECOMPRESS: chunks to a frame</text>
+<text xml:space="preserve" x="1458" y="516" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">· COMPRESS: a frame to chunks</text>
+<text xml:space="preserve" x="1458" y="536" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">· computes and checks the CRC-32</text>
+<text xml:space="preserve" x="1458" y="556" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">· reads and writes DRAM with PAs,</text>
+<text xml:space="preserve" x="1458" y="576" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">   bypassing L1 and L2</text>
+<text xml:space="preserve" x="1458" y="596" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">· engines share no data state</text>
+<path d="M 1461 613 v -3 a 4 4 0 0 1 8 0 v 3" fill="none" stroke="#C53030" stroke-width="2"/>
+<rect x="1458" y="613" width="14" height="10" rx="2" fill="#C53030"/>
+<text xml:space="preserve" x="1477" y="622" font-size="12" font-weight="bold" text-anchor="start" fill="#C53030">ring_lock before a job is queued</text>
+<text xml:space="preserve" x="1458" y="650" font-size="12" font-weight="normal" text-anchor="start" fill="#4A5568">Shared by every core. N is not decided.</text>
+<text xml:space="preserve" x="1458" y="666" font-size="12" font-weight="normal" text-anchor="start" fill="#4A5568">Job N+1 waits in the ring for a free engine.</text>
+<path d="M 1340 440 L 1438 440" fill="none" stroke="#6B46C1" stroke-width="2" marker-end="url(#a-kern)"/>
+<text xml:space="preserve" x="1389" y="432" font-size="12" font-weight="bold" text-anchor="middle" fill="#6B46C1">doorbell</text>
+<path d="M 1440 500 L 1342 500" fill="none" stroke="#C05621" stroke-width="2" marker-end="url(#a-exc)"/>
+<text xml:space="preserve" x="1391" y="492" font-size="12" font-weight="bold" text-anchor="middle" fill="#C05621">interrupt</text>
+<text xml:space="preserve" x="1391" y="520" font-size="11" font-weight="normal" text-anchor="middle" fill="#4A5568">to one core</text>
+<rect x="30" y="790" width="1740" height="400" rx="12" fill="#F4F5F7" stroke="#4A5568" stroke-width="2.5"/>
+<text xml:space="preserve" x="75" y="817" font-size="18" font-weight="bold" text-anchor="start" fill="#1A202C">DRAM, 512 MiB of physical address space (widths not to scale)</text>
+<path d="M 695 685 L 695 788" fill="none" stroke="#4A5568" stroke-width="2" marker-end="url(#a-ink)"/>
+<text xml:space="preserve" x="704" y="745" font-size="12" font-weight="bold" text-anchor="start" fill="#4A5568">PA, on an L2 miss</text>
+<rect x="45" y="835" width="690" height="340" rx="6" fill="#FFFFFF" stroke="#4A5568" stroke-width="1.5"/>
+<text xml:space="preserve" x="64" y="856" font-size="13" font-weight="bold" text-anchor="start" fill="#1A202C">pinned region · 0x80000000 · 56 MiB · never compressed</text>
+<rect x="80" y="872" width="180" height="130" rx="6" fill="#EFE7FF" stroke="#6B46C1" stroke-width="3"/>
+<text xml:space="preserve" x="170" y="899" font-size="16" font-weight="bold" text-anchor="middle" fill="#1A202C">kernel SW code</text>
+<text xml:space="preserve" x="170" y="922" font-size="15" font-weight="bold" text-anchor="middle" fill="#6B46C1">ONE copy</text>
+<text xml:space="preserve" x="170" y="947" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">run by every hardware</text>
+<text xml:space="preserve" x="170" y="963" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">thread that takes an</text>
+<text xml:space="preserve" x="170" y="979" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">exception or interrupt</text>
+<rect x="275" y="872" width="215" height="130" rx="6" fill="#FFFFFF" stroke="#4A5568" stroke-width="1.5"/>
+<text xml:space="preserve" x="287" y="895" font-size="15" font-weight="bold" text-anchor="start" fill="#1A202C">page table  pte[]</text>
+<text xml:space="preserve" x="287" y="917" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">8 B per page</text>
+<text xml:space="preserve" x="287" y="933" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">kernel reads it on a TLB miss</text>
+<text xml:space="preserve" x="287" y="949" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">hardware never reads it (P1)</text>
+<path d="M 290 980 v -3 a 4 4 0 0 1 8 0 v 3" fill="none" stroke="#C53030" stroke-width="2"/>
+<rect x="287" y="980" width="14" height="10" rx="2" fill="#C53030"/>
+<text xml:space="preserve" x="306" y="989" font-size="12" font-weight="bold" text-anchor="start" fill="#C53030">mm_lock to change it</text>
+<rect x="505" y="872" width="215" height="130" rx="6" fill="#FFFFFF" stroke="#4A5568" stroke-width="1.5"/>
+<text xml:space="preserve" x="517" y="895" font-size="15" font-weight="bold" text-anchor="start" fill="#1A202C">kernel tables</text>
+<text xml:space="preserve" x="517" y="917" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">state[]  frame_of[]  owner[]</text>
+<text xml:space="preserve" x="517" y="933" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">bitmap  free_stack</text>
+<text xml:space="preserve" x="517" y="949" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">hand, counters</text>
+<path d="M 520 980 v -3 a 4 4 0 0 1 8 0 v 3" fill="none" stroke="#C53030" stroke-width="2"/>
+<rect x="517" y="980" width="14" height="10" rx="2" fill="#C53030"/>
+<text xml:space="preserve" x="536" y="989" font-size="12" font-weight="bold" text-anchor="start" fill="#C53030">mm_lock</text>
+<rect x="80" y="1015" width="180" height="145" rx="6" fill="#FFFFFF" stroke="#4A5568" stroke-width="1.5"/>
+<text xml:space="preserve" x="92" y="1038" font-size="15" font-weight="bold" text-anchor="start" fill="#1A202C">kernel stacks</text>
+<text xml:space="preserve" x="92" y="1060" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">one per thread</text>
+<text xml:space="preserve" x="92" y="1076" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">private to its instance:</text>
+<text xml:space="preserve" x="92" y="1092" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">no lock needed</text>
+<rect x="275" y="1015" width="215" height="145" rx="6" fill="#FFFFFF" stroke="#4A5568" stroke-width="1.5"/>
+<text xml:space="preserve" x="287" y="1038" font-size="15" font-weight="bold" text-anchor="start" fill="#1A202C">job ring, completion ring</text>
+<text xml:space="preserve" x="287" y="1060" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">one of each, 16 slots each</text>
+<text xml:space="preserve" x="287" y="1076" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">kernel writes jobs,</text>
+<text xml:space="preserve" x="287" y="1092" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">LZ4 HW writes completions</text>
+<path d="M 290 1123 v -3 a 4 4 0 0 1 8 0 v 3" fill="none" stroke="#C53030" stroke-width="2"/>
+<rect x="287" y="1123" width="14" height="10" rx="2" fill="#C53030"/>
+<text xml:space="preserve" x="306" y="1132" font-size="12" font-weight="bold" text-anchor="start" fill="#C53030">ring_lock to add a job</text>
+<rect x="505" y="1015" width="215" height="145" rx="6" fill="#FFF5F5" stroke="#C53030" stroke-width="1.5" stroke-dasharray="5 4"/>
+<path d="M 520 1033 v -3 a 4 4 0 0 1 8 0 v 3" fill="none" stroke="#C53030" stroke-width="2"/>
+<rect x="517" y="1033" width="14" height="10" rx="2" fill="#C53030"/>
+<text xml:space="preserve" x="536" y="1042" font-size="12" font-weight="bold" text-anchor="start" fill="#C53030">what the locks mean</text>
+<text xml:space="preserve" x="517" y="1062" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">One instance at a time inside.</text>
+<text xml:space="preserve" x="517" y="1078" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">mm_lock is the one lock over</text>
+<text xml:space="preserve" x="517" y="1094" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">every table. It is held for table</text>
+<text xml:space="preserve" x="517" y="1110" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">work only, not while waiting</text>
+<text xml:space="preserve" x="517" y="1126" font-size="12" font-weight="normal" text-anchor="start" fill="#1A202C">for the LZ4 HW.</text>
+<rect x="750" y="835" width="135" height="340" rx="6" fill="#FFFFFF" stroke="#4A5568" stroke-width="1.5"/>
+<text xml:space="preserve" x="817" y="862" font-size="15" font-weight="bold" text-anchor="middle" fill="#1A202C">HRT memory</text>
+<text xml:space="preserve" x="817" y="886" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">0x83800000</text>
+<text xml:space="preserve" x="817" y="902" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">36 MiB</text>
+<text xml:space="preserve" x="817" y="918" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C"></text>
+<text xml:space="preserve" x="817" y="934" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">not compressed</text>
+<text xml:space="preserve" x="817" y="950" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C"></text>
+<text xml:space="preserve" x="817" y="966" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">never needs</text>
+<text xml:space="preserve" x="817" y="982" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">decompression</text>
+<rect x="900" y="835" width="160" height="340" rx="6" fill="#FFFFFF" stroke="#4A5568" stroke-width="1.5"/>
+<text xml:space="preserve" x="980" y="862" font-size="17" font-weight="bold" text-anchor="middle" fill="#1A202C">COT</text>
+<text xml:space="preserve" x="980" y="886" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">0x85c00000</text>
+<text xml:space="preserve" x="980" y="902" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">4.5 MiB</text>
+<text xml:space="preserve" x="980" y="918" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C"></text>
+<text xml:space="preserve" x="980" y="934" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">32 B per page:</text>
+<text xml:space="preserve" x="980" y="950" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">which chunks,</text>
+<text xml:space="preserve" x="980" y="966" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">stream length,</text>
+<text xml:space="preserve" x="980" y="982" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">CRC-32</text>
+<path d="M 949 1017 v -3 a 4 4 0 0 1 8 0 v 3" fill="none" stroke="#C53030" stroke-width="2"/>
+<rect x="946" y="1017" width="14" height="10" rx="2" fill="#C53030"/>
+<text xml:space="preserve" x="965" y="1026" font-size="12" font-weight="bold" text-anchor="start" fill="#C53030">mm_lock</text>
+<rect x="1075" y="835" width="335" height="340" rx="6" fill="url(#hatch)" stroke="#4A5568" stroke-width="1.5"/>
+<rect x="1100" y="850" width="285" height="138" rx="6" fill="#FFFFFF" stroke="#4A5568" stroke-width="1"/>
+<text xml:space="preserve" x="1242" y="877" font-size="17" font-weight="bold" text-anchor="middle" fill="#1A202C">chunk pool</text>
+<text xml:space="preserve" x="1242" y="901" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">0x86100000 · 275 MiB</text>
+<text xml:space="preserve" x="1242" y="917" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">compressed streams</text>
+<text xml:space="preserve" x="1242" y="933" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">563200 chunks of 512 B</text>
+<text xml:space="preserve" x="1242" y="949" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">written by the LZ4 HW</text>
+<rect x="1425" y="835" width="330" height="340" rx="6" fill="#FFFFFF" stroke="#4A5568" stroke-width="1.5"/>
+<text xml:space="preserve" x="1590" y="877" font-size="17" font-weight="bold" text-anchor="middle" fill="#1A202C">frame region</text>
+<text xml:space="preserve" x="1590" y="901" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">0x97400000 · 140 MiB</text>
+<text xml:space="preserve" x="1590" y="917" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">uncompressed pages (PRESENT)</text>
+<text xml:space="preserve" x="1590" y="933" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">35840 frames of 4 KiB</text>
+<text xml:space="preserve" x="1590" y="949" font-size="12" font-weight="normal" text-anchor="middle" fill="#1A202C">where a user SW TLB entry points</text>
+<rect x="1447" y="1010" width="40" height="40" rx="3" fill="#FFF3D1" stroke="#4A5568" stroke-width="1"/>
+<rect x="1495" y="1010" width="40" height="40" rx="3" fill="#FFF3D1" stroke="#4A5568" stroke-width="1"/>
+<rect x="1543" y="1010" width="40" height="40" rx="3" fill="#FFFFFF" stroke="#4A5568" stroke-width="1"/>
+<rect x="1591" y="1010" width="40" height="40" rx="3" fill="#FFF3D1" stroke="#4A5568" stroke-width="1"/>
+<rect x="1639" y="1010" width="40" height="40" rx="3" fill="#FFFFFF" stroke="#4A5568" stroke-width="1"/>
+<rect x="1687" y="1010" width="40" height="40" rx="3" fill="#FFFFFF" stroke="#4A5568" stroke-width="1"/>
+<text xml:space="preserve" x="1590" y="1072" font-size="12" font-weight="normal" text-anchor="middle" fill="#4A5568">filled = holds a page, empty = free frame</text>
+<path d="M 95 278 L 54 278 L 54 937 L 78 937" fill="none" stroke="#6B46C1" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a-kern)"/>
+<text xml:space="preserve" x="46" y="455" font-size="12" font-weight="bold" text-anchor="middle" fill="#6B46C1" transform="rotate(-90 46 455)">every kernel SW instance runs the one copy of the code</text>
+<path d="M 1490 705 L 1490 750 L 1300 750 L 1300 833" fill="none" stroke="#2F855A" stroke-width="2" marker-end="url(#a-lz4)" marker-start="url(#a-lz4-s)"/>
+<text xml:space="preserve" x="1392" y="743" font-size="12" font-weight="bold" text-anchor="middle" fill="#2F855A">streams</text>
+<path d="M 1640 705 L 1640 833" fill="none" stroke="#2F855A" stroke-width="2" marker-end="url(#a-lz4)" marker-start="url(#a-lz4-s)"/>
+<text xml:space="preserve" x="1649" y="770" font-size="12" font-weight="bold" text-anchor="start" fill="#2F855A">pages</text>
+<text xml:space="preserve" x="30" y="1232" font-size="14" font-weight="bold" text-anchor="start" fill="#1A202C">Legend</text>
+<rect x="100" y="1218" width="26" height="18" rx="3" fill="#FFF3D1" stroke="#B7791F" stroke-width="1.5"/>
+<text xml:space="preserve" x="134" y="1232" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">user SW, the party served</text>
+<rect x="337" y="1218" width="26" height="18" rx="3" fill="#EFE7FF" stroke="#6B46C1" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text xml:space="preserve" x="371" y="1232" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">kernel SW: one copy, an instance per trapping thread</text>
+<rect x="763" y="1218" width="26" height="18" rx="3" fill="#E3F0FC" stroke="#2B6CB0" stroke-width="1.5"/>
+<text xml:space="preserve" x="797" y="1232" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">CPU hardware, per core</text>
+<rect x="979" y="1218" width="26" height="18" rx="3" fill="#A9D1F5" stroke="#2B6CB0" stroke-width="1.5"/>
+<text xml:space="preserve" x="1013" y="1232" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">CPU hardware, shared</text>
+<rect x="1181" y="1218" width="26" height="18" rx="3" fill="#DDF3E2" stroke="#2F855A" stroke-width="1.5"/>
+<text xml:space="preserve" x="1215" y="1232" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">LZ4 HW, shared</text>
+<rect x="1341" y="1218" width="26" height="18" rx="3" fill="url(#hatch)" stroke="#4A5568" stroke-width="1.5"/>
+<text xml:space="preserve" x="1375" y="1232" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">compressed data</text>
+<path d="M 1511 1224 v -3 a 4 4 0 0 1 8 0 v 3" fill="none" stroke="#C53030" stroke-width="2"/>
+<rect x="1508" y="1224" width="14" height="10" rx="2" fill="#C53030"/>
+<text xml:space="preserve" x="1527" y="1233" font-size="12" font-weight="bold" text-anchor="start" fill="#C53030">shared: take this lock first</text>
+<text xml:space="preserve" x="30" y="1270" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">TLBs are private copies of the page table and hardware does not keep them coherent. Before a frame is reused or compressed, the kernel removes that page from the TLB of every core.</text>
+<text xml:space="preserve" x="30" y="1291" font-size="13" font-weight="normal" text-anchor="start" fill="#1A202C">Up to one kernel SW instance per hardware thread can run at the same time. They meet only at the locks and at the LZ4 HW, which runs up to N jobs at once.</text>
+</svg>

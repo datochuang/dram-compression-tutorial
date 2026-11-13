@@ -17,6 +17,7 @@ class Params:
     job_entries: int = 16
     cpl_entries: int = 16
     # ---- LZ4 HW
+    engines: int = 4                  # LZ4 engines, CAP.ENGINES: jobs the HW runs at once (4 for now, given 2026-11-13)
     clock_hz: float = 1e9
     comp_bytes_per_cycle: float = 1.0
     decomp_bytes_per_cycle: float = 4.0
@@ -49,7 +50,7 @@ class Params:
     poll_interval_ns: int = 200       # polling mode: spin this long between two reads of CPL_TAIL
     job_timeout_ns: int = 1_000_000   # FW gives up waiting for a completion
     # ---- FW: policy
-    reclaim_inflight: int = 1         # COMPRESS jobs the reclaimer keeps outstanding at once
+    reclaim_inflight: int = 2         # COMPRESS jobs the reclaimer keeps outstanding at once (1 until 2026-11-13)
     # ---- fault injection
     hw_hang_jobs: tuple = ()          # ordinals (1-based, as fetched) of jobs the HW never finishes
     irq_drop_every: int = 0           # every Nth rising edge of the interrupt line is not delivered
@@ -68,6 +69,7 @@ PARAM_DOC = {
     'wait_mode': ('設計選擇', 'FW 等 completion 的方式，irq 或 poll'),
     'job_entries': ('假設', 'job ring 的格數'),
     'cpl_entries': ('假設', 'completion ring 的格數'),
+    'engines': ('負責人暫定，2026-11-13', 'LZ4 engine 的數量 N，也就是 `CAP.ENGINES`。HW 同時執行的 job 數上限'),
     'clock_hz': ('lz4sim', 'LZ4 HW 的 clock，Hz'),
     'comp_bytes_per_cycle': ('lz4sim', 'COMPRESS 每個 clock 吃進幾個 byte'),
     'decomp_bytes_per_cycle': ('lz4sim', 'DECOMPRESS 每個 clock 吐出幾個 byte'),
@@ -98,7 +100,7 @@ PARAM_DOC = {
     'wakeup_ns': ('假設', 'handler 叫醒 thread 到它真的開始跑，ns'),
     'poll_interval_ns': ('假設', 'polling 時兩次讀 CPL_TAIL 的間隔，ns'),
     'job_timeout_ns': ('假設', 'FW 等 completion 的 timeout，ns'),
-    'reclaim_inflight': ('設計選擇', 'reclaimer 同時在外的 COMPRESS job 數'),
+    'reclaim_inflight': ('設計選擇。負責人 2026-11-13 同意從 1 改掉，2 是照模擬選的', 'reclaimer 同時在外的 COMPRESS job 數'),
 }
 
 

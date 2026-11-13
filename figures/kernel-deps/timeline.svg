@@ -48,41 +48,41 @@
 <rect x="274.4" y="150" width="32.8" height="34" rx="3" fill="#2a78d6"><title>return from exception: 400 ns (CPU: exception entry and return)</title></rect>
 <text x="317.2" y="171.5" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">mm_lock held 600 ns</text>
 <text x="30.0" y="239.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="bold" >fault_ro</text>
-<text x="30.0" y="256.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >6083 ns</text>
+<text x="30.0" y="256.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >6099 ns</text>
 <rect x="170.0" y="224" width="50.2" height="34" rx="3" fill="#2a78d6"><title>page fault exception: 600 ns (CPU: exception entry and return)</title></rect>
 <rect x="222.2" y="224" width="6.7" height="34" rx="3" fill="#eb6834"><title>take a free frame: 100 ns (kernel, mm_lock held)</title></rect>
 <rect x="230.9" y="224" width="6.7" height="34" rx="3" fill="#eb6834"><title>read COT entry: 100 ns (kernel, mm_lock held)</title></rect>
 <rect x="239.6" y="224" width="11.0" height="34" rx="3" fill="#1baf7a"><title>build job descriptor: 150 ns (kernel, lock not held)</title></rect>
 <rect x="252.6" y="224" width="11.1" height="34" rx="3" fill="#1baf7a"><title>write job ring, doorbell: 150 ns (kernel, lock not held)</title></rect>
-<rect x="265.7" y="224" width="107.0" height="34" rx="3" fill="#eda100"><title>DECOMPRESS chunks to frame: 1253 ns (LZ4 HW job)</title></rect>
-<text x="319.2" y="245.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >DECOMPRESS</text>
-<rect x="374.7" y="224" width="272.0" height="34" rx="3" fill="#e87ba4"><title>interrupt, handler, wake thread: 3150 ns (interrupt, handler, wake-up of the thread)</title></rect>
-<text x="510.7" y="245.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >interrupt + wake-up 3150</text>
-<rect x="648.8" y="224" width="5.0" height="34" rx="3" fill="#1baf7a"><title>read completion, check tag: 80 ns (kernel, lock not held)</title></rect>
-<rect x="655.7" y="224" width="6.7" height="34" rx="3" fill="#eb6834"><title>make PTE valid: 100 ns (kernel, mm_lock held)</title></rect>
-<rect x="664.4" y="224" width="32.8" height="34" rx="3" fill="#2a78d6"><title>return from exception: 400 ns (CPU: exception entry and return)</title></rect>
-<text x="707.2" y="245.5" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">mm_lock held 300 ns</text>
-<path d="M655.7,221 l-5,-9 l10,0 z" fill="#0b0b0b"><title>cache invalidate frame: cost not in the model</title></path>
-<text x="663.7" y="219.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">cache invalidate frame, ? ns</text>
+<rect x="265.7" y="224" width="108.4" height="34" rx="3" fill="#eda100"><title>DECOMPRESS chunks to frame: 1269 ns (LZ4 HW job)</title></rect>
+<text x="319.9" y="245.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >DECOMPRESS</text>
+<rect x="376.1" y="224" width="272.1" height="34" rx="3" fill="#e87ba4"><title>interrupt, handler, wake thread: 3150 ns (interrupt, handler, wake-up of the thread)</title></rect>
+<text x="512.1" y="245.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >interrupt + wake-up 3150</text>
+<rect x="650.2" y="224" width="5.0" height="34" rx="3" fill="#1baf7a"><title>read completion, check tag: 80 ns (kernel, lock not held)</title></rect>
+<rect x="657.1" y="224" width="6.7" height="34" rx="3" fill="#eb6834"><title>make PTE valid: 100 ns (kernel, mm_lock held)</title></rect>
+<rect x="665.8" y="224" width="32.8" height="34" rx="3" fill="#2a78d6"><title>return from exception: 400 ns (CPU: exception entry and return)</title></rect>
+<text x="708.6" y="245.5" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">mm_lock held 300 ns</text>
+<path d="M657.1,221 l-5,-9 l10,0 z" fill="#0b0b0b"><title>cache invalidate frame: cost not in the model</title></path>
+<text x="665.1" y="219.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">cache invalidate frame, ? ns</text>
 <text x="30.0" y="313.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="bold" >fault_rw</text>
-<text x="30.0" y="330.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >6333 ns</text>
+<text x="30.0" y="330.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >6349 ns</text>
 <rect x="170.0" y="298" width="50.2" height="34" rx="3" fill="#2a78d6"><title>page fault exception: 600 ns (CPU: exception entry and return)</title></rect>
 <rect x="222.2" y="298" width="6.7" height="34" rx="3" fill="#eb6834"><title>take a free frame: 100 ns (kernel, mm_lock held)</title></rect>
 <rect x="230.9" y="298" width="6.7" height="34" rx="3" fill="#eb6834"><title>read COT entry: 100 ns (kernel, mm_lock held)</title></rect>
 <rect x="239.6" y="298" width="11.0" height="34" rx="3" fill="#1baf7a"><title>build job descriptor: 150 ns (kernel, lock not held)</title></rect>
 <rect x="252.6" y="298" width="11.1" height="34" rx="3" fill="#1baf7a"><title>write job ring, doorbell: 150 ns (kernel, lock not held)</title></rect>
-<rect x="265.7" y="298" width="107.0" height="34" rx="3" fill="#eda100"><title>DECOMPRESS chunks to frame: 1253 ns (LZ4 HW job)</title></rect>
-<text x="319.2" y="319.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >DECOMPRESS</text>
-<rect x="374.7" y="298" width="272.0" height="34" rx="3" fill="#e87ba4"><title>interrupt, handler, wake thread: 3150 ns (interrupt, handler, wake-up of the thread)</title></rect>
-<text x="510.7" y="319.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >interrupt + wake-up 3150</text>
-<rect x="648.8" y="298" width="5.0" height="34" rx="3" fill="#1baf7a"><title>read completion, check tag: 80 ns (kernel, lock not held)</title></rect>
-<rect x="655.7" y="298" width="11.0" height="34" rx="3" fill="#eb6834"><title>clear COT entry: 150 ns (kernel, mm_lock held)</title></rect>
-<rect x="668.8" y="298" width="6.7" height="34" rx="3" fill="#eb6834"><title>give chunks back: 100 ns (kernel, mm_lock held)</title></rect>
-<rect x="677.5" y="298" width="6.7" height="34" rx="3" fill="#eb6834"><title>make PTE valid: 100 ns (kernel, mm_lock held)</title></rect>
-<rect x="686.2" y="298" width="32.8" height="34" rx="3" fill="#2a78d6"><title>return from exception: 400 ns (CPU: exception entry and return)</title></rect>
-<text x="729.0" y="319.5" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">mm_lock held 550 ns</text>
-<path d="M655.7,295 l-5,-9 l10,0 z" fill="#0b0b0b"><title>cache invalidate frame: cost not in the model</title></path>
-<text x="663.7" y="293.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">cache invalidate frame, ? ns</text>
+<rect x="265.7" y="298" width="108.4" height="34" rx="3" fill="#eda100"><title>DECOMPRESS chunks to frame: 1269 ns (LZ4 HW job)</title></rect>
+<text x="319.9" y="319.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >DECOMPRESS</text>
+<rect x="376.1" y="298" width="272.1" height="34" rx="3" fill="#e87ba4"><title>interrupt, handler, wake thread: 3150 ns (interrupt, handler, wake-up of the thread)</title></rect>
+<text x="512.1" y="319.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >interrupt + wake-up 3150</text>
+<rect x="650.2" y="298" width="5.0" height="34" rx="3" fill="#1baf7a"><title>read completion, check tag: 80 ns (kernel, lock not held)</title></rect>
+<rect x="657.1" y="298" width="11.1" height="34" rx="3" fill="#eb6834"><title>clear COT entry: 150 ns (kernel, mm_lock held)</title></rect>
+<rect x="670.2" y="298" width="6.7" height="34" rx="3" fill="#eb6834"><title>give chunks back: 100 ns (kernel, mm_lock held)</title></rect>
+<rect x="678.9" y="298" width="6.7" height="34" rx="3" fill="#eb6834"><title>make PTE valid: 100 ns (kernel, mm_lock held)</title></rect>
+<rect x="687.6" y="298" width="32.8" height="34" rx="3" fill="#2a78d6"><title>return from exception: 400 ns (CPU: exception entry and return)</title></rect>
+<text x="730.4" y="319.5" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">mm_lock held 550 ns</text>
+<path d="M657.1,295 l-5,-9 l10,0 z" fill="#0b0b0b"><title>cache invalidate frame: cost not in the model</title></path>
+<text x="665.1" y="293.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">cache invalidate frame, ? ns</text>
 <text x="30.0" y="387.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="bold" >evict_ro</text>
 <text x="30.0" y="404.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >900 ns</text>
 <rect x="170.0" y="372" width="24.1" height="34" rx="3" fill="#eb6834"><title>clock scan: pick a victim: 300 ns (kernel, mm_lock held)</title></rect>
@@ -90,21 +90,21 @@
 <rect x="204.8" y="372" width="41.5" height="34" rx="3" fill="#eb6834"><title>TLB invalidate, all cores: 500 ns (kernel, mm_lock held)</title></rect>
 <text x="256.3" y="393.5" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">mm_lock held 900 ns</text>
 <text x="30.0" y="461.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="bold" >evict_rw</text>
-<text x="30.0" y="478.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >9190 ns</text>
+<text x="30.0" y="478.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >9196 ns</text>
 <rect x="170.0" y="446" width="24.1" height="34" rx="3" fill="#eb6834"><title>clock scan: pick a victim: 300 ns (kernel, mm_lock held)</title></rect>
 <rect x="196.1" y="446" width="19.8" height="34" rx="3" fill="#eb6834"><title>reserve 7 chunks: 250 ns (kernel, mm_lock held)</title></rect>
 <rect x="217.8" y="446" width="6.7" height="34" rx="3" fill="#eb6834"><title>make PTE invalid: 100 ns (kernel, mm_lock held)</title></rect>
 <rect x="226.6" y="446" width="41.5" height="34" rx="3" fill="#eb6834"><title>TLB invalidate, all cores: 500 ns (kernel, mm_lock held)</title></rect>
 <rect x="270.1" y="446" width="11.1" height="34" rx="3" fill="#1baf7a"><title>build job descriptor: 150 ns (kernel, lock not held)</title></rect>
 <rect x="283.1" y="446" width="11.0" height="34" rx="3" fill="#1baf7a"><title>write job ring, doorbell: 150 ns (kernel, lock not held)</title></rect>
-<rect x="296.1" y="446" width="368.6" height="34" rx="3" fill="#eda100"><title>COMPRESS frame to chunks: 4260 ns (LZ4 HW job)</title></rect>
-<text x="480.5" y="467.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >COMPRESS 4260</text>
-<rect x="666.8" y="446" width="272.0" height="34" rx="3" fill="#e87ba4"><title>interrupt, handler, wake thread: 3150 ns (interrupt, handler, wake-up of the thread)</title></rect>
-<text x="802.8" y="467.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >interrupt + wake-up 3150</text>
-<rect x="940.8" y="446" width="5.0" height="34" rx="3" fill="#1baf7a"><title>read completion, check tag: 80 ns (kernel, lock not held)</title></rect>
-<rect x="947.8" y="446" width="11.0" height="34" rx="3" fill="#eb6834"><title>write COT entry: 150 ns (kernel, mm_lock held)</title></rect>
-<rect x="960.8" y="446" width="6.7" height="34" rx="3" fill="#eb6834"><title>give unused chunks back: 100 ns (kernel, mm_lock held)</title></rect>
-<text x="977.5" y="467.5" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">mm_lock held 1400 ns</text>
+<rect x="296.1" y="446" width="369.1" height="34" rx="3" fill="#eda100"><title>COMPRESS frame to chunks: 4266 ns (LZ4 HW job)</title></rect>
+<text x="480.7" y="467.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >COMPRESS 4266</text>
+<rect x="667.3" y="446" width="272.1" height="34" rx="3" fill="#e87ba4"><title>interrupt, handler, wake thread: 3150 ns (interrupt, handler, wake-up of the thread)</title></rect>
+<text x="803.3" y="467.5" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="bold" >interrupt + wake-up 3150</text>
+<rect x="941.3" y="446" width="5.0" height="34" rx="3" fill="#1baf7a"><title>read completion, check tag: 80 ns (kernel, lock not held)</title></rect>
+<rect x="948.3" y="446" width="11.1" height="34" rx="3" fill="#eb6834"><title>write COT entry: 150 ns (kernel, mm_lock held)</title></rect>
+<rect x="961.4" y="446" width="6.7" height="34" rx="3" fill="#eb6834"><title>give unused chunks back: 100 ns (kernel, mm_lock held)</title></rect>
+<text x="978.1" y="467.5" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">mm_lock held 1400 ns</text>
 <path d="M270.1,443 l-5,-9 l10,0 z" fill="#0b0b0b"><title>cache clean frame: cost not in the model</title></path>
 <text x="278.1" y="441.0" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="normal" stroke="#fcfcfb" stroke-width="4" paint-order="stroke" stroke-linejoin="round">cache clean frame, ? ns</text>
 <text x="30.0" y="550.0" font-size="12.5" fill="#52514e" text-anchor="start" font-weight="normal" >Triangle: a step whose cost the model does not have. Steps of a few instructions have no width here.</text>

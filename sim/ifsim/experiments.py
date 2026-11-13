@@ -26,10 +26,13 @@ SWEEPS = [
     ('wait_cores', {'wait_mode': ['irq', 'poll'], 'cores': [1, 2, 4]}, {}, LAT + ('notify', 'kcpu', 'tend', 'fails'), 'small'),
     ('load', {'wait_mode': ['irq', 'poll'], 'think_ns': [20000, 5000, 2000, 1000, 500]}, {},
      LAT + ('queue', 'frame', 'engine', 'kcpu', 'fwaits', 'stall', 'fails'), 'small'),
-    ('full_load', {'think_ns': [5000, 2000], 'reclaim_inflight': [1, 2]}, {},
-     LAT + ('queue', 'frame', 'engine', 'kcpu', 'fwaits', 'stall', 'fails'), 'full'),
-    ('reclaim_inflight', {'reclaim_inflight': [1, 2, 4, 8]}, {'think_ns': 2000},
-     LAT + ('queue', 'frame', 'ring', 'fwaits', 'stall', 'fails'), 'small'),
+    ('full_load', {'engines': [1, 4], 'think_ns': [5000, 2000], 'reclaim_inflight': [1, 2, 4]}, {},
+     LAT + ('queue', 'qmax', 'hwmax', 'imax', 'fdc', 'lmax', 'frame', 'engine', 'kcpu', 'fwaits', 'fails'), 'full'),
+    ('reclaim_inflight', {'engines': [1, 2, 4], 'reclaim_inflight': [1, 2, 3, 4, 8]}, {'think_ns': 2000},
+     LAT + ('queue', 'qmax', 'hwmax', 'imax', 'fdc', 'lmax', 'frame', 'ring', 'peak', 'fwaits', 'fails'), 'small'),
+    ('engines', {'engines': [1, 2, 4, 8]}, {}, LAT + ('queue', 'qmax', 'hw', 'hwmax', 'engine', 'peak', 'allbusy', 'fails'), 'small'),
+    ('engines_load', {'engines': [1, 2, 4, 8], 'think_ns': [2000, 500]}, {'reclaim_inflight': 4},
+     LAT + ('queue', 'qmax', 'hw', 'hwmax', 'imax', 'fdc', 'lmax', 'dec', 'comp', 'arb', 'peak', 'allbusy', 'fwaits'), 'small'),
     ('ring_size', {'job_entries': [2, 4, 8, 16]}, {'think_ns': 2000, 'reclaim_inflight': 2},
      LAT + ('submit', 'queue', 'ring', 'stall', 'fails'), 'small'),
     ('comp_speed', {'comp_bytes_per_cycle': [0.5, 1.0, 2.0, 4.0]}, {}, LAT + ('queue', 'engine', 'fails'), 'small'),
@@ -89,6 +92,7 @@ def slim(m):
     r = R.sweep_row(m)
     for kind in ('fault_ro', 'fault_rw'):
         r[kind + '_parts'] = m['parts'].get(kind)
+    r['worst'] = max((dict(w, kind=k) for k, w in m['worst'].items() if k in R.WAITED), key=lambda w: w['ns'], default=None)
     r.update(jobs=m['hw_jobs'], irqs=m['drv'].get('irqs', 0), poll_spins=m['drv'].get('poll_spins', 0),
              ring_full_waits=m['drv'].get('ring_full_waits', 0), min_free=m['min_free_frames'],
              stall_share=max(c['stall_share'] for c in m['clients']), lost=m['lost_pages'],
@@ -102,6 +106,9 @@ def run_all(log=print, seed=1):
         log(f'baseline full {mode}')
         out['base_' + mode] = run_one('full', seed=seed, name='full ' + mode, wait_mode=mode)
         log(f'  {out["base_" + mode]["wall_s"]} s')
+    log('baseline full irq, one engine')
+    out['base_irq_e1'] = run_one('full', seed=seed, name='full irq, 1 engine', engines=1)
+    log(f'  {out["base_irq_e1"]["wall_s"]} s')
     out['small_irq'] = run_one('small', seed=seed, name='small irq')
     for key, axes, fixed, cols, cfg in SWEEPS:
         log(f'sweep {key}')
