@@ -1,0 +1,1233 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Two Sides Two Rhythms</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* layout: one column. Act tabs and the caption sit above one 3D stage: time runs along four flat tracks, far to near user SW, kernel SW on the CPU MMU side, kernel SW on the compression layer side, LZ4 HW. "Now" is a line near the right; the camera rides along with it. The speech bubbles have their own column right of the stage, so none covers a track. Under the stage: the tables at "now" (TLB per core, page table with COT, frames) and a step log. Then what sets the rate, with the controls. Notes last. */
+/* Shared by the 2D and the 3D address-space pages: theme tokens, page frame, scene tabs, caption, controls, legend, table. */
+:root {
+  --bg: #f3f5f7; --paper: #ffffff; --ink: #17212e; --muted: #5a6778; --line: #cdd5de; --soft: #e8ecf1;
+  --accent: #0b6e8a; --accent-tint: #d5eef5; --warn: #a3391f; --warn-tint: #fae3dc;
+  --rw: #1b5ea6; --rw-bg: #dce9f9; --ro: #0a7767; --ro-bg: #d0f1e9; --hatch: rgba(23, 33, 46, .42); --flash: #fff1b8;
+  --sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --disp: "Archivo", "Noto Sans TC", "PingFang TC", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141a; --paper: #171e27; --ink: #e7ecf2; --muted: #9dabbb; --line: #33404f; --soft: #222b36;
+  --accent: #55c1dc; --accent-tint: #123744; --warn: #f0927a; --warn-tint: #48221a;
+  --rw: #82b8f2; --rw-bg: #16304e; --ro: #5fd6c1; --ro-bg: #0e3b34; --hatch: rgba(231, 236, 242, .45); --flash: #4a3d0c; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f141a; --paper: #171e27; --ink: #e7ecf2; --muted: #9dabbb; --line: #33404f; --soft: #222b36;
+  --accent: #55c1dc; --accent-tint: #123744; --warn: #f0927a; --warn-tint: #48221a;
+  --rw: #82b8f2; --rw-bg: #16304e; --ro: #5fd6c1; --ro-bg: #0e3b34; --hatch: rgba(231, 236, 242, .45); --flash: #4a3d0c; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.7; margin: 0; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 18px; }
+h1 { font-family: var(--disp); font-weight: 800; font-size: clamp(24px, 3.6vw, 34px); line-height: 1.2; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--disp); font-weight: 700; font-size: 18px; margin: 0; }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 46em; }
+code, .m { font-family: var(--mono); font-size: .92em; }
+a { color: var(--accent); text-underline-offset: 3px; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.scenes { display: flex; flex-wrap: wrap; gap: 6px; }
+.scenes button { border: 1px solid var(--line); background: var(--paper); border-radius: 6px; padding: 6px 12px; font-size: 14.5px; line-height: 1.35; cursor: pointer; text-align: left; }
+.scenes button b { font-family: var(--mono); font-weight: 600; margin-right: 6px; color: var(--muted); }
+.scenes button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.scenes button[aria-pressed="true"] b { color: inherit; }
+
+.stage { scroll-margin-top: 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; min-width: 0; }
+.cap { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; padding: 14px 16px; border-bottom: 1px solid var(--line); align-items: start; }
+.cap .count { grid-column: 1 / -1; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.who { font-family: var(--disp); font-weight: 700; font-size: 12.5px; letter-spacing: .06em; padding: 3px 9px; border-radius: 4px; white-space: nowrap; margin-top: 3px; border: 1px solid currentColor; }
+.who.user { color: var(--ink); } .who.mmu { color: var(--muted); } .who.kernel { color: var(--accent); background: var(--accent-tint); border-color: transparent; }
+.who.hw { color: var(--warn); background: var(--warn-tint); border-color: transparent; } .who.both { color: var(--ink); background: var(--soft); border-color: transparent; }
+.cap p { margin: 0; font-size: 16.5px; min-height: 5.1em; }
+.ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.ctl button { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 7px 16px; cursor: pointer; font-family: var(--disp); font-weight: 700; font-size: 14.5px; }
+.ctl button.go { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+.ctl button:disabled { opacity: .4; cursor: default; }
+.ctl .sp { flex: 1 1 12px; }
+.ctl .rwsel { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+.ctl .rwsel button { padding: 5px 11px; font-family: var(--mono); font-weight: 600; font-size: 13px; }
+.ctl .rwsel button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 8px 16px 14px; font-size: 13.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 22px; height: 14px; border: 1.5px solid var(--muted); display: inline-block; }
+.legend i.ro { background: var(--ro-bg); border-color: var(--ro); } .legend i.rw { background: var(--rw-bg); border-color: var(--rw); }
+.legend i.hz { background: repeating-linear-gradient(135deg, var(--hatch) 0 1.5px, transparent 1.5px 5px), var(--paper); }
+.legend i.ot { background: var(--soft); border-color: var(--line); } .legend i.fr { border-style: dashed; border-color: var(--line); }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--paper); border: 1px solid var(--line); }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { font-family: var(--disp); font-weight: 700; background: var(--soft); white-space: nowrap; font-size: 13px; }
+td { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+td.chg { background: var(--flash); } tr.selrow td:first-child { box-shadow: inset 3px 0 0 var(--ink); }
+.st { font-family: var(--disp); font-weight: 700; font-size: 12px; letter-spacing: .05em; }
+.notes { color: var(--muted); font-size: 14.5px; max-width: 52em; display: flex; flex-direction: column; gap: 6px; }
+.notes p { margin: 0; }
+@media (max-width: 560px) { .cap { grid-template-columns: minmax(0, 1fr); } .who { justify-self: start; } .cap p { min-height: 8.5em; font-size: 15.5px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+:root { --kern: #6a3fb5; --kern-tint: #ece4f9; --lz: #a35f00; --lz-tint: #fbebd3; --ua: #1b5ea6; --ub: #b0306a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --kern: #b99cf0; --kern-tint: #2c2240; --lz: #e8a64c; --lz-tint: #3d2a10; --ua: #82b8f2; --ub: #f08cbc; } }
+:root[data-theme="dark"] { --kern: #b99cf0; --kern-tint: #2c2240; --lz: #e8a64c; --lz-tint: #3d2a10; --ua: #82b8f2; --ub: #f08cbc; }
+.view { position: relative; display: flex; height: clamp(360px, calc(100vh - 500px), 600px); border-bottom: 1px solid var(--line); overflow: hidden; }
+.cv { position: relative; flex: 1 1 auto; min-width: 0; height: 100%; }
+.voices { position: relative; flex: 0 0 284px; border-left: 1px solid var(--line); background: var(--bg); }
+.leads { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }
+.leads path { fill: none; stroke-width: 1.6; opacity: .75; }
+.view canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; outline-offset: -2px; }
+.view canvas.drag { cursor: grabbing; }
+.view .reset { position: absolute; right: 10px; bottom: 8px; border: 1px solid var(--line); background: var(--paper); border-radius: 6px; padding: 4px 12px; font-family: var(--disp); font-weight: 700; font-size: 13px; cursor: pointer; z-index: 3; }
+.view .nogl { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; color: var(--muted); text-align: center; }
+.ov { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.bub { position: absolute; left: 10px; right: 10px; background: var(--paper); border: 2px solid var(--ink); border-radius: 10px; padding: 5px 10px 6px; font: 600 15px/1.3 var(--mono); color: var(--ink); box-shadow: 0 2px 6px rgba(0,0,0,.12); white-space: normal; }
+.bub b { display: block; font: 800 12px/1.2 var(--disp); letter-spacing: .06em; margin-bottom: 2px; }
+.bub.user-a { border-color: var(--ua); } .bub.user-a b { color: var(--ua); }
+.bub.user-b { border-color: var(--ub); } .bub.user-b b { color: var(--ub); }
+.bub.kern { border-color: var(--kern); } .bub.kern b { color: var(--kern); }
+.bub.lz { border-color: var(--lz); } .bub.lz b { color: var(--lz); }
+.bub.hot { background: var(--flash); }
+.trk { position: absolute; font: 700 13.5px/1.25 var(--disp); color: var(--ink); background: color-mix(in srgb, var(--paper) 82%, transparent); padding: 2px 7px; border-radius: 4px; transform: translateY(-50%); white-space: nowrap; }
+.trk small { display: block; font: 400 11.5px/1.2 var(--mono); color: var(--muted); }
+.hud { position: absolute; left: 10px; top: 8px; right: 10px; width: fit-content; max-width: calc(100% - 20px); font: 600 13px/1.4 var(--mono); color: var(--ink); background: color-mix(in srgb, var(--paper) 88%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; z-index: 3; }
+.hud .lens { font: 800 16px/1.3 var(--disp); }
+.hud .why { color: var(--muted); font-weight: 400; font-size: 12px; }
+.hint { margin: 0; padding: 7px 14px 0; font-size: 12.5px; color: var(--muted); }
+.state { border-bottom: 1px solid var(--line); background: var(--paper); }
+.state canvas { display: block; width: 100%; height: 272px; }
+.slog { padding: 4px 16px 8px; min-height: 7.6em; }
+.slog p { margin: 0; padding: 1px 6px; font: 400 13px/1.45 var(--mono); color: var(--ink); border-radius: 4px; }
+.slog p.new { background: var(--flash); }
+.slog p.far { color: var(--muted); }
+.slog b { display: inline-block; min-width: 7.2em; font: 800 12px/1.45 var(--disp); letter-spacing: .04em; }
+.slog b.kern { color: var(--kern); } .slog b.lz { color: var(--lz); }
+.legend i.rd { background: transparent; border: 2.5px solid var(--kern); } .legend i.wr { background: var(--kern); border-color: var(--kern); }
+.legend i.hw { background: transparent; border: 2.5px solid var(--ink); } .legend i.lzr { background: var(--lz); border-color: var(--lz); }
+.legend i.cot { background: repeating-linear-gradient(135deg, var(--lz) 0 1.5px, var(--lz-tint) 1.5px 5px); border-color: var(--lz); }
+.legend i.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--kern); border: 0; }
+.legend i.hand { width: 0; height: 0; border: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid var(--kern); background: none; }
+.who.kern2 { color: var(--kern); background: var(--kern-tint); border-color: transparent; }
+.ctl .rwsel button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.rate { padding: 12px 16px 16px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px 24px; align-items: start; }
+.rate svg { width: 100%; height: auto; display: block; }
+.rate .say { margin: 6px 0 0; font-size: 15px; }
+.rate .say b { font-family: var(--disp); }
+.sl { display: grid; grid-template-columns: 9.5em minmax(0, 1fr) 4.6em; gap: 4px 10px; align-items: center; font-size: 14px; }
+.sl label { color: var(--ink); line-height: 1.25; }
+.sl label small { display: block; color: var(--muted); font-size: 12px; }
+.sl output { font-family: var(--mono); font-size: 13.5px; text-align: right; }
+.sl input[type=range] { width: 100%; accent-color: var(--kern); }
+.sl .moved output { background: var(--flash); }
+.legend i.tk { border: 0; width: 5px; height: 15px; background: var(--kern); }
+.legend i.bk { background: var(--kern-tint); border-color: var(--kern); }
+.legend i.jb { background: var(--lz-tint); border-color: var(--lz); }
+.legend i.ua { background: var(--ua); border-color: var(--ua); height: 7px; } .legend i.ub { background: var(--ub); border-color: var(--ub); height: 7px; }
+.legend i.dm { width: 12px; height: 12px; transform: rotate(45deg); border-color: var(--kern); background: var(--paper); }
+@media (max-width: 760px) { .rate { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) {
+  .view { flex-direction: column; height: auto; }
+  .cv { height: auto; flex: none; }
+  .cv canvas { height: 360px; }
+  .cv .hud { position: static; width: auto; max-width: none; border-width: 0 0 1px; border-radius: 0; }
+  .voices { flex: none; border-left: 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; padding: 8px; }
+  .voices .bub { position: static; font-size: 13.5px; }
+  .leads { display: none; }
+  .state canvas { height: 660px; }
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1>兩種節奏：CPU MMU 這邊與壓縮層這邊，各多常叫醒 kernel SW</h1>
+    <p class="lede">時間沿著四條軌道往前跑，攝影機跟著「現在」一起走。由遠到近：user SW、CPU MMU 這邊的 kernel SW、壓縮層這邊的 kernel SW、LZ4 HW。每一個事件都是頁面裡一個小模型當場算出來的，沒有手畫。模型的大小與時間都是範例，不是這個平台量出來的。</p>
+  </header>
+
+  <nav class="scenes" id="acts" aria-label="幕"></nav>
+
+  <section class="stage" aria-label="動畫">
+    <div class="cap" aria-live="polite">
+      <span class="count" id="count"></span>
+      <span class="who kern2" id="who"></span>
+      <p id="text"></p>
+    </div>
+    <div class="ctl">
+      <button type="button" id="play" class="go">暫停</button>
+      <span class="rwsel">速度
+        <button type="button" data-pace="0.5" aria-pressed="false">50%</button>
+        <button type="button" data-pace="0.7" aria-pressed="true">70%</button>
+        <button type="button" data-pace="1" aria-pressed="false">100%</button>
+        <button type="button" data-pace="1.5" aria-pressed="false">150%</button>
+      </span>
+      <span class="sp"></span>
+      <button type="button" id="auto" aria-pressed="true">自動往下一幕</button>
+      <button type="button" id="sound" aria-pressed="false">聲音：關</button>
+    </div>
+    <div class="view" id="view">
+      <div class="cv" id="cv">
+      <canvas id="gl" tabindex="0" role="img" aria-label="3D 場景：四條平放的時間軌道，由遠到近是 user SW、CPU MMU 這邊的 kernel SW、壓縮層這邊的 kernel SW、LZ4 HW。事件從右邊的「現在」產生，往左滑走。CPU MMU 那條有密集的 TLB miss 刻度，壓縮層那條偶爾有 page fault 與 reclaim 的大框。"></canvas>
+      <div class="ov" id="ov"></div>
+      <div class="hud" id="hud"></div>
+      <button type="button" class="reset" id="reset">回到預設視角</button>
+      <div class="nogl" id="nogl">這個瀏覽器無法啟動 WebGL，3D 場景畫不出來。下方的控制與說明仍然可以用。</div>
+      </div>
+      <div class="voices" id="voices"></div>
+      <svg class="leads" id="leads" aria-hidden="true"></svg>
+    </div>
+    <div class="state">
+      <canvas id="statecv" role="img" aria-label="「現在」這一刻的表格：每個 core 的 TLB、兩個程式各自的 page table 與 COT、frame 區。被讀的格子亮外框，被寫的格子填色，顏色表示是誰做的。"></canvas>
+      <div class="slog" id="slog" aria-live="off"></div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="hw"></i>外框：讀。灰色是 CPU MMU HW 查 TLB</span>
+        <span><i class="rd"></i>紫框：kernel SW 讀</span><span><i class="wr"></i>紫色填滿：kernel SW 寫</span>
+        <span><i class="lzr"></i>橘色：LZ4 HW 讀寫 frame</span>
+        <span><i class="ua"></i><i class="ub"></i>user SW 讀寫自己的資料</span>
+        <span><i class="cot"></i>COT entry 有效：這一頁是壓縮的</span>
+        <span><i class="dot"></i>這一頁正在搬</span><span><i class="hand"></i>clock 的指針</span>
+      </div>
+    </div>
+    <div class="legend" aria-hidden="true">
+      <span><i class="ua"></i>user SW A 在跑</span><span><i class="ub"></i>user SW B 在跑</span>
+      <span><i class="tk"></i>一次 TLB miss：kernel SW 讀 PTE、填 TLB</span>
+      <span><i class="bk"></i>page fault 或 reclaim：kernel SW 的大工作</span>
+      <span><i class="jb"></i>LZ4 HW 的 job</span><span><i class="dm"></i>把一頁從每個 core 的 TLB 清掉</span>
+    </div>
+  </section>
+
+  <section class="stage" aria-label="頻率由什麼決定">
+    <div class="rate">
+      <div>
+        <h2>頻率由什麼決定</h2>
+        <svg id="ratesvg" viewBox="0 0 560 210" role="img" aria-label="working set 與三個容量的比較：TLB reach、L2、frame 區。"></svg>
+        <p class="say" id="say"></p>
+      </div>
+      <div>
+        <div class="sl" id="sliders"></div>
+        <p class="hint" style="padding:8px 0 0">控制只改變之後駛來的事件，畫面不會停。<button type="button" id="defaults" style="margin-left:6px;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:2px 10px;cursor:pointer">回到預設值</button></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <p>這一頁照專案的平台前提：CPU MMU 沒有 hardware page table walk，每一次 TLB miss 都進 exception，由 kernel SW 讀 PTE、填 TLB（P1）。每個 core 一個 TLB，由那個 core 的 hardware thread 共用（P3，還沒有對過 CPU 手冊）。LZ4 HW 同時最多做 4 個 job（P4，4 是暫定值）。</p>
+    <p>模型是範例：兩個 user SW 程式各跑在一個 core 上。每個程式在一段短時間裡只用 24 個 page，每 40 次 access 往前移一個 page，在自己的長期 working set 裡繞圈；長期 working set 本身以「漂移」控制的速度往前移。TLB 是 LRU。frame 不夠時，reclaimer 用 clock 挑一個最近沒用過的 page 收起來，一次最多 2 個 COMPRESS 在跑。每一次 access 算 1 個時間單位，其他事件的長短也是範例。這個平台的 TLB 有幾格、TLB miss handler 一次多久、fault 有多常發生，目前都不知道。</p>
+    <p>L2 在模型裡只決定 kernel SW 讀 PTE 時那一行在不在 L2：在就短，不在就長。它不參與決定哪一次是 TLB miss、哪一次是 page fault，所以只改變每一次的長短，不改變次數。L2 裡一格算一個 page 的資料或一行 PTE，這也是範例。</p>
+    <p>簡化的部分：page 有沒有被用過，模型直接知道。照 P1，這件事只能由 kernel 在 TLB miss handler 裡記，一直 TLB hit 的 page 會被當成沒用過；怎麼做是控制程序的 D5，還沒有設計。TLB miss 本身也會讓 user SW 停一下，時間太短，軌道上沒有畫成缺口。兩個程式的 access 照時間交錯，所以改 TLB 或 L2 時，page fault 的次數會因交錯順序不同而有很小的差別；只有一個程式時完全不變。</p>
+    <p>一個 core 上的 kernel SW 用什麼機制清掉另一個 core 的 TLB，這個平台目前不知道。畫面上只畫出結果。</p>
+    <p>舞台下面的表格是「現在」這一刻的狀態。模型會先往前算，表格另外保留一份，每一筆讀寫到了它發生的時間才套上去。誰讀寫哪裡照專案的前提與介面規格：TLB 由 CPU MMU HW 讀、由 kernel SW 寫（P1）；page table 與 COT 只有 kernel SW 讀寫，HW 不讀；frame 是 user SW 的資料，LZ4 HW 做 COMPRESS 時讀它、做 DECOMPRESS 時寫它。壓縮後的資料放在 chunk pool，表格沒有畫；LZ4 HW 讀寫的 chunk 只寫在步驟紀錄裡。page table 與 COT 只畫每個程式長期 working set 範圍內的 page，上方的色條是這一刻正在用的那一段。單次 access 對 TLB 與 frame 的讀寫只在時間鏡頭 ×3 以內畫出來，再拉遠就太多了。TLB 每一格放哪一頁是畫面自己排的，模型只記 LRU 的順序。working set 漂移帶進來的新 page，模型當成壓縮過的，所以會有 COT entry；照現有設計那其實是還沒碰過的 page，不需要 DECOMPRESS。</p>
+    <p>同一件事的白板圖是 <code>figures/cpu-mmu-basics/04-two-sides-two-rhythms.png</code>。一步一步看 TLB、page table 與 <code>mm_lock</code>，見 <a href="https://datochuang.github.io/dram-compression-tutorial/mmu/">CPU MMU 動畫</a>。</p>
+  </section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ---------- two rhythms: the model behind the two-sides animation ----------
+   One user SW program per core. Every access goes to the core's TLB. A TLB hit needs no kernel.
+   A TLB miss is an exception: kernel SW reads the PTE (P1). A valid PTE: fill the TLB, done.
+   An invalid PTE: page fault, kernel SW takes a frame and hands a DECOMPRESS job to the LZ4 HW.
+   When free frames run low, a reclaimer picks a cold page with a clock, sets its PTE invalid,
+   clears it from every core's TLB and hands a COMPRESS job to the LZ4 HW.
+   Every size, cost and the access pattern are examples chosen to show the contrast. Nothing here
+   is measured on the platform. Works in the page (global RHY) and in node (module.exports). */
+(function (root) {
+'use strict';
+const NCORE = 2;               // one user SW program per core
+const SHORT = 24;              // pages one program uses within a short stretch of time
+const STEP = 40;               // accesses before that short stretch moves on by one page
+const ENGINES = 4;             // P4: the LZ4 HW takes N jobs at once, N = 4 for now
+const INFLIGHT = 2;            // COMPRESS jobs the reclaimer keeps in flight
+const PTE_PER_LINE = 8;        // PTEs in one cache line of the page table
+const MASK = 0x3FFFF, NPG = 0x80000, FMAX = 2048;
+// relative time units; one access that hits the TLB takes 1
+const COST = { access: 1, refillL2: 2, refillDram: 6, lockA: 6, decomp: 30, lockB: 6, recA: 4, comp: 60, recB: 4 };
+const DEF = { ws: 160, drift: 5, tlb: 16, frames: 360, l2: 64 };
+const RANGE = { ws: [32, 1024], drift: [0, 120], tlb: [4, 128], frames: [64, 1024], l2: [8, 512] };
+
+function rng32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function create(opt) {
+  opt = opt || {};
+  const prm = Object.assign({}, DEF, opt.prm || {});
+  const nprog = opt.progs || NCORE;
+  const frameOf = new Int32Array(NPG).fill(-1), ref = new Uint8Array(NPG), compT = new Float64Array(NPG);
+  const frames = new Int32Array(FMAX).fill(-1);
+  const tlb = [], l2 = new Map(), engFree = new Array(ENGINES).fill(0), slotEnd = new Array(INFLIGHT).fill(0);
+  let free = [], pending = [], hand = 0, rt = 0;
+  const ev = { acc: [], tick: [], fault: [], wait: [], rec: [], clr: [], job: [] };
+  const cnt = { acc: 0, refill: [0, 0], fault: 0, evict: 0, waitFrame: 0, waitComp: 0, refillDram: 0 };
+  const progs = [];
+  for (let i = 0; i < nprog; i++) { tlb.push(new Map()); progs.push({ i, core: i, off: i * 0x40000, base: 0x2A0 + i * 0x150, c: 0, k: 0, dacc: 0, t: i * 0.5, rng: rng32((opt.seed || 7) * 31 + i) }); }
+  // tr: what each step reads or writes, with its time, for the table panel. Recording it changes nothing in the model.
+  const s = { prm, ev, cnt, progs, recAcc: false, nprog, tr: [] };
+  let booted = false;
+  const tr = r => { if (booted) s.tr.push(r); };
+
+  const l2touch = key => { if (l2.has(key)) l2.delete(key); l2.set(key, 1); while (l2.size > prm.l2) l2.delete(l2.keys().next().value); };
+  const pteKey = p => -1 - Math.floor(p / PTE_PER_LINE);
+  const tlbFill = (core, p) => { const m = tlb[core]; let out = -1; if (m.has(p)) m.delete(p); m.set(p, 1); while (m.size > prm.tlb) { out = m.keys().next().value; m.delete(out); } return out; };
+  const pageAt = (P, off) => P.off + ((P.base + (P.c + off) % prm.ws) & MASK);
+
+  // boot: each program's long-term working set is in frames, its short-term pages are in its TLB
+  function boot(plant) {
+    for (let f = prm.frames - 1; f >= 0; f--) free.push(f);
+    for (let o = 0; o < prm.ws; o++) for (const P of progs) {
+      const p = pageAt(P, o);
+      if (plant && P.i === 0 && o === SHORT) continue;      // one page that was pushed out before the story starts
+      if (!free.length) break;
+      const f = free.pop(); frames[f] = p; frameOf[p] = f; ref[p] = 1;
+    }
+    for (const P of progs) for (let o = Math.min(prm.tlb, SHORT) - 1; o >= 0; o--) { const p = pageAt(P, o); if (frameOf[p] >= 0) tlbFill(P.core, p); }
+  }
+  boot(opt.plant);
+  // the state the panel starts from
+  s.snap = () => ({ frames: Array.from(frames), tlb: tlb.map(m => [...m.keys()]), win: progs.map(P => ({ c: P.c, base: P.base, off: P.off })), hand });
+  booted = true;
+  s.planted = opt.plant ? pageAt(progs[0], SHORT) : -1;
+
+  function nextPage(P) {
+    if (++P.k >= STEP) { P.k = 0; P.c = (P.c + 1) % prm.ws; tr({ k: 'w', t: P.t, i: P.i, c: P.c, base: P.base }); }
+    P.dacc += prm.drift / 10000;
+    if (P.dacc >= 1) { P.dacc -= 1; P.base = (P.base + 1) & MASK; tr({ k: 'w', t: P.t, i: P.i, c: P.c, base: P.base }); return P.off + ((P.base + prm.ws - 1) & MASK); }   // the newest page is used at once
+    return pageAt(P, Math.floor(P.rng() * Math.min(SHORT, prm.ws)));
+  }
+  const engine = t => { let e = 0; for (let i = 1; i < ENGINES; i++) if (engFree[i] < engFree[e]) e = i; return { e, start: Math.max(t, engFree[e]) }; };
+
+  // the clock: skip pages used since the hand last passed, and pages whose job is still running
+  function pick() {
+    for (let n = 0; n < 2 * FMAX; n++) {
+      const f = hand; hand = (hand + 1) % FMAX; const p = frames[f];
+      if (p < 0) continue;
+      if (ref[p]) { ref[p] = 0; continue; }
+      return f;
+    }
+    return -1;
+  }
+  function reclaim(t) {
+    const low = Math.max(2, Math.round(prm.frames / 32)), high = 2 * low;
+    let avail = free.length + pending.length;
+    if (avail >= low) return;
+    while (avail < high) {
+      const f = pick(); if (f < 0) return;
+      if (evict(f, t)) avail++;
+    }
+  }
+  // push one page out of frame f: PTE invalid, cleared from every TLB, COMPRESS; true if f is a frame that stays in use
+  function evict(f, t) {
+      const p = frames[f]; let sl = 0; for (let i = 1; i < INFLIGHT; i++) if (slotEnd[i] < slotEnd[sl]) sl = i;
+      const t0 = Math.max(t, rt, slotEnd[sl]);
+      frameOf[p] = -1; const had = []; tlb.forEach((m, c) => { if (m.has(p)) had.push(c); m.delete(p); });  // PTE invalid, then cleared from every core's TLB
+      ev.clr.push({ t: t0 + COST.recA / 2, p });
+      const j = engine(t0 + COST.recA); engFree[j.e] = j.start + COST.comp;
+      ev.job.push({ eng: j.e, t0: j.start, d: COST.comp, op: 'C', p });
+      const rel = j.start + COST.comp + COST.recB;
+      tr({ k: 'ev', t: t0, p, f }); had.forEach(c => tr({ k: 'tc', t: t0 + COST.recA / 2, c, p }));
+      tr({ k: 'cj', t: j.start, t1: j.start + COST.comp, p, f, e: j.e }); tr({ k: 'cd', t: rel, p, f });
+      ev.rec.push({ t0, t1: rel, p, slot: sl });
+      slotEnd[sl] = rel; rt = t0 + COST.recA; compT[p] = rel;
+      frames[f] = -1; l2.delete(p); cnt.evict++;
+      if (f >= prm.frames) return false;
+      let i = pending.length; while (i > 0 && pending[i - 1].t > rel) i--; pending.splice(i, 0, { t: rel, f });
+      return true;
+  }
+  function takeFrame(t) {
+    while (pending.length && pending[0].t <= t) free.push(pending.shift().f);
+    if (free.length) return { f: free.pop(), at: t };
+    if (!pending.length) reclaim(t);
+    if (!pending.length) return null;
+    const r = pending.shift(); return { f: r.f, at: r.t };
+  }
+
+  function stepProg(P) {
+    const t = P.t, p = nextPage(P), core = P.core, m = tlb[core];
+    cnt.acc++; l2touch(p); ref[p] = 1;
+    if (s.recAcc) { ev.acc.push({ t, prog: P.i }); tr({ k: 'a', t, i: P.i, c: core, p, hit: m.has(p) }); }
+    if (m.has(p)) { m.delete(p); m.set(p, 1); P.t = t + COST.access; return; }
+    // TLB miss: an exception, the kernel reads the PTE. Its cache line may or may not be in the L2.
+    const k = pteKey(p), inL2 = l2.has(k); l2touch(k);
+    const d = inL2 ? COST.refillL2 : COST.refillDram; if (!inL2) cnt.refillDram++;
+    cnt.refill[core]++;
+    tr({ k: 'm', t, d, c: core, p, l2: inL2, f: frameOf[p] < 0 });
+    if (frameOf[p] >= 0) { ev.tick.push({ t, d, core, l2: inL2 }); tr({ k: 'tf', t: t + d, c: core, p, out: tlbFill(core, p) }); P.t = t + d + COST.access; return; }
+    // the PTE is invalid: page fault
+    ev.tick.push({ t, d, core, l2: inL2, fault: true });
+    const t1 = t + d, t2 = t1 + COST.lockA;
+    const fr = takeFrame(t2); if (!fr) { P.t = t + d + COST.access; return; }
+    let tF = Math.max(t2, fr.at); if (fr.at > t2) cnt.waitFrame++;
+    if (compT[p] > tF) { tF = compT[p]; cnt.waitComp++; }    // its own COMPRESS is still running
+    tr({ k: 'pf', t: Math.max(t2, fr.at), c: core, p, f: fr.f });
+    const j = engine(tF); engFree[j.e] = j.start + COST.decomp;
+    ev.job.push({ eng: j.e, t0: j.start, d: COST.decomp, op: 'D', p });
+    const tB = j.start + COST.decomp + COST.lockB;
+    tr({ k: 'dj', t: j.start, t1: j.start + COST.decomp, p, f: fr.f, e: j.e });
+    frames[fr.f] = p; frameOf[p] = fr.f; l2.delete(p);
+    tr({ k: 'pd', t: tB, c: core, p, f: fr.f }); tr({ k: 'tf', t: tB, c: core, p, out: tlbFill(core, p) });
+    ev.fault.push({ t0: t1, t1: tB, core, prog: P.i, p, tw: tF > t2 ? [t2, tF] : null });
+    ev.wait.push({ prog: P.i, t0: t, t1: tB, p });
+    cnt.fault++;
+    P.t = tB + COST.access;
+    reclaim(t1);
+  }
+
+  s.advance = function (tEnd, maxSteps) {
+    let n = 0; maxSteps = maxSteps || 3e6;
+    for (;;) {
+      let P = progs[0]; for (const q of progs) if (q.t < P.t) P = q;
+      if (P.t >= tEnd || n++ > maxSteps) return n;
+      stepProg(P);
+    }
+  };
+  s.steps = function (n) { const a = cnt.acc + n; while (cnt.acc < a) { let P = progs[0]; for (const q of progs) if (q.t < P.t) P = q; stepProg(P); } };
+  s.minT = () => Math.min(...progs.map(P => P.t));
+  s.set = function (k, v) {
+    const old = prm[k]; prm[k] = v;
+    const t = s.minT();
+    if (k === 'ws') for (const P of progs) { P.c %= v; tr({ k: 'w', t, i: P.i, c: P.c, base: P.base }); }
+    if (k === 'tlb') { tlb.forEach((m, c) => { while (m.size > v) { const q = m.keys().next().value; m.delete(q); tr({ k: 'tc', t, c, p: q }); } }); tr({ k: 'tn', t, n: v }); }
+    if (k === 'l2') while (l2.size > v) l2.delete(l2.keys().next().value);
+    if (k === 'frames') {
+      if (v > old) for (let f = old; f < v; f++) if (frames[f] < 0) free.push(f);
+      free = free.filter(f => f < v); pending = pending.filter(r => r.f < v);
+      if (v < old) { for (let f = v; f < old; f++) if (frames[f] >= 0) evict(f, t); }   // pages in frames that no longer exist must go
+    }
+  };
+  // drop what has scrolled out of view
+  s.prune = function (tMin) {
+    for (const key of Object.keys(ev)) {
+      const a = ev[key]; let i = 0;
+      const end = e => e.t1 !== undefined ? e.t1 : e.d !== undefined ? e.t0 !== undefined ? e.t0 + e.d : e.t + e.d : e.t;
+      while (i < a.length && end(a[i]) < tMin) i++;
+      if (i > 2000 || i > a.length / 2) ev[key] = a.slice(i);
+    }
+  };
+  s.frameStats = () => { let used = 0; for (let f = 0; f < FMAX; f++) if (frames[f] >= 0) used++; return { used, free: free.length, pending: pending.length }; };
+  return s;
+}
+
+const RHY = { create, DEF, RANGE, COST, SHORT, STEP, ENGINES, NCORE, INFLIGHT, MASK, FMAX };
+if (typeof module !== 'undefined' && module.exports) module.exports = RHY; else root.RHY = RHY;
+})(typeof window !== 'undefined' ? window : this);
+
+/* ---------- 3D stage: palette, renderer, camera, small builders ---------- */
+const $ = id => document.getElementById(id);
+const REDUCE = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MONO = '"IBM Plex Mono", ui-monospace, Menlo, monospace', DISP = 'Archivo, "Noto Sans TC", system-ui, sans-serif';
+
+// World units: one page frame is U wide. Board = the tilted plate at the back, floor = DRAM.
+// This file is shared by every 3D page. What a page puts on the board and the floor is in its own files.
+const U = 10;
+const BW = 92, BH = 27.3, BPX = 24, TILT = 52 * Math.PI / 180, BZ = -4.6, BY = 0.3;      // board size, px per unit, tilt from the floor, bottom edge
+const FLX = 38, FLZ0 = -3.6, FLZ1 = 31.4, FPX = 24;                                    // floor plate: x in [-38, 38], z in [-3.6, 31.4]
+
+// A point of the board, given in board units (u from the left, v from the top), lifted off its surface.
+function B2W(u, v, lift = 0) {
+  const d = BH - v;
+  return new THREE.Vector3(u - BW / 2, BY + d * Math.sin(TILT) + lift * Math.cos(TILT), BZ - d * Math.cos(TILT) + lift * Math.sin(TILT));
+}
+
+const P = {};
+function readPalette() {
+  const cs = getComputedStyle(document.documentElement);
+  ['bg', 'paper', 'ink', 'muted', 'line', 'soft', 'accent', 'accent-tint', 'warn', 'warn-tint', 'rw', 'rw-bg', 'ro', 'ro-bg', 'hatch', 'flash']
+    .forEach(k => P[k.replace('-', '_')] = cs.getPropertyValue('--' + k).trim());
+}
+readPalette();
+
+const canvas = $('gl');
+let renderer = null;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); }
+catch (e) { $('nogl').style.display = 'flex'; }
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(26, 1.75, 1, 1600);
+const hemi = new THREE.HemisphereLight(0xffffff, 0x8894a4, 0.95), sun = new THREE.DirectionalLight(0xffffff, 0.35);
+sun.position.set(-30, 80, 60); scene.add(hemi, sun);
+
+/* orbit camera: th turns around the vertical axis, ph is the height angle */
+const HOME = { t: new THREE.Vector3(0, 5.2, 5.5), th: 0, ph: 0.72, r: 112 };
+const cam = { t: HOME.t.clone(), r: 90, th: HOME.th, ph: HOME.ph };
+function placeCamera() {
+  const c = Math.cos(cam.ph);
+  camera.position.set(cam.t.x + cam.r * Math.sin(cam.th) * c, cam.t.y + cam.r * Math.sin(cam.ph), cam.t.z + cam.r * Math.cos(cam.th) * c);
+  camera.lookAt(cam.t);
+}
+function resetView() { cam.t.copy(HOME.t); cam.th = HOME.th; cam.ph = HOME.ph; cam.r = HOME.r; placeCamera(); }
+// Find the distance and the target height at which the board and the floor just fill the canvas, whatever its shape.
+const FIT = [[0, 0], [BW, 0], [0, BH], [BW, BH]].map(([u, v]) => B2W(u, v)).concat([[-FLX, FLZ0], [FLX, FLZ0], [-FLX, FLZ1], [FLX, FLZ1]].map(([x, z]) => new THREE.Vector3(x, 0, z)));
+function fitHome() {
+  const keep = { t: cam.t.clone(), r: cam.r, th: cam.th, ph: cam.ph }, k = Math.tan(camera.fov * Math.PI / 360) / Math.cos(HOME.ph), v = new THREE.Vector3();
+  cam.t.copy(HOME.t); cam.th = HOME.th; cam.ph = HOME.ph;
+  const fits = r => {
+    cam.r = r; let half = 0, wide = 0;
+    for (let i = 0; i < 4; i++) {
+      placeCamera(); camera.updateMatrixWorld();
+      let lo = 9, hi = -9; wide = 0;
+      FIT.forEach(p => { v.copy(p).project(camera); lo = Math.min(lo, v.y); hi = Math.max(hi, v.y); wide = Math.max(wide, Math.abs(v.x)); });
+      cam.t.y += (lo + hi) / 2 * r * k; half = (hi - lo) / 2;
+    }
+    return half <= 0.955 && wide <= 0.975;
+  };
+  let a = 40, b = 420;
+  for (let i = 0; i < 16; i++) { const m = (a + b) / 2; if (fits(m)) b = m; else a = m; }
+  fits(b); HOME.t.copy(cam.t); HOME.r = b;
+  cam.t.copy(keep.t); cam.r = keep.r; cam.th = keep.th; cam.ph = keep.ph;
+}
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return;
+  const atHome = !resize.done || (Math.abs(cam.r - HOME.r) < 0.01 && cam.t.distanceTo(HOME.t) < 0.01 && cam.th === HOME.th && cam.ph === HOME.ph);
+  camera.aspect = w / h; camera.updateProjectionMatrix(); fitHome();
+  if (renderer) renderer.setSize(w, h, false);
+  resize.done = true; if (atHome) resetView(); else placeCamera();
+}
+if (window.ResizeObserver) new ResizeObserver(resize).observe($('view')); else addEventListener('resize', resize);
+
+const ptrs = new Map(); let pinch = 0, moved = 0, onTap = null;
+canvas.addEventListener('pointerdown', e => { try { canvas.setPointerCapture(e.pointerId); } catch (x) {} ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); moved = 0; pinch = 0; canvas.classList.add('drag'); });
+canvas.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY; moved += Math.abs(dx) + Math.abs(dy);
+  if (ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pinch) cam.r = Math.min(420, Math.max(28, cam.r * pinch / d));
+    pinch = d;
+  } else if (e.shiftKey || e.buttons === 2) {
+    const k = cam.r / 700, right = new THREE.Vector3(Math.cos(cam.th), 0, -Math.sin(cam.th));
+    cam.t.addScaledVector(right, -dx * k); cam.t.y = Math.max(0, cam.t.y + dy * k);
+  } else { cam.th -= dx * 0.006; cam.ph = Math.min(1.45, Math.max(0.1, cam.ph + dy * 0.006)); }
+  placeCamera();
+});
+const drop = e => { const tap = ptrs.size === 1 && moved < 6; ptrs.delete(e.pointerId); pinch = 0; if (!ptrs.size) canvas.classList.remove('drag'); if (tap && e.type === 'pointerup' && onTap) onTap(e); };
+canvas.addEventListener('pointerup', drop); canvas.addEventListener('pointercancel', drop);
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('wheel', e => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); cam.r = Math.min(420, Math.max(28, cam.r * Math.exp(e.deltaY * 0.004))); placeCamera(); }, { passive: false });
+$('reset').addEventListener('click', resetView);
+
+/* builders */
+function plate(w, h, px) {                       // a canvas you can draw on, shown as a flat rectangle
+  const cv = document.createElement('canvas'); cv.width = Math.round(w * px); cv.height = Math.round(h * px);
+  const tex = new THREE.CanvasTexture(cv); tex.anisotropy = 8;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex }));
+  return { cv, g: cv.getContext('2d'), tex, mesh, px, w, h };
+}
+function hatchTexture(fill, line) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d');
+  g.fillStyle = fill; g.fillRect(0, 0, 64, 64); g.strokeStyle = line; g.lineWidth = 5;
+  for (let i = -64; i < 128; i += 16) { g.beginPath(); g.moveTo(i, 64); g.lineTo(i + 64, 0); g.stroke(); }
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+function sprite(text, color, bg, size) {
+  const cv = document.createElement('canvas'), g = cv.getContext('2d'), font = '700 44px ' + DISP;
+  g.font = font; const w = Math.ceil(g.measureText(text).width) + 36; cv.width = w; cv.height = 64;
+  g.fillStyle = bg; g.beginPath(); g.roundRect ? g.roundRect(0, 0, w, 64, 12) : g.rect(0, 0, w, 64); g.fill();
+  g.font = font; g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, 34);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true }));
+  s.scale.set(size * w / 64, size, 1); s.renderOrder = 10; return s;
+}
+function tube(curve, r, color, opacity = 1, seg = 28) {
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, seg, r, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: opacity < 1, opacity }));
+}
+const arc = (a, b, lift) => new THREE.QuadraticBezierCurve3(a, new THREE.Vector3((a.x + b.x) / 2, Math.max(a.y, b.y) + lift, (a.z + b.z) / 2), b);
+const seg3 = (a, b) => new THREE.LineCurve3(a, b);
+function clearGroup(grp) {
+  while (grp.children.length) { const o = grp.children.pop(); if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map && o.userData.ownMap) o.material.map.dispose(); o.material.dispose(); } }
+}
+
+/* drawing on a plate: board units to pixels, fonts, text, boxes */
+const bx = u => u * BPX;
+const fnt = (w, u, fam) => w + ' ' + Math.round(u * BPX) + 'px ' + fam;
+function txt(g, s, x, y, font, color, align = 'left') { g.font = font; g.fillStyle = color; g.textAlign = align; g.textBaseline = 'alphabetic'; g.fillText(s, x, y); }
+function box(g, x, y, w, h, fill, stroke, lw = 2, dash = null) {
+  if (fill) { g.fillStyle = fill; g.fillRect(x, y, w, h); }
+  if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw; g.setLineDash(dash || []); g.strokeRect(x, y, w, h); g.setLineDash([]); }
+}
+
+/* ---------- two rhythms: the stage ----------
+   Time runs along x. "Now" sits at x = 0 and the camera rides with it; what happened earlier lies to the
+   left and slides away. Tracks lie flat on the floor, far to near: user SW, kernel SW on the CPU MMU side,
+   kernel SW on the compression layer side, LZ4 HW. The served party is at the far end, nothing tall in front. */
+const XB = 104, XF = 30;                                   // world x of the oldest thing shown, and of the right edge
+const LANE = { user: [-16.4, -13.6], cpu: [-7.2, -4.4], comp: [1.6, 3.0, 4.4, 5.8], lz: [10.6, 11.8, 13.0, 14.2] };
+const TRACK = [
+  { key: 'user', z0: -18, z1: -12, name: 'user SW', sub: 'A on Core 0 · B on Core 1' },
+  { key: 'cpu', z0: -8.6, z1: -3, name: 'kernel SW: CPU MMU side', sub: 'TLB misses · Core 0 · Core 1' },
+  { key: 'comp', z0: 0.4, z1: 7, name: 'kernel SW: compression layer side', sub: 'page faults · reclaim' },
+  { key: 'lz', z0: 9.6, z1: 15.2, name: 'LZ4 HW', sub: '4 engines (P4, N = 4 for now)' },
+];
+['kern', 'kern-tint', 'lz', 'lz-tint', 'ua', 'ub'].forEach(k => { P[k.replace('-', '_')] = getComputedStyle(document.documentElement).getPropertyValue('--' + k).trim(); });
+
+// what the camera has to fit: the whole stretch of tracks
+FIT.length = 0;
+[-XB, XF].forEach(x => [-19, 16].forEach(z => [0, 3].forEach(y => FIT.push(new THREE.Vector3(x, y, z)))));
+HOME.t.set(-30, 0, -1); HOME.ph = 0.62;
+
+const C = c => new THREE.Color(c);
+const lam = c => new THREE.MeshLambertMaterial({ color: C(c) });
+const floorM = new THREE.Mesh(new THREE.PlaneGeometry(XB + XF + 40, 44), new THREE.MeshBasicMaterial({ color: C(P.bg) }));
+floorM.rotation.x = -Math.PI / 2; floorM.position.set((XF - XB) / 2, -0.02, -1.5); scene.add(floorM);
+const STATIC = new THREE.Group(); scene.add(STATIC);
+function buildStatic() {
+  clearGroup(STATIC); floorM.material.color = C(P.bg);
+  for (const T of TRACK) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(XB + XF, T.z1 - T.z0), new THREE.MeshBasicMaterial({ color: C(P.paper) }));
+    m.rotation.x = -Math.PI / 2; m.position.set((XF - XB) / 2, 0, (T.z0 + T.z1) / 2); STATIC.add(m);
+    for (const z of LANE[T.key]) {                       // one thin line per lane
+      const l = new THREE.Mesh(new THREE.BoxGeometry(XB + XF, 0.02, 0.06), new THREE.MeshBasicMaterial({ color: C(P.line) }));
+      l.position.set((XF - XB) / 2, 0.01, z); STATIC.add(l);
+    }
+  }
+  // the future has not happened yet: a pale cover to the right of now
+  const fut = new THREE.Mesh(new THREE.PlaneGeometry(XF, 36), new THREE.MeshBasicMaterial({ color: C(P.soft), transparent: true, opacity: 0.55 }));
+  fut.rotation.x = -Math.PI / 2; fut.position.set(XF / 2, 0.03, -1.5); STATIC.add(fut);
+  const now = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 36), new THREE.MeshBasicMaterial({ color: C(P.ink) }));
+  now.position.set(0, 0.04, -1.5); STATIC.add(now);
+}
+
+/* instanced marks, one mesh per kind */
+const BOX = new THREE.BoxGeometry(1, 1, 1);
+function inst(geo, n, color, opacity) {
+  const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: opacity < 1, opacity: opacity || 1 });
+  const m = new THREE.InstancedMesh(geo, mat, n); m.frustumCulled = false;
+  const c = C(color); for (let i = 0; i < n; i++) m.setColorAt(i, c);   // before count drops to 0: the colour buffer is sized from count
+  m.count = 0;
+  m.userData.base = color; scene.add(m); return m;
+}
+const MK = {};
+function buildMarks() {
+  Object.values(MK).forEach(m => { scene.remove(m); m.material.dispose(); m.dispose && m.dispose(); });
+  MK.tick = inst(BOX, 9000, P.kern); MK.band = inst(BOX, 1400, P.kern, 0.9);
+  MK.block = inst(BOX, 700, P.kern); MK.job = inst(BOX, 700, P.lz);
+  MK.user = inst(BOX, 1500, P.ua); MK.wait = inst(BOX, 700, P.warn);
+  MK.dot = inst(new THREE.SphereGeometry(0.24, 10, 8), 2400, P.ua);
+  MK.diam = inst(new THREE.OctahedronGeometry(0.55), 500, P.kern); MK.link = inst(BOX, 900, P.kern, 0.75);
+}
+const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S3 = new THREE.Vector3();
+function put(m, x, y, z, sx, sy, sz, color) {
+  const i = m.count; if (i >= m.instanceMatrix.count) return;
+  M4.compose(V.set(x, y, z), Q, S3.set(sx, sy, sz)); m.setMatrixAt(i, M4);
+  if (color) m.setColorAt(i, color);
+  m.count = i + 1;
+}
+function begin() { Object.values(MK).forEach(m => { m.count = 0; }); }
+function finish() { Object.values(MK).forEach(m => { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }); }
+
+/* characters: each user SW program its own shape and colour; kernel SW purple; LZ4 HW squat and amber */
+const CH = {};
+function figure(body, head, color, scale) {
+  const g = new THREE.Group(), m = lam(color);
+  const b = new THREE.Mesh(body, m), h = new THREE.Mesh(head, m);
+  b.position.y = 1.0; h.position.y = 2.35; g.add(b, h); g.scale.setScalar(scale || 1); scene.add(g); return g;
+}
+function buildChars() {
+  Object.values(CH).forEach(g => scene.remove(g));
+  CH.ua = figure(new THREE.CylinderGeometry(0.7, 0.8, 2, 14), new THREE.BoxGeometry(1.2, 1.2, 1.2), P.ua, 1.15);
+  CH.ub = figure(new THREE.ConeGeometry(0.95, 2.1, 14), new THREE.SphereGeometry(0.62, 16, 12), P.ub, 1.15);
+  CH.k0 = figure(new THREE.CylinderGeometry(0.5, 0.62, 1.7, 12), new THREE.SphereGeometry(0.5, 14, 10), P.kern, 0.9);
+  CH.k1 = figure(new THREE.CylinderGeometry(0.5, 0.62, 1.7, 12), new THREE.SphereGeometry(0.5, 14, 10), P.kern, 0.9);
+  CH.kc = figure(new THREE.CylinderGeometry(0.6, 0.75, 1.9, 12), new THREE.SphereGeometry(0.58, 14, 10), P.kern, 1);
+  const r = new THREE.Group(), body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, 2.2), lam(P.lz));
+  body.position.y = 0.55; r.add(body); r.userData.lights = [];
+  for (let e = 0; e < 4; e++) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.42), lam(P.paper));
+    l.position.set(-0.9 + e * 0.6, 1.25, 0); r.add(l); r.userData.lights.push(l);
+  }
+  scene.add(r); CH.lz = r;
+  CH.ua.position.set(2.6, 0, LANE.user[0]); CH.ub.position.set(2.6, 0, LANE.user[1]);
+  CH.k0.position.set(2.4, 0, LANE.cpu[0]); CH.k1.position.set(2.4, 0, LANE.cpu[1]);
+  CH.kc.position.set(2.6, 0, 3.7); CH.lz.position.set(2.8, 0, 12.4);
+}
+function buildAll() { readPalette(); ['kern', 'kern-tint', 'lz', 'lz-tint', 'ua', 'ub'].forEach(k => { P[k.replace('-', '_')] = getComputedStyle(document.documentElement).getPropertyValue('--' + k).trim(); }); buildStatic(); buildMarks(); buildChars(); scene.background = C(P.bg); }
+
+/* overlays: track names over the stage; speech bubbles in their own column beside it, joined to the speaker by a thin line,
+   so no bubble covers a track. On a narrow screen the bubbles sit in a grid under the stage, without lines. */
+const OV = $('ov'), VO = $('voices'), LEADS = $('leads'), BUB = {}, TRK = [];
+const NARROW = window.matchMedia ? window.matchMedia('(max-width: 900px)') : { matches: false };
+function bubble(key, cls) { const d = document.createElement('div'); d.className = 'bub ' + cls; d.style.display = 'none'; VO.appendChild(d); BUB[key] = d; }
+[['ua', 'user-a'], ['ub', 'user-b'], ['k0', 'kern'], ['k1', 'kern'], ['kc', 'kern'], ['lz', 'lz']].forEach(([k, c]) => bubble(k, c));
+TRACK.forEach(T => { const d = document.createElement('div'); d.className = 'trk'; d.innerHTML = T.name + '<small>' + T.sub + '</small>'; OV.appendChild(d); TRK.push(d); });
+const nowTag = document.createElement('div'); nowTag.className = 'trk'; nowTag.textContent = 'now'; OV.appendChild(nowTag);
+const LCOL = { ua: '--ua', ub: '--ub', k0: '--kern', k1: '--kern', kc: '--kern', lz: '--lz' };
+function screenOf(x, y, z) {
+  V.set(x, y, z).project(camera);
+  return { x: (V.x + 1) / 2 * canvas.clientWidth, y: (1 - V.y) / 2 * canvas.clientHeight, ok: V.z < 1 };
+}
+function placeOverlays(say) {
+  const shown = [], narrow = NARROW.matches;
+  for (const k of Object.keys(BUB)) {
+    const d = BUB[k], t = say[k];
+    if (!t) { d.style.display = 'none'; continue; }
+    const g = CH[k], p = screenOf(g.position.x, g.position.y + 2.2 * g.scale.y, g.position.z);
+    d.style.display = 'block';
+    if (d._t !== t.html) { d.innerHTML = t.html; d._t = t.html; }
+    d.classList.toggle('hot', !!t.hot);
+    shown.push({ d, k, x: p.x, y: p.y, ok: p.ok, h: d.offsetHeight });
+  }
+  let lines = '';
+  if (!narrow) {
+    // each bubble centred on its speaker's height, then pushed apart: down from the top, up from the bottom
+    const H = VO.clientHeight, cw = canvas.clientWidth;
+    shown.sort((a, b) => a.y - b.y);
+    let floorY = 6; for (const s of shown) { s.top = Math.max(s.y - s.h / 2, floorY); floorY = s.top + s.h + 6; }
+    let ceil = H - 6; for (let i = shown.length - 1; i >= 0; i--) { const s = shown[i]; s.top = Math.min(s.top, ceil - s.h); ceil = s.top - 6; }
+    for (const s of shown) {
+      s.d.style.top = s.top + 'px';
+      if (s.ok) lines += `<path d="M${s.x + 12} ${s.y} C${cw - 20} ${s.y}, ${cw - 30} ${s.top + 16}, ${cw + 8} ${s.top + 16}" stroke="var(${LCOL[s.k]})" />`;
+    }
+  } else for (const s of shown) s.d.style.top = '';
+  if (LEADS._l !== lines) { LEADS.innerHTML = lines; LEADS._l = lines; }
+  TRACK.forEach((T, i) => {
+    const p = screenOf(-XB + 1, 0, (T.z0 + T.z1) / 2), q = screenOf(-XB + 1, 0, T.z1);
+    TRK[i].style.left = Math.max(6, p.x) + 'px'; TRK[i].style.top = (p.y + q.y) / 2 + 'px';
+  });
+  const n = screenOf(0, 0, 16.4); nowTag.style.left = (n.x - 16) + 'px'; nowTag.style.top = (n.y + 10) + 'px';
+}
+
+/* ---------- two rhythms: what the model has produced, laid on the tracks ----------
+   lens = time units per world unit. Everything is placed again every frame from the model's events. */
+const COL = {};
+function colors() {
+  COL.kern = C(P.kern); COL.kernL = C(P.kern).lerp(C(P.paper), 0.4); COL.lz = C(P.lz); COL.lzD = C(P.lz).lerp(C(P.ink), 0.35);
+  COL.ua = C(P.ua); COL.ub = C(P.ub); COL.warn = C(P.warn); COL.paper = C(P.paper); COL.lit = C(P.flash).lerp(C(P.lz), 0.25);
+}
+const BIN = 0.4, BASE = 2;                              // at lens ×1 one world unit is BASE time units
+function draw(s, now, lens) {
+  const tpw = lens * BASE, k = 1 / tpw, tMin = now - XB * tpw, X = t => (t - now) * k, ev = s.ev;
+  const out = { tick: [0, 0], refillTime: [0, 0], fault: 0, rec: 0, last: [null, null], faultNow: [], recNow: [], jobNow: [], waitNow: [], clrRecent: null, faultTick: null };
+  begin();
+  // TLB misses: one tick each while they can be told apart, a band whose height is the busy share once they cannot
+  const band = lens >= 60, NB = Math.ceil(XB / BIN) + 1, busy = band ? [new Float32Array(NB), new Float32Array(NB)] : null;
+  for (let i = ev.tick.length - 1; i >= 0; i--) {
+    const e = ev.tick[i];
+    if (e.t > now) continue;
+    if (e.t + e.d < tMin) break;
+    out.tick[e.core]++; out.refillTime[e.core] += e.d;
+    if (!out.last[e.core]) out.last[e.core] = e;
+    if (e.fault) {                                         // meeting point one: this TLB miss finds the PTE invalid
+      const x = X(e.t), z0 = LANE.cpu[e.core], z1 = LANE.comp[e.core];
+      put(MK.link, x, 0.1, (z0 + z1) / 2, 0.16, 0.08, Math.abs(z1 - z0));
+      put(MK.diam, x, 2.2, z0, 0.6, 0.6, 0.6, COL.warn);
+      if (!out.faultTick || e.t > out.faultTick.t) out.faultTick = e;
+    }
+    if (band) { const b = Math.floor(-X(e.t) / BIN); if (b >= 0 && b < NB) busy[e.core][b] += e.d; }
+    else put(MK.tick, X(e.t + e.d / 2), e.fault ? 1.0 : 0.7, LANE.cpu[e.core], Math.max(e.d * k, 0.12), e.fault ? 2.0 : 1.4, 1.5);
+  }
+  if (band) for (let c = 0; c < 2; c++) for (let b = 0; b < NB; b++) {
+    const f = busy[c][b] / (BIN * tpw); if (f <= 0) continue;
+    const h = 0.15 + 1.6 * Math.min(1, f);
+    put(MK.band, -(b + 0.5) * BIN, h / 2, LANE.cpu[c], BIN * 1.02, h, 1.5);
+  }
+  // big work on the compression layer side: page faults on the faulting core's lane, reclaim on its own two lanes
+  const blk = (e, z, col) => {
+    const a = Math.max(e.t0, tMin), b = Math.min(e.t1, now), x0 = X(a), x1 = X(b);
+    put(MK.block, (x0 + x1) / 2, 0.45, z, Math.max(x1 - x0, 0.3), 0.9, 1.15, col);
+  };
+  for (const e of ev.fault) {
+    if (e.t0 > now || e.t1 < tMin) continue;
+    out.fault++; blk(e, LANE.comp[e.core], COL.kern);
+    if (e.tw && e.tw[0] < now) { const a = X(Math.max(e.tw[0], tMin)), b = X(Math.min(e.tw[1], now)); put(MK.wait, (a + b) / 2, 0.95, LANE.comp[e.core], Math.max(b - a, 0.2), 0.12, 1.2); }
+    if (e.t1 > now) out.faultNow.push(e);
+  }
+  for (const e of ev.rec) {
+    if (e.t0 > now || e.t1 < tMin) continue;
+    out.rec++; blk(e, LANE.comp[2 + e.slot], COL.kernL);
+    if (e.t1 > now) out.recNow.push(e);
+  }
+  for (const e of ev.clr) {                                // meeting point two: cleared from every core's TLB
+    if (e.t > now || e.t < tMin) continue;
+    const x = X(e.t), z0 = LANE.cpu[0], z1 = LANE.comp[2];
+    put(MK.diam, x, 2.2, LANE.cpu[0], 1, 1, 1, COL.kern); put(MK.diam, x, 2.2, LANE.cpu[1], 1, 1, 1, COL.kern);
+    put(MK.link, x, 0.1, (z0 + z1) / 2, 0.16, 0.08, Math.abs(z1 - z0));
+    if (!out.clrRecent || e.t > out.clrRecent.t) out.clrRecent = e;
+  }
+  for (const e of ev.job) {
+    if (e.t0 > now || e.t0 + e.d < tMin) continue;
+    const a = X(Math.max(e.t0, tMin)), b = X(Math.min(e.t0 + e.d, now));
+    put(MK.job, (a + b) / 2, 0.35, LANE.lz[e.eng], Math.max(b - a, 0.25), 0.7, 0.95, e.op === 'D' ? COL.lz : COL.lzD);
+    if (e.t0 + e.d > now) out.jobNow.push(e);
+  }
+  // user SW: a bar while it runs, a gap with a low red mark while it waits for a page
+  for (let p = 0; p < s.nprog; p++) {
+    const z = LANE.user[p], col = p ? COL.ub : COL.ua;
+    const ws = ev.wait.filter(w => w.prog === p && w.t1 > tMin && w.t0 <= now);
+    let cur = tMin;
+    const seg = (a, b) => { if (b - a <= 0) return; put(MK.user, X((a + b) / 2), 0.25, z, (b - a) * k, 0.5, 1.7, col); };
+    for (const w of ws) {
+      seg(cur, Math.min(w.t0, now)); cur = Math.max(cur, w.t1);
+      const a = X(Math.max(w.t0, tMin)), b = X(Math.min(w.t1, now));
+      put(MK.wait, (a + b) / 2, 0.08, z, Math.max(b - a, 0.2), 0.16, 2.0);
+      if (w.t1 > now) out.waitNow.push(w);
+    }
+    if (cur < now) seg(cur, now);
+  }
+  // each access as a dot, only while the lens is close enough to tell them apart
+  if (lens < 3) for (let i = ev.acc.length - 1; i >= 0; i--) {
+    const e = ev.acc[i]; if (e.t > now) continue; if (e.t < tMin) break;
+    put(MK.dot, X(e.t), 0.78, LANE.user[e.prog], 1, 1, 1, e.prog ? COL.ub : COL.ua);
+  }
+  finish();
+  // the LZ4 HW's four lights: lit while that engine has a job
+  CH.lz.userData.lights.forEach((l, i) => l.material.color.copy(out.jobNow.some(j => j.eng === i) ? COL.lit : COL.paper));
+  return out;
+}
+
+/* ---------- two rhythms: the tables at "now" ----------
+   The model runs ahead of the picture, so the panel keeps its own copy of the tables and applies each
+   recorded read or write only when "now" reaches its time. Who touches what (P1, interface spec):
+   TLB: read by the CPU MMU hardware, written by kernel SW. Page table and COT: kernel SW only.
+   Frames: the user SW's data; the LZ4 HW reads them for COMPRESS and writes them for DECOMPRESS.
+   The chunk pool that holds the compressed data is not drawn. */
+const ST = { cv: $('statecv'), log: $('slog') };
+ST.g = ST.cv.getContext('2d');
+const FLASH = 0.9;                                     // seconds a touch stays visible on the panel
+
+function stateInit(s) {
+  const sn = s.snap();
+  ST.fr = Int32Array.from(sn.frames); ST.frSt = new Uint8Array(ST.fr.length);   // 0 free, 1 in use, 2 DECOMPRESS writes it, 3 COMPRESS reads it
+  ST.pf = new Map();                                   // page -> { f, st }: V valid, D decompressing, K compressing. Missing: compressed, COT entry valid
+  ST.fr.forEach((p, f) => { if (p >= 0) { ST.frSt[f] = 1; ST.pf.set(p, { f, st: 'V' }); } });
+  ST.tlb = sn.tlb.map(a => { const r = a.slice(); while (r.length < s.prm.tlb) r.push(-1); return r; });
+  ST.tlbAge = ST.tlb.map(r => r.map((_, i) => i));
+  ST.win = sn.win; ST.hand = sn.hand; ST.jobs = []; ST.heap = []; ST.fl = new Map(); ST.lines = []; ST.logKey = ''; ST.seq = 0; ST.seqIn = 0;
+  s.tr.length = 0;
+}
+
+/* a small binary heap on time: records arrive nearly in order, but a reclaim's later steps arrive early */
+const before = (a, b) => a.t < b.t || (a.t === b.t && a._n < b._n);
+function hpush(r) { const h = ST.heap; r._n = ++ST.seqIn; h.push(r); let i = h.length - 1; while (i > 0) { const j = (i - 1) >> 1; if (!before(h[i], h[j])) break; [h[i], h[j]] = [h[j], h[i]]; i = j; } }
+function hpop() {
+  const h = ST.heap, top = h[0], last = h.pop(); if (h.length) { h[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < h.length && before(h[l], h[m])) m = l; if (r < h.length && before(h[r], h[m])) m = r; if (m === i) break; [h[i], h[m]] = [h[m], h[i]]; i = m; } }
+  return top;
+}
+
+// a touch: who did it (hw, kern, lz, ua, ub) and whether it read or wrote
+const touch = (key, who, w) => ST.fl.set(key, { who, w, at: performance.now() / 1000 });
+const slotOf = (c, p) => ST.tlb[c].indexOf(p);
+const frameNo = f => 'frame ' + f;
+function logLine(who, text) { ST.lines.push({ who, text, n: ++ST.seq }); if (ST.lines.length > 6) ST.lines.shift(); }
+
+function apply(r) {
+  const P = hex(r.p !== undefined ? r.p : 0);
+  switch (r.k) {
+    case 'a': {                                        // one access by the user SW: the CPU MMU looks in the TLB, the data is in a frame
+      const e = ST.pf.get(r.p); if (e) touch('F' + e.f, r.i ? 'ub' : 'ua', false);
+      if (r.hit) { const sl = slotOf(r.c, r.p); if (sl >= 0) touch('T' + r.c + '_' + sl, 'hw', false); }
+      break;
+    }
+    case 'm':                                          // TLB miss: kernel SW reads the PTE
+      touch('P' + r.p, 'kern', false);
+      if (r.f) logLine('kern', `Core ${r.c} · TLB miss on page ${P}: read its PTE, it is invalid → page fault`);
+      break;
+    case 'tf': {                                       // kernel SW writes one TLB entry, pushing out the oldest
+      const T = ST.tlb[r.c], A = ST.tlbAge[r.c]; let sl = T.indexOf(r.p);
+      if (sl < 0 && r.out >= 0) sl = T.indexOf(r.out);
+      if (sl < 0) sl = T.indexOf(-1);
+      if (sl < 0) { sl = 0; for (let i = 1; i < A.length; i++) if (A[i] < A[sl]) sl = i; }
+      T[sl] = r.p; A[sl] = ++ST.seq; touch('T' + r.c + '_' + sl, 'kern', true);
+      break;
+    }
+    case 'tc': {                                       // reclaim: the page leaves this core's TLB
+      const sl = slotOf(r.c, r.p); if (sl >= 0) { ST.tlb[r.c][sl] = -1; touch('T' + r.c + '_' + sl, 'kern', true); }
+      logLine('kern', `clear page ${P} from Core ${r.c}'s TLB (mechanism unknown on this platform)`);
+      break;
+    }
+    case 'tn': {                                       // the TLB size control moved
+      for (let c = 0; c < ST.tlb.length; c++) {
+        const keep = ST.tlb[c].map((p, i) => [p, ST.tlbAge[c][i]]).filter(([p]) => p >= 0).sort((a, b) => a[1] - b[1]).slice(-r.n);
+        ST.tlb[c] = keep.map(x => x[0]); ST.tlbAge[c] = keep.map(x => x[1]);
+        while (ST.tlb[c].length < r.n) { ST.tlb[c].push(-1); ST.tlbAge[c].push(0); }
+      }
+      break;
+    }
+    case 'pf':                                         // under mm_lock: take a free frame, read the COT entry, mark the page decompressing
+      ST.pf.set(r.p, { f: r.f, st: 'D' }); ST.fr[r.f] = r.p; ST.frSt[r.f] = 2;
+      touch('C' + r.p, 'kern', false); touch('F' + r.f, 'kern', true);
+      logLine('kern', `take free ${frameNo(r.f)}, read the COT entry of ${P}, hand DECOMPRESS to the LZ4 HW`);
+      break;
+    case 'dj': ST.jobs.push(r); logLine('lz', `DECOMPRESS: read the chunks of ${P}, write ${frameNo(r.f)}`); break;
+    case 'pd': {
+      const e = ST.pf.get(r.p); if (e) e.st = 'V'; ST.frSt[r.f] = 1;
+      touch('C' + r.p, 'kern', true); touch('P' + r.p, 'kern', true);
+      logLine('kern', `clear the COT entry of ${P}, write its PTE valid → ${frameNo(r.f)}, fill Core ${r.c}'s TLB`);
+      break;
+    }
+    case 'ev':                                         // reclaim: the clock picks a frame, the PTE goes invalid
+      ST.hand = r.f; ST.pf.set(r.p, { f: r.f, st: 'K' }); if (r.f < ST.frSt.length) ST.frSt[r.f] = 3;
+      touch('P' + r.p, 'kern', true);
+      logLine('kern', `reclaim: the clock picks ${frameNo(r.f)} (page ${P}), write its PTE invalid`);
+      break;
+    case 'cj': ST.jobs.push(r); logLine('lz', `COMPRESS: read ${frameNo(r.f)}, write the chunks of ${P}`); break;
+    case 'cd':
+      if (ST.pf.get(r.p) && ST.pf.get(r.p).st === 'K') ST.pf.delete(r.p);
+      if (ST.fr[r.f] === r.p) { ST.fr[r.f] = -1; ST.frSt[r.f] = 0; touch('F' + r.f, 'kern', true); }
+      touch('C' + r.p, 'kern', true);
+      logLine('kern', `write the COT entry of ${P}, put ${frameNo(r.f)} back on the free list`);
+      break;
+    case 'w': ST.win[r.i] = { c: r.c, base: r.base, off: ST.win[r.i].off }; break;
+  }
+}
+
+function stateStep(s, now) {
+  if (s.tr.length) { for (const r of s.tr) hpush(r); s.tr.length = 0; }
+  while (ST.heap.length && ST.heap[0].t <= now) apply(hpop());
+  ST.jobs = ST.jobs.filter(j => j.t1 > now);
+}
+
+/* ---------- drawing ---------- */
+let SC = {};
+function stateColors() {
+  const mix = (a, b, t) => '#' + C(a).lerp(C(b), t).getHexString();
+  SC = { ink: P.ink, mut: P.muted, line: P.line, paper: P.paper, bg: P.bg, kern: P.kern, lz: P.lz, ua: P.ua, ub: P.ub, hw: P.ink,
+    uaT: mix(P.ua, P.paper, 0.55), ubT: mix(P.ub, P.paper, 0.55), uaL: mix(P.ua, P.paper, 0.8), ubL: mix(P.ub, P.paper, 0.8), lzT: mix(P.lz, P.paper, 0.72), kernT: mix(P.kern, P.paper, 0.8) };
+  const pc = document.createElement('canvas'); pc.width = pc.height = 8; const g = pc.getContext('2d');
+  g.fillStyle = SC.lzT; g.fillRect(0, 0, 8, 8); g.strokeStyle = SC.lz; g.lineWidth = 1.3; g.beginPath(); g.moveTo(0, 8); g.lineTo(8, 0); g.moveTo(-2, 2); g.lineTo(2, -2); g.moveTo(6, 10); g.lineTo(10, 6); g.stroke();
+  SC.hatch = ST.g.createPattern(pc, 'repeat');
+}
+// the most cells of the given shape (w / h = asp) that fit n into a box
+function grid(n, w, h, asp, maxW) {
+  let best = { cols: 1, cw: 0, ch: 0 };
+  for (let cols = 1; cols <= n; cols++) {
+    const rows = Math.ceil(n / cols), cw = Math.min(w / cols, h / rows * asp, maxW || 1e9);
+    if (cw > best.cw) best = { cols, cw, ch: cw / asp };
+  }
+  return best;
+}
+const progOf = p => p >= 0x40000 ? 1 : 0;
+function ring(g, x, y, w, h, col, lw) { g.strokeStyle = col; g.lineWidth = lw; g.strokeRect(x + lw / 2, y + lw / 2, w - lw, h - lw); }
+function fl(key, tNow) { const f = ST.fl.get(key); if (!f) return null; const a = 1 - (tNow - f.at) / FLASH; if (a <= 0) { ST.fl.delete(key); return null; } return { who: f.who, w: f.w, a }; }
+function drawTouch(g, key, x, y, w, h, tNow) {
+  const f = fl(key, tNow); if (!f) return;
+  const col = SC[f.who];
+  if (f.w) { g.globalAlpha = 0.85 * f.a; g.fillStyle = col; g.fillRect(x, y, w, h); g.globalAlpha = 1; }
+  else { g.globalAlpha = Math.min(1, 0.4 + f.a); ring(g, x - 1.5, y - 1.5, w + 3, h + 3, col, 2.5); g.globalAlpha = 1; }
+}
+function head(g, x, y, title, sub) {
+  g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+  g.font = '700 13.5px ' + DISP; g.fillStyle = SC.ink; g.fillText(title, x, y);
+  if (sub) { g.font = '400 11.5px ' + MONO; g.fillStyle = SC.mut; g.fillText(sub, x, y + 15); }
+}
+
+function stateDraw(s, now, lens) {
+  const cv = ST.cv, W = cv.clientWidth; if (!W) return;
+  const wide = W >= 880, pad = 14, gap = 26;
+  const H = wide ? 272 : 660;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (cv.height !== Math.round(H * dpr) || cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + 'px'; }
+  const g = ST.g, tNow = performance.now() / 1000; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = SC.paper; g.fillRect(0, 0, W, H);
+  // three blocks: TLBs, page table with COT, frames
+  let bT, bP, bF;
+  if (wide) {
+    const wT = Math.max(230, Math.min(290, W * 0.23)), wF = Math.max(240, W * 0.26), wP = W - 2 * pad - wT - wF - 2 * gap;
+    bT = { x: pad, y: 10, w: wT, h: H - 20 }; bP = { x: pad + wT + gap, y: 10, w: wP, h: H - 20 }; bF = { x: pad + wT + wP + 2 * gap, y: 10, w: wF, h: H - 20 };
+  } else {
+    bT = { x: pad, y: 10, w: W - 2 * pad, h: 170 }; bP = { x: pad, y: 196, w: W - 2 * pad, h: 260 }; bF = { x: pad, y: 476, w: W - 2 * pad, h: 176 };
+  }
+  // dividers
+  g.strokeStyle = SC.line; g.lineWidth = 1;
+  if (wide) [bP.x - gap / 2, bF.x - gap / 2].forEach(x => { g.beginPath(); g.moveTo(x, 12); g.lineTo(x, H - 12); g.stroke(); });
+
+  /* TLBs: one per core, read by the CPU MMU hardware, written by kernel SW */
+  head(g, bT.x, bT.y + 13, 'TLB · per core', 'read: CPU MMU HW · write: kernel SW');
+  const n = ST.tlb[0].length, twoCol = !wide, tw = twoCol ? (bT.w - gap) / 2 : bT.w, th = twoCol ? bT.h - 40 : (bT.h - 40) / 2 - 6;
+  for (let c = 0; c < ST.tlb.length; c++) {
+    const ox = bT.x + (twoCol ? c * (tw + gap) : 0), oy = bT.y + 40 + (twoCol ? 0 : c * (th + 12));
+    g.font = '700 11.5px ' + MONO; g.fillStyle = SC.mut; g.fillText('Core', ox, oy + 12); g.fillText(String(c), ox, oy + 26);
+    const G = grid(n, tw - 40, th, 2.4, 64), x0 = ox + 40, y0 = oy;
+    for (let i = 0; i < n; i++) {
+      const x = x0 + (i % G.cols) * G.cw, y = y0 + Math.floor(i / G.cols) * G.ch, w = G.cw - 3, h = G.ch - 3, p = ST.tlb[c][i];
+      if (p < 0) { g.setLineDash([3, 3]); ring(g, x, y, w, h, SC.line, 1); g.setLineDash([]); }
+      else { g.fillStyle = progOf(p) ? SC.ubL : SC.uaL; g.fillRect(x, y, w, h); ring(g, x, y, w, h, progOf(p) ? SC.ub : SC.ua, 1); }
+      drawTouch(g, 'T' + c + '_' + i, x, y, w, h, tNow);
+      if (p >= 0 && w >= 46) { g.font = '600 ' + (w >= 56 ? 11 : 10) + 'px ' + MONO; g.fillStyle = SC.ink; g.textAlign = 'center'; g.fillText(hex(p), x + w / 2, y + h / 2 + 4); g.textAlign = 'left'; }
+    }
+  }
+
+  /* page table and COT: one PTE and one COT entry per page, kernel SW only */
+  head(g, bP.x, bP.y + 13, 'Page table + COT · kernel memory', 'read and write: kernel SW only · each page: PTE above, COT entry below');
+  const ws = s.prm.ws, hP = (bP.h - 40) / 2;
+  for (let i = 0; i < ST.win.length; i++) {
+    const wn = ST.win[i], oy = bP.y + 42 + i * hP, col = i ? SC.ub : SC.ua, colT = i ? SC.ubT : SC.uaT;
+    g.font = '700 11.5px ' + MONO; g.fillStyle = col; g.fillText(`user SW ${i ? 'B' : 'A'}: its ${ws} pages`, bP.x, oy + 9);
+    const G = grid(ws, bP.w, hP - 26, 0.62, 22), y0 = oy + 20, hh = G.ch - 2;
+    const inUse = o => ((o - wn.c) % ws + ws) % ws < RHY.SHORT;
+    for (let o = 0; o < ws; o++) {
+      const p = wn.off + ((wn.base + o) & RHY.MASK), x = bP.x + (o % G.cols) * G.cw, y = y0 + Math.floor(o / G.cols) * G.ch, w = G.cw - 2;
+      const e = ST.pf.get(p), hp = Math.round(hh * 0.52), hc = hh - hp - 1;
+      // PTE: valid, filled; invalid, empty outline; a purple dot while the page is moving
+      if (e && e.st === 'V') { g.fillStyle = colT; g.fillRect(x, y, w, hp); } else ring(g, x, y, w, hp, SC.line, 1);
+      if (e && e.st !== 'V') { g.fillStyle = SC.kern; g.beginPath(); g.arc(x + w / 2, y + hp / 2, Math.max(1.5, w / 5), 0, 7); g.fill(); }
+      drawTouch(g, 'P' + p, x, y, w, hp, tNow);
+      // COT entry: valid while the page is compressed, hatched
+      const cotValid = !e || e.st === 'D';
+      if (cotValid) { g.fillStyle = SC.hatch; g.fillRect(x, y + hp + 1, w, hc); }
+      else { g.strokeStyle = SC.line; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y + hp + hc); g.lineTo(x + w, y + hp + hc); g.stroke(); }
+      drawTouch(g, 'C' + p, x, y + hp + 1, w, hc, tNow);
+      // the pages in use right now: a bar above
+      if (inUse(o)) { g.fillStyle = col; g.fillRect(x, y - 3, G.cw, 2); }
+    }
+  }
+
+  /* frames: the user SW's data; the LZ4 HW writes them for DECOMPRESS and reads them for COMPRESS */
+  const F = s.prm.frames;
+  head(g, bF.x, bF.y + 13, `Frames · DRAM · ${F}`, 'user SW data · LZ4 HW reads and writes');
+  const GF = grid(F, bF.w, bF.h - 44, 1, 18), fy0 = bF.y + 40, jobAt = new Map();
+  for (const j of ST.jobs) if (j.t <= now) jobAt.set(j.f, j.k);
+  for (let f = 0; f < F; f++) {
+    const x = bF.x + (f % GF.cols) * GF.cw, y = fy0 + Math.floor(f / GF.cols) * GF.ch, w = GF.cw - 2, h = GF.ch - 2, p = ST.fr[f], st = ST.frSt[f];
+    if (p >= 0 && st) { g.fillStyle = progOf(p) ? SC.ubT : SC.uaT; g.fillRect(x, y, w, h); } else ring(g, x, y, w, h, SC.line, 1);
+    const jk = jobAt.get(f);
+    if (jk === 'dj') { g.fillStyle = SC.lz; g.globalAlpha = 0.8 + 0.2 * Math.sin(tNow * 9); g.fillRect(x - 1, y - 1, w + 2, h + 2); g.globalAlpha = 1; }
+    else if (jk === 'cj') ring(g, x - 1.5, y - 1.5, w + 3, h + 3, SC.lz, 2.5);
+    else if (st === 2 || st === 3) { g.fillStyle = SC.kern; g.beginPath(); g.arc(x + w / 2, y + h / 2, Math.max(1.5, w / 5), 0, 7); g.fill(); }
+    drawTouch(g, 'F' + f, x, y, w, h, tNow);
+    if (f === ST.hand) { g.fillStyle = SC.kern; g.beginPath(); g.moveTo(x + w / 2, y + h + 1); g.lineTo(x + w / 2 - 4, y + h + 7); g.lineTo(x + w / 2 + 4, y + h + 7); g.fill(); }
+  }
+
+  // the step log: only while the lens is close enough to follow single events
+  const key = lens < 30 ? ST.lines.map(l => l.n).join(',') : 'far';
+  if (key !== ST.logKey) {
+    ST.logKey = key;
+    if (lens >= 30) ST.log.innerHTML = '<p class="far">At this time lens there are too many events to list one by one. The tables above still update.</p>';
+    else ST.log.innerHTML = ST.lines.length ? ST.lines.map((l, i) => `<p class="${i === ST.lines.length - 1 ? 'new' : ''}"><b class="${l.who}">${l.who === 'lz' ? 'LZ4 HW' : 'kernel SW'}</b>${l.text}</p>`).join('') : '<p class="far">Page faults and reclaims are listed here step by step.</p>';
+  }
+}
+
+/* ---------- two rhythms: acts, camera, controls, sound, the loop ---------- */
+const SPEED = 7;                                         // world units per second at 100%: the speed of the train
+const KEEP = XB * 1000 * 1.2 * BASE;                            // history kept, enough for the widest lens
+const hex = p => '0x' + p.toString(16).toUpperCase();
+const fmt = n => Math.round(n).toLocaleString('en-US');
+let sim = null, now = 0, lens = 1, lensT = 1, pace = 0.7, playing = true, auto = true, slow = 1, slowT = 1;
+let act = 0, actT = 0, beat = '', beatT = 0, lastOut = null, pruneT = 0, demoOn = true;
+
+/* ---------- the controls under the stage ---------- */
+const SL = [
+  ['ws', '長期 working set', '每個程式，page'], ['drift', 'working set 漂移', '每 10 000 次 access 換進的新 page'],
+  ['tlb', 'TLB entries', '每個 core'], ['frames', 'frame 區', '兩個程式共用，page'], ['l2', 'L2', '放得下的 page 或 PTE 行'],
+];
+const IN = {}, OUT = {};
+SL.forEach(([k, name, sub]) => {
+  const row = document.createElement('div'); row.style.display = 'contents'; row.id = 'row-' + k;
+  const [lo, hi] = RHY.RANGE[k];
+  row.innerHTML = `<label for="in-${k}">${name}<small>${sub}</small></label><input type="range" id="in-${k}" min="${lo}" max="${hi}" step="1"><output id="out-${k}"></output>`;
+  $('sliders').appendChild(row); IN[k] = $('in-' + k); OUT[k] = $('out-' + k);
+  IN[k].addEventListener('input', () => { demoOn = false; setParam(k, +IN[k].value, false); if (act === 2) say('你在調整控制。只有之後駛來的事件會改變，已經走過的留在軌道上。', 'YOU'); });
+});
+const tweens = {};
+function setParam(k, v, animate) {
+  if (animate) { tweens[k] = { from: sim.prm[k], to: v, t: 0 }; return; }
+  sim.set(k, v); IN[k].value = v; OUT[k].textContent = fmt(v); drawRate();
+}
+function stepTweens(dt) {
+  for (const k of Object.keys(tweens)) {
+    const w = tweens[k]; w.t = Math.min(1, w.t + dt / 1.4);
+    const e = w.t < 0.5 ? 2 * w.t * w.t : 1 - Math.pow(-2 * w.t + 2, 2) / 2;
+    setParam(k, Math.round(w.from + (w.to - w.from) * e), false);
+    $('row-' + k).classList.add('moved'); if (w.t >= 1) { delete tweens[k]; setTimeout(() => $('row-' + k).classList.remove('moved'), 1500); }
+  }
+}
+$('defaults').addEventListener('click', () => { demoOn = false; Object.keys(RHY.DEF).forEach(k => setParam(k, RHY.DEF[k], true)); });
+
+/* what sets the rate: the working sets against the three capacities, on a log scale of pages */
+function drawRate() {
+  if (!sim) return;
+  const p = sim.prm, L = v => 30 + 500 * Math.log2(Math.max(1, v)) / 11, svg = $('ratesvg');
+  const longWS = p.ws * sim.nprog, ink = 'var(--ink)', mut = 'var(--muted)';
+  let h = '';
+  [1, 4, 16, 64, 256, 1024].forEach(v => { h += `<line x1="${L(v)}" y1="186" x2="${L(v)}" y2="191" stroke="${mut}"/><text x="${L(v)}" y="204" font-size="11" text-anchor="middle" fill="${mut}" font-family="var(--mono)">${v}</text>`; });
+  h += `<line x1="${L(1)}" y1="186" x2="${L(2048)}" y2="186" stroke="${mut}"/><text x="${L(2048)}" y="178" font-size="11" text-anchor="end" fill="${mut}" font-family="var(--mono)">pages, log scale</text>`;
+  const bar = (y, v, label, col) => { h += `<rect x="${L(1)}" y="${y}" width="${L(v) - L(1)}" height="14" fill="${col}" opacity=".85" rx="2"/><text x="${L(1) + 4}" y="${y - 4}" font-size="12" fill="${ink}" font-family="var(--mono)">${label}: ${v}</text>`; };
+  const brk = (y, v, label, col) => { const x = L(v); h += `<path d="M${L(1)} ${y + 7} V${y} H${x} V${y + 7}" fill="none" stroke="${col}" stroke-width="2"/><text x="${x + 4}" y="${y + 6}" font-size="12" fill="${col}" font-family="var(--mono)">${label}: ${v}</text>`; };
+  brk(14, p.tlb, 'TLB reach (entries per core)', 'var(--kern)');
+  bar(44, RHY.SHORT, 'short-term working set, per program', 'var(--ua)');
+  brk(88, p.l2, 'L2: cost, not count', mut);
+  brk(114, p.frames, 'frames', 'var(--lz)');
+  bar(146, longWS, 'long-term working set, both programs', 'var(--ub)');
+  svg.innerHTML = h;
+  const s1 = RHY.SHORT > p.tlb ? `短時間用到的 ${RHY.SHORT} 個 page 多於 TLB 的 ${p.tlb} 格：<b>TLB miss 一直發生</b>。` : `短時間用到的 ${RHY.SHORT} 個 page 放得進 TLB：只有 working set 往前移時才 TLB miss。`;
+  const s2 = longWS > p.frames ? `兩個程式的長期 working set 共 ${longWS} 個 page，多於 ${p.frames} 個 frame：<b>thrashing</b>，page fault 一直發生。` : `長期 working set 共 ${longWS} 個 page，放得進 ${p.frames} 個 frame：只有 working set 漂移時才 page fault。`;
+  $('say').innerHTML = s1 + '<br>' + s2 + '<br>L2 只改變每一次的長短，不改變次數。';
+}
+
+/* ---------- acts ---------- */
+const ACTS = [
+  { name: '一次 access 的三條路', who: 'ONE ACCESS' }, { name: '兩種節奏', who: 'TIME LENS' },
+  { name: '頻率由什麼決定', who: 'WHAT SETS THE RATE' }, { name: '兩邊碰到的地方', who: 'WHERE THEY MEET' },
+];
+ACTS.forEach((a, i) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<b>${i + 1}</b>${a.name}`; b.addEventListener('click', () => enter(i)); $('acts').appendChild(b); a.btn = b; });
+function say(text, who) { $('text').textContent = text; if (who) $('who').textContent = who; }
+function enter(i) {
+  act = i; actT = 0; beat = ''; beatT = 0; demoOn = true;
+  ACTS.forEach((a, j) => a.btn.setAttribute('aria-pressed', j === i ? 'true' : 'false'));
+  $('count').textContent = `第 ${i + 1} 幕，共 4 幕：${ACTS[i].name}`; $('who').textContent = ACTS[i].who;
+  Object.keys(tweens).forEach(k => delete tweens[k]);
+  if (i === 0) {                                        // the story starts over: one page was pushed out before it begins
+    sim = RHY.create({ plant: true, seed: 3 }); sim.recAcc = true; now = -10; lens = lensT = 1;
+    Object.keys(RHY.DEF).forEach(k => setParam(k, RHY.DEF[k], false));
+    stateInit(sim);
+  }
+  if (i === 2) lensT = 100;
+  if (i === 3) { lensT = 10; setParam('drift', 40, true); }
+  runAct(0);
+}
+const upcoming = (arr, key, a, b) => { for (let j = arr.length - 1; j >= 0; j--) { const t = arr[j][key]; if (t >= a && t <= b) return arr[j]; if (t < a - 5000) break; } return null; };
+function runAct(dt) {
+  actT += dt; beatT += dt; const o = lastOut, next = () => { if (auto) enter(act + 1); };
+  const setBeat = (b, text) => { if (beat !== b) { beat = b; beatT = 0; say(text); } };
+  slowT = 1;
+  if (act === 0) {
+    const pf = sim.ev.fault.find(f => f.p === sim.planted);
+    if (pf && now >= pf.t0 - 3 && now < pf.t1 + 2) { slowT = 0.35; setBeat('fault', '這一次 TLB miss 讀到的 PTE 是 invalid，所以是 page fault。壓縮層這邊的 kernel SW 接手：拿一個 frame，請 LZ4 HW 做 DECOMPRESS。user SW A 停下來等這一頁，它的軌道上留下紅色的缺口。下面的表格依序亮起：PTE 被讀、COT entry 被讀、一個 frame 被拿走、LZ4 HW 寫那個 frame，最後 COT entry 清掉、PTE 寫成 valid、TLB 填一格。'); }
+    else if (pf && now >= pf.t1 + 2) { setBeat('after', 'user SW A 拿到它的 page，繼續跑。同一次 access 可能沒事、可能是小事，也可能是大事。接下來把時間鏡頭拉遠。'); if (beatT > 8) next(); }
+    else if (actT > 6 && beat !== 'miss') setBeat('miss', '紫色的細刻度是一次 TLB miss。這個平台沒有 hardware page table walk，每一次都進 exception，由 kernel SW 讀 PTE、填 TLB，很快就回去。刻度的寬度是它花的時間：PTE 那一行在 L2 裡就短一點。表格裡，被讀的 PTE 亮紫框，被寫的 TLB entry 填紫色。');
+    else if (!beat) setBeat('hit', '每一個小點是 user SW 的一次 access。大多數是 TLB hit：CPU MMU 在自己 core 的 TLB 裡找到對應，硬體直接完成，kernel SW 不用起來。下面的表格同步更新：CPU MMU 查到的 TLB entry 亮灰框，被讀寫的 frame 亮程式的顏色。');
+  } else if (act === 1) {
+    const plan = [[0, 1], [4, 10], [16, 100], [30, 1000]];
+    let L = 1; plan.forEach(([t, v]) => { if (actT >= t) L = v; }); lensT = L;
+    const T = { 1: '接下來每隔幾秒把時間鏡頭拉遠十倍：火車加速，攝影機升高，畫面不停。', 10: '×10：CPU MMU 這邊的刻度越來越密，壓縮層這邊大多還是空的。', 100: '×100：TLB miss 已經分不開，糊成一條帶子，帶子的高度是 kernel SW 花在 TLB miss 上的時間比例。page fault 的大框這時才看得清楚。', 1000: '×1000：畫面裡有上萬次 TLB miss，page fault 只有幾十次。兩邊被叫起來的次數差了好幾個數量級。時間尺度是範例模型的，不是這個平台量出來的。' };
+    setBeat('L' + L, T[L]);
+    if (actT > 46) next();
+  } else if (act === 2) {
+    const steps = [
+      [0, null, '下面的長條和白板圖 D 一樣：working set 和三個容量比。控制只改變之後駛來的事件。先看自動示範。'],
+      [8, { tlb: 64 }, 'TLB entries 16 → 64：短時間用到的 24 個 page 放得進 TLB 了。只有 CPU MMU 那條變薄，壓縮層那條不變。'],
+      [21, { tlb: 16, l2: 8 }, 'TLB 回到 16，L2 縮到 8：TLB miss 的次數不變，但 PTE 那一行常常不在 L2，每一次都變長，帶子變高。對照左上角的次數。'],
+      [34, { l2: 64, frames: 240 }, `L2 回到 64，frame 區從 ${RHY.DEF.frames} 縮到 240，比兩個程式的長期 working set 320 小：page fault 突然變密，壓縮層這邊幾乎沒停過，user SW 一直在等。這就是 thrashing。`],
+      [56, { frames: RHY.DEF.frames, drift: 60 }, `frame 區回到 ${RHY.DEF.frames}，working set 漂移變快：新的 page 不斷進來，兩邊都變多。`],
+      [70, { drift: 5 }, '全部回到預設值。你也可以自己拖動下面的控制。'],
+    ];
+    if (demoOn) steps.forEach(([t, ch, text], j) => { if (actT >= t && beat !== 'd' + j && (j === steps.length - 1 || actT < steps[j + 1][0])) { if (ch) Object.keys(ch).forEach(k => setParam(k, ch[k], true)); setBeat('d' + j, text); } });
+    if (demoOn && actT > 80) next();
+  } else if (act === 3) {
+    const w = 14 * lens * BASE;
+    const ft = upcoming(sim.ev.fault, 't0', now - 2 * lens, now + w), cl = upcoming(sim.ev.clr, 't', now - 2 * lens, now + w);
+    if (ft || cl) slowT = 0.3;
+    if (beatT > 7 || !beat) {
+      if (ft && beat !== 'm1') setBeat('m1', '交會點一：這一次 TLB miss 讀到的 PTE 是 invalid，紅色菱形標的就是它。CPU MMU 這邊的 kernel SW 把工作交給壓縮層這邊，變成 page fault。');
+      else if (cl && beat !== 'm2') setBeat('m2', '交會點二：reclaim 要拿走一個 frame，先把 PTE 設成 invalid，再把這一頁從每一個 core 的 TLB 清掉，紫色菱形標的就是它。怎麼清到別的 core，這個平台還不知道。表格裡那一頁的 TLB entry 被清空，PTE 寫成 invalid，紫色三角形是 clock 的指針。');
+      else if (!beat) setBeat('m0', '兩邊只在兩個地方碰到。碰到的時候，畫面會放慢。working set 漂移調快了，交會點會比較常出現。');
+    }
+  }
+}
+
+/* ---------- camera: rides with now; the viewer's own turn, tilt and zoom are kept on top ---------- */
+const camS = { r: 0.4, ph: 1.0, tx: -15, tz: 1.5 }, off = { th: 0, ph: 0, rk: 1, t: new THREE.Vector3() };
+let last = null, skip = true;
+new ResizeObserver(() => { skip = true; }).observe($('view'));
+$('reset').addEventListener('click', () => { off.th = 0; off.ph = 0; off.rk = 1; off.t.set(0, 0, 0); skip = true; });
+function preset() {
+  const g = Math.min(1, Math.log10(Math.max(1, lens)) / 3);
+  if (act === 0) return { r: 0.4, ph: 1.0, tx: -15, tz: 1.5 };
+  if (act === 1) return { r: 0.4 + 0.42 * g, ph: 1.0 + 0.12 * g, tx: -15 - 19 * g, tz: 1.5 - g };
+  if (act === 2) return { r: 0.8, ph: 1.08, tx: -32, tz: 0.5 };
+  return { r: 0.62, ph: 1.0, tx: -22, tz: 1.5 };
+}
+function camFrame(dt) {
+  if (last && !skip) { off.th += cam.th - last.th; off.ph += cam.ph - last.ph; off.rk *= cam.r / last.r; off.t.add(V.copy(cam.t).sub(last.t)); }
+  skip = false;
+  const p = preset(), a = 1 - Math.exp(-dt * 1.4);
+  camS.r += (p.r - camS.r) * a; camS.ph += (p.ph - camS.ph) * a; camS.tx += (p.tx - camS.tx) * a; camS.tz += (p.tz - camS.tz) * a;
+  cam.th = off.th; cam.ph = Math.min(1.45, Math.max(0.1, camS.ph + off.ph)); cam.r = HOME.r * camS.r * off.rk;
+  cam.t.set(camS.tx, HOME.t.y, HOME.t.z + camS.tz).add(off.t); placeCamera();
+  last = { th: cam.th, ph: cam.ph, r: cam.r, t: cam.t.clone() };
+}
+
+/* ---------- sound, off until asked for ---------- */
+let AC = null, hum = null, humG = null, soundOn = false;
+$('sound').addEventListener('click', () => {
+  soundOn = !soundOn; $('sound').setAttribute('aria-pressed', soundOn); $('sound').textContent = soundOn ? '聲音：開' : '聲音：關';
+  if (soundOn && !AC) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; AC = new A(); hum = AC.createOscillator(); humG = AC.createGain(); hum.type = 'sawtooth'; hum.frequency.value = 110; humG.gain.value = 0; hum.connect(humG).connect(AC.destination); hum.start(); }
+  if (AC) { if (soundOn) AC.resume(); else humG.gain.value = 0; }
+});
+function blip(freq, len, gain, type) {
+  const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
+  o.type = type || 'square'; o.frequency.value = freq; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  o.connect(g).connect(AC.destination); o.start(t); o.stop(t + len + 0.02);
+}
+function sound(prev, dt) {
+  if (!soundOn || !AC || dt <= 0) return;
+  let n = 0; for (let j = sim.ev.tick.length - 1; j >= 0 && sim.ev.tick[j].t > prev; j--) if (sim.ev.tick[j].t <= now) n++;
+  const rate = n / dt;
+  if (rate < 25) { for (let j = 0; j < Math.min(n, 4); j++) blip(2200, 0.02, 0.04); humG.gain.value = 0; }
+  else humG.gain.value = Math.min(0.05, rate / 6000);
+  for (const f of sim.ev.fault) if (f.t0 > prev && f.t0 <= now) blip(70, 0.35, 0.3, 'sine');
+  for (const c of sim.ev.clr) if (c.t > prev && c.t <= now) blip(880, 0.12, 0.06, 'triangle');
+}
+
+/* ---------- speech bubbles and the counter ---------- */
+function bubbles(o) {
+  const b = {}, name = (k, t) => `<b>${k}</b>${t}`, close = lens < 20;
+  for (let p = 0; p < 2; p++) {
+    const w = o.waitNow.find(x => x.prog === p), nm = p ? 'USER SW B' : 'USER SW A';
+    if (w) b[p ? 'ub' : 'ua'] = { html: name(nm, 'waiting for page ' + hex(w.p)), hot: true };
+    else if (act === 0) b[p ? 'ub' : 'ua'] = { html: name(nm, 'running · TLB hits need no kernel') };
+  }
+  for (let c = 0; c < 2; c++) {
+    const e = o.last[c], k = c ? 'k1' : 'k0', nm = 'KERNEL SW · CORE ' + c;
+    if (close && e && now - e.t < 1.6 * SPEED * pace * slow * lens * BASE) b[k] = { html: name(nm, e.fault ? 'TLB miss: the PTE is invalid' : 'TLB miss: read the PTE, fill the TLB'), hot: !!e.fault };
+    else if (!close) b[k] = { html: name(nm, fmt(o.tick[c]) + ' TLB misses in view') };
+  }
+  if (o.faultNow.length) { const f = o.faultNow[0]; b.kc = { html: name('KERNEL SW', `page fault on Core ${f.core}: DECOMPRESS page ${hex(f.p)}` + (f.tw && now < f.tw[1] ? ' · waiting for a free frame' : '')), hot: true }; }
+  else if (o.recNow.length) b.kc = { html: name('KERNEL SW', `reclaim: COMPRESS page ${hex(o.recNow[0].p)}` + (o.recNow.length > 1 ? ` and ${o.recNow.length - 1} more` : '')) };
+  else b.kc = { html: name('KERNEL SW', close ? 'nothing to do' : `${fmt(o.fault)} page faults · ${fmt(o.rec)} reclaims in view`) };
+  if (o.jobNow.length) { const j = o.jobNow; b.lz = { html: name('LZ4 HW', j.slice(0, 2).map(x => (x.op === 'D' ? 'DECOMPRESS ' : 'COMPRESS ') + hex(x.p)).join(' · ') + (j.length > 2 ? ` · +${j.length - 2}` : '')) }; }
+  else b.lz = { html: name('LZ4 HW', 'idle') };
+  return b;
+}
+function hud(o) {
+  const L = lens < 1.5 ? '×1' : '×' + fmt(lens);
+  const m = o.tick[0] + o.tick[1];
+  $('hud').innerHTML = `<div><span class="lens">time lens ${L}</span> <span class="why">example model time, not measured</span></div>` +
+    `<div>in view: ${fmt(m)} TLB misses · ${fmt(o.fault)} page faults · ${fmt(o.rec)} reclaims` + (o.fault >= 5 && lens >= 10 ? ` <span class="why">· ${fmt(m / o.fault)} per fault</span>` : '') + '</div>';
+}
+
+/* ---------- the loop ---------- */
+$('play').addEventListener('click', () => { playing = !playing; $('play').textContent = playing ? '暫停' : '播放'; });
+$('auto').addEventListener('click', () => { auto = !auto; $('auto').setAttribute('aria-pressed', auto); });
+document.querySelectorAll('[data-pace]').forEach(b => b.addEventListener('click', () => { pace = +b.dataset.pace; document.querySelectorAll('[data-pace]').forEach(x => x.setAttribute('aria-pressed', x === b)); }));
+const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+if (mq && mq.addEventListener) mq.addEventListener('change', () => { buildAll(); colors(); stateColors(); });
+buildAll(); colors(); stateColors(); enter(0);
+// ?act=K starts at act K, ?skip=S runs S seconds of the story at once (for a quick look or a screenshot)
+const QS = new URLSearchParams(location.search);
+if (+QS.get('act') > 1) enter(Math.min(4, +QS.get('act')) - 1);
+function step(dt) {
+  runAct(playing ? dt : 0); stepTweens(dt);
+  slow += (slowT - slow) * (1 - Math.exp(-dt * 3));
+  lens *= Math.pow(lensT / lens, 1 - Math.exp(-dt * 0.9)); if (Math.abs(lens / lensT - 1) < 0.002) lens = lensT;
+  sim.recAcc = lens < 3;
+  if (playing) now += dt * SPEED * pace * slow * lens * BASE * (REDUCE ? 0.5 : 1);
+  sim.advance(now + 20 * lens * BASE + 50);
+  if ((pruneT += dt) > 1) { pruneT = 0; sim.prune(now - KEEP); }
+  stateStep(sim, now);
+}
+for (let w = +QS.get('skip') || 0; w > 0; w -= 0.05) { step(0.05); if (w < 0.1) lastOut = draw(sim, now, lens); }
+let tPrev = performance.now();
+function frame(tNow) {
+  const dt = Math.max(0, Math.min(0.05, (tNow - tPrev) / 1000)); tPrev = Math.max(tPrev, tNow);
+  const prev = now;
+  step(dt);
+  lastOut = draw(sim, now, lens);
+  sound(prev, dt);
+  // characters: kernel SW on the CPU MMU side hops at each TLB miss
+  for (let c = 0; c < 2; c++) { const e = lastOut.last[c], g = CH['k' + c], age = e ? (now - e.t) / (lens * BASE) : 99; g.position.y = lens < 20 ? Math.max(0, 0.8 * (1 - age / 0.8)) : 0.25 * Math.abs(Math.sin(tNow / 90 + c)); }
+  CH.kc.position.y = lastOut.faultNow.length || lastOut.recNow.length ? 0.3 * Math.abs(Math.sin(tNow / 160)) : 0;
+  CH.ua.position.y = lastOut.waitNow.some(w => w.prog === 0) ? 0 : 0.15 * Math.abs(Math.sin(tNow / 200));
+  CH.ub.position.y = lastOut.waitNow.some(w => w.prog === 1) ? 0 : 0.15 * Math.abs(Math.sin(tNow / 230 + 1));
+  camFrame(dt);
+  if (renderer) renderer.render(scene, camera);
+  const say = bubbles(lastOut); placeOverlays(say);
+  hud(lastOut);
+  stateDraw(sim, now, lens);
+  requestAnimationFrame(frame);
+}
+drawRate();
+requestAnimationFrame(frame);
+
+</script>
+</body>
+</html>

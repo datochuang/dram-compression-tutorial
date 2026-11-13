@@ -228,6 +228,8 @@ CPU MMU 與壓縮層都在管 page，但它們是兩件事。CPU MMU 這邊是�
 
 working set 一旦超過 frame 區，轉換的頻率不是慢慢增加，而是突然跳上去。這是壓縮層最壞情況的來源。
 
+同一件事有一個會動的版本：[兩種節奏動畫](https://datochuang.github.io/dram-compression-tutorial/rhythm/)。時間沿著軌道連續往前跑，可以拉遠時間鏡頭，也可以拖動 TLB、L2、frame 區與 working set 的大小。下方的表格同步顯示 TLB、page table 與 COT、frame 在每一步被誰讀、被誰寫。模型的大小與時間都是範例。
+
 有一個相關的推論沒有上圖。照 P1，page 有沒有被用過只能在 TLB miss handler 裡記。一個 page 一直 TLB hit，kernel 就看不到它被用過，挑要收起來的 page 時可能挑錯。這是控制程序文件的 D5，還沒有設計。
 
 所以兩者的 co-design 發生在 kernel 改表的順序與 lock，不在硬體。
@@ -271,6 +273,7 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 | 想知道 | 讀 |
 |---|---|
 | 一次 access 的三種結果、同一個 core 的兩個 hardware thread 共用 TLB、L1 與 L2 cache、兩個 core 的 TLB 怎麼變得不一致、兩個 core 同時 page fault 時的 `mm_lock`、兩個 core 同時碰同一個 page，一步一步看 | [CPU MMU 動畫](https://datochuang.github.io/dram-compression-tutorial/mmu/)，十個場景。原始檔是 `addrspace/mmu3d.src.html`，建置結果在 `docs/mmu/`，建置命令在第 15 節 |
+| 白板圖 D 會動的版本：兩邊多常叫醒 kernel SW，頻率由什麼決定，兩邊在哪裡碰到，每一步動到哪些表 | [兩種節奏動畫](https://datochuang.github.io/dram-compression-tutorial/rhythm/)，四幕。原始檔是 `addrspace/rhythm3d.src.html`，建置結果在 `docs/rhythm/`，建置命令在第 15 節 |
 | 加了壓縮層之後，一個 page 有哪些狀態 | [figures/README.md](figures/README.md) 的圖 0 |
 | 資料在 logical 與 physical 兩邊各長什麼樣子 | address 動畫，`docs/addrspace/` |
 | kernel SW 在每個場景的每一步 | [figures/README.md](figures/README.md) 的圖 1 到圖 11 |
@@ -366,5 +369,6 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 | `python3 ../docs/lz4-verify/plan512.py` | 印出第 9 節到第 12 節用到的每個數字 |
 | `python3 ../addrspace/build.py ../docs/addrspace/index.html --3d` | 重建 address 動畫 |
 | `python3 ../addrspace/build.py ../docs/mmu/index.html --mmu` | 重建 CPU MMU 動畫 |
+| `python3 ../addrspace/build.py ../docs/rhythm/index.html --rhythm` | 重建兩種節奏動畫 |
 
 改中文內容的流程：改 `src/page.html`，執行 `node build.js` 看 MISSING，用 `node i18n.js set` 補英文，再執行 `node build.js` 確認兩版都走完。
