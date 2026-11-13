@@ -249,7 +249,7 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 
 | 想知道 | 讀 |
 |---|---|
-| 一次 access 的三種結果、同一個 core 的兩個 hardware thread 共用 TLB、L1 與 L2 cache、兩個 core 的 TLB 怎麼變得不一致、兩個 core 同時 page fault 時的 `mm_lock`、兩個 core 同時碰同一個 page，一步一步看 | CPU MMU 動畫，十個場景。原始檔是 `addrspace/mmu3d.src.html`，建置命令在第 15 節，還沒有發佈 |
+| 一次 access 的三種結果、同一個 core 的兩個 hardware thread 共用 TLB、L1 與 L2 cache、兩個 core 的 TLB 怎麼變得不一致、兩個 core 同時 page fault 時的 `mm_lock`、兩個 core 同時碰同一個 page，一步一步看 | [CPU MMU 動畫](https://datochuang.github.io/dram-compression-tutorial/mmu/)，十個場景。原始檔是 `addrspace/mmu3d.src.html`，建置結果在 `docs/mmu/`，建置命令在第 15 節 |
 | 加了壓縮層之後，一個 page 有哪些狀態 | [figures/README.md](figures/README.md) 的圖 0 |
 | 資料在 logical 與 physical 兩邊各長什麼樣子 | address 動畫，`docs/addrspace/` |
 | kernel SW 在每個場景的每一步 | [figures/README.md](figures/README.md) 的圖 1 到圖 11 |
@@ -288,10 +288,10 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 | `spec/` | 規格與分析。兩份主要產出是 `spec/lz4-hw-design-spec-v0.md` 與 `spec/control-procedures-v0.md`。兩者之間的介面在 `spec/hw-fw-interface.md` |
 | `sim/` | 模擬器與測試。`sim/ifsim` 是介面與時間的模型，`sim/hostsim` 是 kernel SW 的模型，`sim/hwref` 是 LZ4 HW 的 cycle 等級 reference，`sim/lz4sim` 是最早的系統模擬器 |
 | `figures/` | 白板工程圖與分析圖。`figures/cpu-mmu-basics/` 與 `figures/system-overview/` 是這份文件用的圖，`figures/README.md` 是 kernel SW 的十三張圖 |
-| `addrspace/` | address 動畫與 CPU MMU 動畫的原始檔。address 動畫的建置結果在 `docs/addrspace/`。CPU MMU 動畫還沒有發佈 |
+| `addrspace/` | address 動畫與 CPU MMU 動畫的原始檔。address 動畫的建置結果在 `docs/addrspace/`，CPU MMU 動畫的在 `docs/mmu/` |
 | `src/` | 圖解說明文件的原始檔與建置工具，見第 15 節 |
 | `docs/` | GitHub Pages 發佈的頁面，從 `main` 的 `/docs` 發佈。草稿不要放在這裡 |
-| `reference/` | Linux zram 的原始碼與研讀筆記，只用來對照，不複製進 `sim/` 與 `spec/`。目前只在本機，還沒有 commit |
+| `reference/` | Linux zram 的原始碼與研讀筆記，只用來對照，不複製進 `sim/` 與 `spec/`。只放在本機，不 commit |
 
 `spec/` 裡大部分的文件是模擬器照 template 產生的，數字來自實際執行，不要直接改。手寫的只有 `spec/kernel-sw-efficiency-in-perspective.md` 與 `spec/failure-detection-options.md`。
 
@@ -318,6 +318,7 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 - [3D replay，HW-leaning 設計](https://datochuang.github.io/dram-compression-tutorial/replay/hardware/)
 - [3D 課程](https://datochuang.github.io/dram-compression-tutorial/lesson/)：逐 byte 的壓縮與解壓縮，四課。
 - [address 動畫](https://datochuang.github.io/dram-compression-tutorial/addrspace/)：一個 symbol 在 logical 與 physical 兩邊的樣子。
+- [CPU MMU 動畫](https://datochuang.github.io/dram-compression-tutorial/mmu/)：TLB、core、hardware thread、L1 與 L2 cache、`mm_lock`，十個場景。這一頁以 CPU MMU 為主角，可以和這份文件一起讀。
 
 ## 15. 圖解說明文件的原始檔與建置
 
@@ -343,6 +344,6 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 | `python3 figs9.py` | 只有改第 9 節的數字或圖時才需要，之後再 `node build.js` |
 | `python3 ../docs/lz4-verify/plan512.py` | 印出第 9 節到第 12 節用到的每個數字 |
 | `python3 ../addrspace/build.py ../docs/addrspace/index.html --3d` | 重建 address 動畫 |
-| `python3 ../addrspace/build.py OUT.html --mmu` | 建 CPU MMU 動畫，寫到 `OUT.html`。這一頁還沒有發佈，輸出不要放在 `docs/` |
+| `python3 ../addrspace/build.py ../docs/mmu/index.html --mmu` | 重建 CPU MMU 動畫 |
 
 改中文內容的流程：改 `src/page.html`，執行 `node build.js` 看 MISSING，用 `node i18n.js set` 補英文，再執行 `node build.js` 確認兩版都走完。
