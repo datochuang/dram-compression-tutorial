@@ -25,7 +25,7 @@
 | 4 | 有多個 core 時，哪些東西每個 core 一份 | 白板圖 1 | |
 | 5 | 好幾個 core 同時進 kernel 會怎樣 | 白板圖 3 | |
 | 6 | kernel 拿走一個 page 的 frame 時，各個 core 的 TLB 怎麼辦 | 白板圖 C | |
-| 7 | 壓縮層接在哪裡，LZ4 HW 怎麼服務每個 core | 白板圖 4 | |
+| 7 | 壓縮層接在哪裡，LZ4 HW 怎麼服務每個 core；兩邊多常叫醒 kernel SW | 白板圖 4、白板圖 D | |
 | 8 | 加了壓縮層之後，一個 page 有哪些狀態 | 圖 0 | 主管與新手 |
 | 9 | kernel 的表放在哪裡，每個場景大約要多少 | 圖 1、圖 11 | 需要設計的工程師 |
 | 10 | 常見的 page fault 拆開來，每一步做什麼 | 圖 2、圖 3、圖 4 | |
@@ -237,6 +237,25 @@ N 等於 4 的模擬看到三件事，數字在 [spec/sim-results-v0.md](../spec
 - 最慢的 page fault 變成碰到正在被 COMPRESS 的 page 的那一種。它等的是 kernel 自己送出的 COMPRESS，engine 再多也沒用。
 
 還不知道的：job ring 是一個，還是每個 core 一個；N 個 engine 怎麼接到 DRAM，模擬照共用一個算；N 個 engine 是否完全相同。
+
+### 白板圖 D：兩邊各多常叫醒 kernel SW，由什麼決定
+
+CPU MMU 與壓縮層都在管 page，但它們是兩件事。CPU MMU 這邊是小工作、很常做；壓縮層這邊是大工作，只在 page 進出 frame 時做。兩者只在兩個地方碰到。
+
+![Two sides, two rhythms: when the kernel SW wakes up](cpu-mmu-basics/04-two-sides-two-rhythms.png)
+
+| 圖上的東西 | 意思 |
+|---|---|
+| 時間軸 | 上面一條是 user SW，中間是 CPU MMU 這邊的 kernel SW，下面是壓縮層這邊的 kernel SW。間距只用來對照，沒有量過。這個平台的 fault 率還沒有實際資料 |
+| 兩條虛線箭頭 | 兩邊碰到的兩個地方。往下的那條：一次 TLB miss 發現 PTE 是 invalid，變成 page fault。往上的那條：reclaim 拿走 frame 時，要把那個 page 從每個 core 的 TLB 清掉 |
+| What sets the rate | 兩邊的頻率都由 working set 和一個容量相比決定。CPU MMU 這邊是 TLB reach，也就是 TLB 格數乘以 4 KB，對上短時間內碰到的 page。壓縮層這邊是 frame 區，對上長時間內碰到的 page。frame 區比 TLB reach 大好幾個數量級，所以 TLB miss 遠比 page fault 多 |
+| L2 的括號 | L2 不改變兩邊的次數，只改變每一次的代價。refill handler 讀的 PTE 在 L2 裡就快。LZ4 HW 寫進 DRAM 的 page 不在任何 cache 裡，fault 回來之後的頭幾次存取一定 miss L2 |
+| COT | kernel 的表，每個 page 一筆，記壓縮後的資料放在哪些 chunk。LZ4 HW 不讀它 |
+| who designs it | CPU MMU 這邊固定的只有 TLB。照平台前提 P1，refill handler 與 PTE 的格式由 kernel 決定 |
+
+working set 一旦超過 frame 區，轉換的頻率不是慢慢增加，而是突然跳上去。這是壓縮層最壞情況的來源。
+
+有一個相關的推論沒有上圖。照 P1，page 有沒有被用過只能在 TLB miss handler 裡記。一個 page 一直 TLB hit，kernel 就看不到它被用過，挑要收起來的 page 時可能挑錯。這是控制程序文件的 D5，還沒有設計。
 
 **留給下一層的問題**：kernel 把一個 page 收起來之後，PTE 是 invalid。page fault 時 kernel 怎麼知道這個 page 現在是什麼情形？
 

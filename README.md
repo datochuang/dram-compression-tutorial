@@ -211,6 +211,27 @@ lock 保護的是共用的表，不是硬體。core 再多、硬體再快，只�
 
 CPU MMU 自己看到的仍然只有 TLB 裡有或沒有。kernel 的 TLB miss handler 看到的是 PTE 是 valid 或 invalid。「invalid 的 page 內容現在在哪裡」完全記在 kernel 自己的表裡，CPU 不知道。這是壓縮層文件的起點，見第 11 節的「page 的六種狀態」。
 
+### 白板圖 D：兩邊各多常叫醒 kernel SW，由什麼決定
+
+CPU MMU 與壓縮層都在管 page，但它們是兩件事。CPU MMU 這邊是小工作、很常做；壓縮層這邊是大工作，只在 page 進出 frame 時做。兩者只在兩個地方碰到。
+
+![Two sides, two rhythms: when the kernel SW wakes up](figures/cpu-mmu-basics/04-two-sides-two-rhythms.png)
+
+| 圖上的東西 | 意思 |
+|---|---|
+| 時間軸 | 上面一條是 user SW，中間是 CPU MMU 這邊的 kernel SW，下面是壓縮層這邊的 kernel SW。間距只用來對照，沒有量過。這個平台的 fault 率還沒有實際資料 |
+| 兩條虛線箭頭 | 兩邊碰到的兩個地方。往下的那條：一次 TLB miss 發現 PTE 是 invalid，變成 page fault。往上的那條：reclaim 拿走 frame 時，要把那個 page 從每個 core 的 TLB 清掉 |
+| What sets the rate | 兩邊的頻率都由 working set 和一個容量相比決定。CPU MMU 這邊是 TLB reach，也就是 TLB 格數乘以 4 KB，對上短時間內碰到的 page。壓縮層這邊是 frame 區，對上長時間內碰到的 page。frame 區比 TLB reach 大好幾個數量級，所以 TLB miss 遠比 page fault 多 |
+| L2 的括號 | L2 不改變兩邊的次數，只改變每一次的代價。refill handler 讀的 PTE 在 L2 裡就快。LZ4 HW 寫進 DRAM 的 page 不在任何 cache 裡，fault 回來之後的頭幾次存取一定 miss L2 |
+| COT | kernel 的表，每個 page 一筆，記壓縮後的資料放在哪些 chunk。LZ4 HW 不讀它 |
+| who designs it | CPU MMU 這邊固定的只有 TLB。照平台前提 P1，refill handler 與 PTE 的格式由 kernel 決定 |
+
+working set 一旦超過 frame 區，轉換的頻率不是慢慢增加，而是突然跳上去。這是壓縮層最壞情況的來源。
+
+有一個相關的推論沒有上圖。照 P1，page 有沒有被用過只能在 TLB miss handler 裡記。一個 page 一直 TLB hit，kernel 就看不到它被用過，挑要收起來的 page 時可能挑錯。這是控制程序文件的 D5，還沒有設計。
+
+所以兩者的 co-design 發生在 kernel 改表的順序與 lock，不在硬體。
+
 ## 9. 前提、推論、還不知道的
 
 | 類別 | 內容 | 用在哪一層 |

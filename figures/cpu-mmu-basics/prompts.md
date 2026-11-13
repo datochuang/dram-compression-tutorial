@@ -1,6 +1,6 @@
 # 圖像生成提示詞：CPU MMU basics
 
-**版本**：Prompt 1 與 Prompt 2 是第一版。Prompt 3 是第二版，改了什麼寫在那一節的開頭。三張都已驗收，紀錄在 `review-gen3-20261113.md`。
+**版本**：Prompt 1 與 Prompt 2 是第一版。Prompt 3 是第二版，改了什麼寫在那一節的開頭。三張都已驗收，紀錄在 `review-gen3-20261113.md`。Prompt 4 是 2026-11-13 加的第 D 張，對照 CPU MMU 與壓縮層。
 
 **對象**：用 `sketchnote-gen` skill 生成這組圖的人，以及讀圖驗收的 agent。
 **目的**：讓沒有接觸過 CPU MMU 的 team member 與主管看懂三件事：address 為什麼要轉換；page table、TLB、CPU MMU 各是什麼；kernel 把一個 page 的 frame 拿走時，為什麼要先清掉每個 core 的 TLB。
@@ -17,6 +17,7 @@
 | A | `01-why-translate.png` | user SW 用的 address 為什麼不是 DRAM 上的位置？ | 轉換只回答一件事：這個 page 現在在哪個 frame。page 裡面的位置不變。 |
 | B | `02-page-table-tlb-mmu.png` | 轉換靠哪些東西，各在哪裡，誰讀誰寫？ | page table 是 DRAM 裡的完整對照表，只有 kernel SW 讀寫。TLB 是 CPU 裡的一小份抄本，由 kernel SW 填。CPU MMU 只查 TLB。 |
 | C | `03-clear-every-tlb-first.png` | kernel 改了 PTE，別的 core 的 TLB 還留著舊的，怎麼辦？ | 順序固定：PTE 改成 invalid，把這一筆從每個 core 的 TLB 清掉，之後才能動那個 frame。 |
+| D | `04-two-sides-two-rhythms.png` | CPU MMU 與壓縮層都在管 page，為什麼不是同一個東西？ | 同一份 kernel SW 做兩種工作。CPU MMU 這邊是小工作、很常做；壓縮層這邊是大工作，只在 page 進出 frame 時做。兩者只在兩個地方交會。 |
 
 ---
 
@@ -230,4 +231,87 @@ instance in Core 0 or a figure in Core 1; draw an arrow from a TLB box to the pa
 draw a purple arrow to the frame icon; draw more than five arrows; let two arrows cross;
 draw more than one figure; draw a padlock; hatch anything; write any vendor or product
 name; rewrite the subtitle or the bottom bar; write any non-English text.
+```
+
+## Prompt 4：04-two-sides-two-rhythms
+
+第三版，2026-11-13。回答同事的問題：CPU MMU 與壓縮層都是「page 的管理和轉換」，為什麼不 co-design。內容來自 `README.md` 第 3、6、7 層與 `CLAUDE.md` 的推論 1、2。頻率沒有量過，fault 率也沒有實際資料；能確定的只有每一次 fault 之前一定先有一次 TLB miss。所以時間軸上的間距只用來對照，圖上寫明不是量測。TLB miss handler 一次多久在這個平台還不知道，表上只寫它做什麼，不寫多久。這張是這一組唯一提到 LZ4 HW 的，只出現在文字裡。
+
+第一版的圖在 `gen4/`，冷讀困惑指數 2，紀錄在 `blind-review/cold-read-gen4-20261113.md`。這一版改的地方：user SW 的缺口從觸發 fault 的那次 TLB miss 開始，到 page fault 框結束才接回，缺口期間沒有其他刻度；位置用十等分寫死；清 TLB 改用菱形，和 TLB miss 的刻度分開；兩條虛線加箭頭，方向照因果；缺口的說明改黑色；`how many` 列寫出主詞；`who it serves` 改成 `on whose path`，避免和 user SW 在等 page 矛盾；Key point 去掉容易被讀成「應該合併」的 One kernel SW，改說兩者只在兩個地方碰到。
+
+第二版的圖在 `gen5/`，還剩 page fault 框上方多一個刻度、缺口比框早結束。第三版照負責人的補充加了「頻率由什麼決定」：兩邊都是 working set 和一個容量比，CPU MMU 這邊是 TLB reach 對短時間的 working set，壓縮層這邊是 frame 區對長時間的 working set；L2 只改變每一次的代價，不改變次數。表格的 why 與 how often 兩列併成 rate set by。TLB 太大會讓 kernel 少看到 accessed 這一點不上圖，它是還沒設計的 D5。冷讀之後，`who designs it` 的 CPU MMU 那一格從 comes with the CPU, fixed 改成現在的字串：照 P1，refill handler 與 PTE 格式由 kernel 決定，固定的只有 TLB。這一格是用 edit 改的，驗收的圖是 `gen6/04-two-sides-two-rhythms.r2.png`。
+
+```
+Badge: "D"
+Title: "Two Sides, Two Rhythms: When the Kernel SW Wakes Up"
+Subtitle (blue): "The CPU MMU needs the kernel on every TLB miss. The compression layer needs it only when a page moves into or out of a frame."
+
+This sheet has no core box, no DRAM box, no strip, no frame icon, no figure and no hatching.
+
+Layout: three bands, then the bottom bar. The top band, a little over a third of the
+sheet, is one wide timeline panel. The middle band, short and full width, is the rate
+panel. The lower band holds a table across the left two thirds and a sticky note in the
+right third.
+
+The timeline panel. Three horizontal lanes stacked one above the other, all the same
+length, each with its bold label at its left end. Under the lowest lane, one thin black
+horizontal axis line with one arrowhead at its right end, labeled "time" at the right.
+Under the axis, in small blue letters: "spacing drawn to show the contrast, not measured".
+Think of the length of the lanes as ten equal parts, numbered from the left; these parts
+are for placement only and are never drawn or numbered.
+- Middle lane, label "kernel SW: CPU MMU side": short thin purple vertical ticks, all the
+  same height, about two in every part, spread unevenly, except in parts four and five,
+  which hold exactly one tick, at the very start of part four. Above parts six to ten of
+  this lane, in small purple letters: "each tick: a TLB miss, read one PTE, fill one TLB entry".
+  At the middle of part eight, on this lane, one small hollow purple diamond instead of a
+  tick, with the small purple label beside it: "clear this page from every core's TLB".
+- Bottom lane, label "kernel SW: compression layer side": exactly two wide blocks, each a
+  kernel instance. The left block spans exactly parts four and five: "page fault",
+  "DECOMPRESS into a free frame". The right block spans exactly parts seven to nine:
+  "reclaim", "COMPRESS a page, free its frame".
+- Top lane, label "user SW": one thin orange bar along the whole lane except one gap. The
+  gap starts exactly above the tick at the start of part four and ends exactly at the end of
+  part five, the right edge of the page fault block. Centered above the gap, in small black
+  letters: "waits for its page".
+- Exactly two dashed purple lines, each with one arrowhead:
+  - from the tick at the start of part four straight down to the top edge of the page fault
+    block, arrowhead at the block, with the small purple label "this TLB miss finds the PTE invalid".
+  - from the top edge of the reclaim block straight up to the diamond, arrowhead at the
+    diamond, with no label.
+
+The rate panel, the middle band. A bold heading at its left: "What sets the rate".
+To the right of the heading, one long thin horizontal bar with a black outline and a plain
+white fill, labeled inside in small letters: "working set of user SW". Directly above the
+bar, three brackets that all start at the bar's left end and open downward toward it,
+stacked so they do not overlap: a short one labeled "TLB reach", a medium one labeled "L2",
+and a long one labeled "frames in DRAM" that ends a little before the bar's right end.
+Under the bar, two small purple labels: under the part of the bar past the end of the
+TLB reach bracket, "past the TLB reach: TLB misses"; under the part past the end of the
+frames bracket, "past the frames: page faults". Beside the L2 bracket, in small blue
+letters: "L2 changes the cost of each event, not the count". At the right end of the
+panel, in small blue letters: "not to scale; a faster-moving working set raises both rates".
+
+The table, across the left two thirds of the lower band. Heading: "Side by side".
+Three columns. Column headings: "", "CPU MMU side", "compression layer side". Five rows:
+- "rate set by" | "TLB reach against a short-term working set" | "frames against a long-term working set"
+- "work each time" | "read one PTE, fill one entry" | "lock, LZ4 HW job, lock again"
+- "how many" | "one TLB per core, shared by its threads" | "one COT and one LZ4 HW for all cores"
+- "on whose path" | "every load and store of user SW" | "only an access whose page has no frame"
+- "who designs it" | "TLB fixed; handler and PTE format: ours" | "our own design, can change"
+
+The sticky note, in the right third of the lower band. Heading: "Where the two meet".
+Two lines: "every page fault begins as a TLB miss",
+"taking a frame away clears that page from every TLB".
+
+Bottom bar, label "Key point": "Two different jobs: the CPU MMU side is small work done very often; the compression layer side is large work done only when a page moves. They touch at just two points."
+
+Text manifest: auto
+
+Do not: write any digit or number that is not quoted; draw or number the ten parts; draw a
+clock, a ruler or tick marks with numbers on the time axis; draw a chart, a bar graph or
+percentages; put more than one tick in parts four and five; add a sixth row or a fourth
+column to the table; draw more than three brackets; draw an arrow in the rate panel; draw more than two blocks in the bottom lane; draw more than two
+dashed lines; draw any figure or person; draw a core box or a DRAM box; hatch anything;
+write any vendor or product name; write MMU without CPU in front of it; rewrite the
+subtitle or the bottom bar; write any non-English text.
 ```
