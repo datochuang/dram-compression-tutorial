@@ -1,0 +1,165 @@
+<title>Two Sides Two Rhythms</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* layout: one column. Act tabs and the caption sit above one 3D stage: time runs along four flat tracks, far to near user SW, kernel SW on the CPU MMU side, kernel SW on the compression layer side, LZ4 HW. "Now" is a line near the right; the camera rides along with it. The speech bubbles have their own column right of the stage, so none covers a track. Under the stage: the tables at "now" (TLB per core, page table with COT, frames) and a step log. Then what sets the rate, with the controls. Notes last. */
+/*INCLUDE common.css*/
+:root { --kern: #6a3fb5; --kern-tint: #ece4f9; --lz: #a35f00; --lz-tint: #fbebd3; --ua: #1b5ea6; --ub: #b0306a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --kern: #b99cf0; --kern-tint: #2c2240; --lz: #e8a64c; --lz-tint: #3d2a10; --ua: #82b8f2; --ub: #f08cbc; } }
+:root[data-theme="dark"] { --kern: #b99cf0; --kern-tint: #2c2240; --lz: #e8a64c; --lz-tint: #3d2a10; --ua: #82b8f2; --ub: #f08cbc; }
+.view { position: relative; display: flex; height: clamp(360px, calc(100vh - 500px), 600px); border-bottom: 1px solid var(--line); overflow: hidden; }
+.cv { position: relative; flex: 1 1 auto; min-width: 0; height: 100%; }
+.voices { position: relative; flex: 0 0 284px; border-left: 1px solid var(--line); background: var(--bg); }
+.leads { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }
+.leads path { fill: none; stroke-width: 1.6; opacity: .75; }
+.view canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; outline-offset: -2px; }
+.view canvas.drag { cursor: grabbing; }
+.view .reset { position: absolute; right: 10px; bottom: 8px; border: 1px solid var(--line); background: var(--paper); border-radius: 6px; padding: 4px 12px; font-family: var(--disp); font-weight: 700; font-size: 13px; cursor: pointer; z-index: 3; }
+.view .nogl { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; color: var(--muted); text-align: center; }
+.ov { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.bub { position: absolute; left: 10px; right: 10px; background: var(--paper); border: 2px solid var(--ink); border-radius: 10px; padding: 5px 10px 6px; font: 600 15px/1.3 var(--mono); color: var(--ink); box-shadow: 0 2px 6px rgba(0,0,0,.12); white-space: normal; }
+.bub b { display: block; font: 800 12px/1.2 var(--disp); letter-spacing: .06em; margin-bottom: 2px; }
+.bub.user-a { border-color: var(--ua); } .bub.user-a b { color: var(--ua); }
+.bub.user-b { border-color: var(--ub); } .bub.user-b b { color: var(--ub); }
+.bub.kern { border-color: var(--kern); } .bub.kern b { color: var(--kern); }
+.bub.lz { border-color: var(--lz); } .bub.lz b { color: var(--lz); }
+.bub.hot { background: var(--flash); }
+.trk { position: absolute; font: 700 13.5px/1.25 var(--disp); color: var(--ink); background: color-mix(in srgb, var(--paper) 82%, transparent); padding: 2px 7px; border-radius: 4px; transform: translateY(-50%); white-space: nowrap; }
+.trk small { display: block; font: 400 11.5px/1.2 var(--mono); color: var(--muted); }
+.hud { position: absolute; left: 10px; top: 8px; right: 10px; width: fit-content; max-width: calc(100% - 20px); font: 600 13px/1.4 var(--mono); color: var(--ink); background: color-mix(in srgb, var(--paper) 88%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; z-index: 3; }
+.hud .lens { font: 800 16px/1.3 var(--disp); }
+.hud .why { color: var(--muted); font-weight: 400; font-size: 12px; }
+.hint { margin: 0; padding: 7px 14px 0; font-size: 12.5px; color: var(--muted); }
+.state { border-bottom: 1px solid var(--line); background: var(--paper); }
+.state canvas { display: block; width: 100%; height: 272px; }
+.slog { padding: 4px 16px 8px; min-height: 7.6em; }
+.slog p { margin: 0; padding: 1px 6px; font: 400 13px/1.45 var(--mono); color: var(--ink); border-radius: 4px; }
+.slog p.new { background: var(--flash); }
+.slog p.far { color: var(--muted); }
+.slog b { display: inline-block; min-width: 7.2em; font: 800 12px/1.45 var(--disp); letter-spacing: .04em; }
+.slog b.kern { color: var(--kern); } .slog b.lz { color: var(--lz); }
+.legend i.rd { background: transparent; border: 2.5px solid var(--kern); } .legend i.wr { background: var(--kern); border-color: var(--kern); }
+.legend i.hw { background: transparent; border: 2.5px solid var(--ink); } .legend i.lzr { background: var(--lz); border-color: var(--lz); }
+.legend i.cot { background: repeating-linear-gradient(135deg, var(--lz) 0 1.5px, var(--lz-tint) 1.5px 5px); border-color: var(--lz); }
+.legend i.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--kern); border: 0; }
+.legend i.hand { width: 0; height: 0; border: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid var(--kern); background: none; }
+.who.kern2 { color: var(--kern); background: var(--kern-tint); border-color: transparent; }
+.ctl .rwsel button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.rate { padding: 12px 16px 16px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px 24px; align-items: start; }
+.rate svg { width: 100%; height: auto; display: block; }
+.rate .say { margin: 6px 0 0; font-size: 15px; }
+.rate .say b { font-family: var(--disp); }
+.sl { display: grid; grid-template-columns: 9.5em minmax(0, 1fr) 4.6em; gap: 4px 10px; align-items: center; font-size: 14px; }
+.sl label { color: var(--ink); line-height: 1.25; }
+.sl label small { display: block; color: var(--muted); font-size: 12px; }
+.sl output { font-family: var(--mono); font-size: 13.5px; text-align: right; }
+.sl input[type=range] { width: 100%; accent-color: var(--kern); }
+.sl .moved output { background: var(--flash); }
+.legend i.tk { border: 0; width: 5px; height: 15px; background: var(--kern); }
+.legend i.bk { background: var(--kern-tint); border-color: var(--kern); }
+.legend i.jb { background: var(--lz-tint); border-color: var(--lz); }
+.legend i.ua { background: var(--ua); border-color: var(--ua); height: 7px; } .legend i.ub { background: var(--ub); border-color: var(--ub); height: 7px; }
+.legend i.dm { width: 12px; height: 12px; transform: rotate(45deg); border-color: var(--kern); background: var(--paper); }
+@media (max-width: 760px) { .rate { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) {
+  .view { flex-direction: column; height: auto; }
+  .cv { height: auto; flex: none; }
+  .cv canvas { height: 360px; }
+  .cv .hud { position: static; width: auto; max-width: none; border-width: 0 0 1px; border-radius: 0; }
+  .voices { flex: none; border-left: 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; padding: 8px; }
+  .voices .bub { position: static; font-size: 13.5px; }
+  .leads { display: none; }
+  .state canvas { height: 660px; }
+}
+</style>
+<!--BODY-->
+<main class="wrap">
+  <header>
+    <h1>兩種節奏：CPU MMU 這邊與壓縮層這邊，各多常叫醒 kernel SW</h1>
+    <p class="lede">時間沿著四條軌道往前跑，攝影機跟著「現在」一起走。由遠到近：user SW、CPU MMU 這邊的 kernel SW、壓縮層這邊的 kernel SW、LZ4 HW。每一個事件都是頁面裡一個小模型當場算出來的，沒有手畫。模型的大小與時間都是範例，不是這個平台量出來的。</p>
+  </header>
+
+  <nav class="scenes" id="acts" aria-label="幕"></nav>
+
+  <section class="stage" aria-label="動畫">
+    <div class="cap" aria-live="polite">
+      <span class="count" id="count"></span>
+      <span class="who kern2" id="who"></span>
+      <p id="text"></p>
+    </div>
+    <div class="ctl">
+      <button type="button" id="play" class="go">暫停</button>
+      <span class="rwsel">速度
+        <button type="button" data-pace="0.5" aria-pressed="false">50%</button>
+        <button type="button" data-pace="0.7" aria-pressed="true">70%</button>
+        <button type="button" data-pace="1" aria-pressed="false">100%</button>
+        <button type="button" data-pace="1.5" aria-pressed="false">150%</button>
+      </span>
+      <span class="sp"></span>
+      <button type="button" id="auto" aria-pressed="true">自動往下一幕</button>
+      <button type="button" id="sound" aria-pressed="false">聲音：關</button>
+    </div>
+    <div class="view" id="view">
+      <div class="cv" id="cv">
+      <canvas id="gl" tabindex="0" role="img" aria-label="3D 場景：四條平放的時間軌道，由遠到近是 user SW、CPU MMU 這邊的 kernel SW、壓縮層這邊的 kernel SW、LZ4 HW。事件從右邊的「現在」產生，往左滑走。CPU MMU 那條有密集的 TLB miss 刻度，壓縮層那條偶爾有 page fault 與 reclaim 的大框。"></canvas>
+      <div class="ov" id="ov"></div>
+      <div class="hud" id="hud"></div>
+      <button type="button" class="reset" id="reset">回到預設視角</button>
+      <div class="nogl" id="nogl">這個瀏覽器無法啟動 WebGL，3D 場景畫不出來。下方的控制與說明仍然可以用。</div>
+      </div>
+      <div class="voices" id="voices"></div>
+      <svg class="leads" id="leads" aria-hidden="true"></svg>
+    </div>
+    <div class="state">
+      <canvas id="statecv" role="img" aria-label="「現在」這一刻的表格：每個 core 的 TLB、兩個程式各自的 page table 與 COT、frame 區。被讀的格子亮外框，被寫的格子填色，顏色表示是誰做的。"></canvas>
+      <div class="slog" id="slog" aria-live="off"></div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="hw"></i>外框：讀。灰色是 CPU MMU HW 查 TLB</span>
+        <span><i class="rd"></i>紫框：kernel SW 讀</span><span><i class="wr"></i>紫色填滿：kernel SW 寫</span>
+        <span><i class="lzr"></i>橘色：LZ4 HW 讀寫 frame</span>
+        <span><i class="ua"></i><i class="ub"></i>user SW 讀寫自己的資料</span>
+        <span><i class="cot"></i>COT entry 有效：這一頁是壓縮的</span>
+        <span><i class="dot"></i>這一頁正在搬</span><span><i class="hand"></i>clock 的指針</span>
+      </div>
+    </div>
+    <div class="legend" aria-hidden="true">
+      <span><i class="ua"></i>user SW A 在跑</span><span><i class="ub"></i>user SW B 在跑</span>
+      <span><i class="tk"></i>一次 TLB miss：kernel SW 讀 PTE、填 TLB</span>
+      <span><i class="bk"></i>page fault 或 reclaim：kernel SW 的大工作</span>
+      <span><i class="jb"></i>LZ4 HW 的 job</span><span><i class="dm"></i>把一頁從每個 core 的 TLB 清掉</span>
+    </div>
+  </section>
+
+  <section class="stage" aria-label="頻率由什麼決定">
+    <div class="rate">
+      <div>
+        <h2>頻率由什麼決定</h2>
+        <svg id="ratesvg" viewBox="0 0 560 210" role="img" aria-label="working set 與三個容量的比較：TLB reach、L2、frame 區。"></svg>
+        <p class="say" id="say"></p>
+      </div>
+      <div>
+        <div class="sl" id="sliders"></div>
+        <p class="hint" style="padding:8px 0 0">控制只改變之後駛來的事件，畫面不會停。<button type="button" id="defaults" style="margin-left:6px;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:2px 10px;cursor:pointer">回到預設值</button></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <p>這一頁照專案的平台前提：CPU MMU 沒有 hardware page table walk，每一次 TLB miss 都進 exception，由 kernel SW 讀 PTE、填 TLB（P1）。每個 core 一個 TLB，由那個 core 的 hardware thread 共用（P3，還沒有對過 CPU 手冊）。LZ4 HW 同時最多做 4 個 job（P4，4 是暫定值）。</p>
+    <p>模型是範例：兩個 user SW 程式各跑在一個 core 上。每個程式在一段短時間裡只用 24 個 page，每 40 次 access 往前移一個 page，在自己的長期 working set 裡繞圈；長期 working set 本身以「漂移」控制的速度往前移。TLB 是 LRU。frame 不夠時，reclaimer 用 clock 挑一個最近沒用過的 page 收起來，一次最多 2 個 COMPRESS 在跑。每一次 access 算 1 個時間單位，其他事件的長短也是範例。這個平台的 TLB 有幾格、TLB miss handler 一次多久、fault 有多常發生，目前都不知道。</p>
+    <p>L2 在模型裡只決定 kernel SW 讀 PTE 時那一行在不在 L2：在就短，不在就長。它不參與決定哪一次是 TLB miss、哪一次是 page fault，所以只改變每一次的長短，不改變次數。L2 裡一格算一個 page 的資料或一行 PTE，這也是範例。</p>
+    <p>簡化的部分：page 有沒有被用過，模型直接知道。照 P1，這件事只能由 kernel 在 TLB miss handler 裡記，一直 TLB hit 的 page 會被當成沒用過；怎麼做是控制程序的 D5，還沒有設計。TLB miss 本身也會讓 user SW 停一下，時間太短，軌道上沒有畫成缺口。兩個程式的 access 照時間交錯，所以改 TLB 或 L2 時，page fault 的次數會因交錯順序不同而有很小的差別；只有一個程式時完全不變。</p>
+    <p>一個 core 上的 kernel SW 用什麼機制清掉另一個 core 的 TLB，這個平台目前不知道。畫面上只畫出結果。</p>
+    <p>舞台下面的表格是「現在」這一刻的狀態。模型會先往前算，表格另外保留一份，每一筆讀寫到了它發生的時間才套上去。誰讀寫哪裡照專案的前提與介面規格：TLB 由 CPU MMU HW 讀、由 kernel SW 寫（P1）；page table 與 COT 只有 kernel SW 讀寫，HW 不讀；frame 是 user SW 的資料，LZ4 HW 做 COMPRESS 時讀它、做 DECOMPRESS 時寫它。壓縮後的資料放在 chunk pool，表格沒有畫；LZ4 HW 讀寫的 chunk 只寫在步驟紀錄裡。page table 與 COT 只畫每個程式長期 working set 範圍內的 page，上方的色條是這一刻正在用的那一段。單次 access 對 TLB 與 frame 的讀寫只在時間鏡頭 ×3 以內畫出來，再拉遠就太多了。TLB 每一格放哪一頁是畫面自己排的，模型只記 LRU 的順序。working set 漂移帶進來的新 page，模型當成壓縮過的，所以會有 COT entry；照現有設計那其實是還沒碰過的 page，不需要 DECOMPRESS。</p>
+    <p>同一件事的白板圖是 <code>figures/cpu-mmu-basics/04-two-sides-two-rhythms.png</code>。一步一步看 TLB、page table 與 <code>mm_lock</code>，見 <a href="https://datochuang.github.io/dram-compression-tutorial/mmu/">CPU MMU 動畫</a>。</p>
+  </section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/*INCLUDE rhythm_sim.js*/
+/*INCLUDE scene3d_core.js*/
+/*INCLUDE rhythm_scene.js*/
+/*INCLUDE rhythm_draw.js*/
+/*INCLUDE rhythm_state.js*/
+/*INCLUDE rhythm_story.js*/
+</script>
