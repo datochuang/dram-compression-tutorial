@@ -44,21 +44,23 @@ function plan(st0, symId, off, kind) {
   push('user', `User SW ${verb} ${C(sym.id + ' + ' + hx(off, 4))}，logical address 是 ${C(hx(sym.addr + off, 8))}。${C(sym.id)} 是連續的 ${sym.size} B，跨 ${sym.slices.length} 個 page：目前 ${hot} 個在 hot region，${cold} 個在 cold region。這個 byte 落在 page ${C(pgNo(p))}。`, { hl: { cells: [p] } });
 
   if (st.pages[p].frame === null) {
-    push('mmu', `CPU MMU 查 page ${C(pgNo(p))} 的 PTE，結果是 invalid。CPU MMU 不知道資料在哪裡，發出 page fault，由 kernel 接手。User SW 停在這個指令上等。`,
-      { hl: { warn: p }, pin: { p, po, kind, phys: false, fault: true } });
     const fault = { p, po, kind, phys: false, fault: true };
+    push('mmu', `CPU MMU 只查這個 core 的 TLB，TLB 裡沒有 page ${C(pgNo(p))}。CPU MMU 不讀 page table，它發出 exception，由 kernel 接手。User SW 停在這個指令上等。這張圖沒有畫 TLB。`,
+      { hl: { cells: [p] }, pin: fault });
+    push('kernel', `Kernel 讀 page ${C(pgNo(p))} 的 PTE，結果是 invalid：這個 page 現在沒有 frame。這種情況叫 page fault。資料在哪裡，要看 kernel 自己的表。`,
+      { hl: { warn: p }, pin: fault });
     if (freeFrames(st) === 0) {
       const v = st.lru[0], vf = st.pages[v].frame, vk = D.pages[v].kind;
       push('kernel', `這個 page 被壓縮在 cold region，解壓縮需要一個空 frame，但 hot region 已經滿了。Kernel 挑最久沒被用到的 page ${C(pgNo(v))}，它在 frame ${C(frNo(vf))}，上面有 ${names(v)}。`,
         { hl: { cells: [v], frames: [vf] }, pin: fault });
       if (vk === 'ro') {
         st.pages[v].frame = null; st.frames[vf] = null; st.lru.shift();
-        push('kernel', `Page ${C(pgNo(v))} 是 RO，內容從來不會變，壓縮副本一直留在 cold region 的 ${st.pages[v].chunks.length} 個 chunk 裡。所以不需要壓縮：kernel 把 PTE 改成 invalid，frame ${C(frNo(vf))} 就空出來了。`,
+        push('kernel', `Page ${C(pgNo(v))} 是 RO，內容從來不會變，壓縮副本一直留在 cold region 的 ${st.pages[v].chunks.length} 個 chunk 裡。所以不需要壓縮：kernel 把 PTE 改成 invalid，再把這一筆從每個 core 的 TLB 清掉。清完之後 frame ${C(frNo(vf))} 才算空出來。`,
           { hl: { cells: [v], frames: [vf], chunks: st.pages[v].chunks }, pin: fault });
       } else {
         const size = st.pages[v].dirty ? D.pages[v].size_w : D.pages[v].size, n = nChunks(size);
         st.pages[v].frame = null; st.pages[v].busy = 'COMPRESSING'; st.lru.shift();
-        push('kernel', `Page ${C(pgNo(v))} 是 RW，cold region 裡沒有它的副本，必須先壓縮。Kernel 先把 PTE 改成 invalid，從這一刻起任何 access 都會被擋下。`,
+        push('kernel', `Page ${C(pgNo(v))} 是 RW，cold region 裡沒有它的副本，必須先壓縮。Kernel 先把 PTE 改成 invalid，再把這一筆從每個 core 的 TLB 清掉。全部清完之後，對這個 page 的任何 access 都會進 kernel，LZ4 HW 才可以去讀這個 frame。`,
           { hl: { cells: [v], frames: [vf] }, pin: fault });
         push('hw', `LZ4 HW 從 frame ${C(frNo(vf))} 讀出 4096 B。`,
           { hl: { frames: [vf] }, pin: fault, lane: 'page ' + pgNo(v) + ': 4096 B', flow: { t: 'rd', k: vk, f: vf, p: v } });
@@ -94,15 +96,15 @@ function plan(st0, symId, off, kind) {
       push('both', `RO page 的內容不會變，壓縮副本留在原地。之後這個 page 要讓出 frame 時，不需要再壓縮一次。`, { hl: { cells: [p], chunks: cs }, pin: fault });
     }
     st.pages[p].frame = f; st.pages[p].busy = null;
-    push('kernel', `Kernel 把 PTE 改成 valid，指向 frame ${C(frNo(f))}，然後返回 user SW。`, { hl: { cells: [p], frames: [f] }, pin: fault });
+    push('kernel', `Kernel 把 PTE 改成 valid，指向 frame ${C(frNo(f))}，把這一筆對應填進這個 core 的 TLB，然後返回 user SW。`, { hl: { cells: [p], frames: [f] }, pin: fault });
     st.lru = st.lru.filter(q => q !== p); st.lru.push(p);
     if (kind === 'write') st.pages[p].dirty = true;
     const others = ONPAGE[p].filter(s => s.sym !== symId).map(s => C(s.sym));
-    push('user', `Kernel 返回後，CPU 重新執行同一個指令。這次 CPU MMU 直接轉換，${verb}落在 frame ${C(frNo(f))}。Access 最後還是發生在 hot region。User SW 不知道發生過 fault，只感覺到這次比較久。` +
+    push('user', `Kernel 返回後，CPU 重新執行同一個指令。這次 TLB 裡有這一筆，CPU MMU 直接轉換，${verb}落在 frame ${C(frNo(f))}。Access 最後還是發生在 hot region。User SW 不知道發生過 fault，只感覺到這次比較久。` +
       (others.length ? `同一個 page 上的 ${others.join('、')} 也跟著回到 hot region。` : ''), { hl: { frames: [f] }, pin: { p, po, kind, phys: true, fault: false } });
   } else {
     const f = st.pages[p].frame;
-    push('mmu', `CPU MMU 查 page ${C(pgNo(p))} 的 PTE，是 valid，指向 frame ${C(frNo(f))}。轉換由 CPU MMU 完成，kernel 和 LZ4 HW 都沒有參與。`, { hl: { cells: [p], frames: [f] } });
+    push('mmu', `Page ${C(pgNo(p))} 的 PTE 是 valid，指向 frame ${C(frNo(f))}。這一筆對應在這個 core 的 TLB 裡的話，轉換由 CPU MMU 完成，kernel 和 LZ4 HW 都不參與。不在 TLB 裡的話是一次 TLB miss：kernel 讀這個 PTE、填進 TLB，LZ4 HW 仍然不參與。這張圖沒有畫 TLB。`, { hl: { cells: [p], frames: [f] } });
     st.lru = st.lru.filter(q => q !== p); st.lru.push(p);
     if (kind === 'write') st.pages[p].dirty = true;
     const fs = sym.slices.filter(s => st.pages[s.p].frame !== null).map(s => st.pages[s.p].frame);

@@ -1,9 +1,10 @@
 """Build the address-space view.
 
-    python3 build.py OUT.html [--fragment] [--3d]
+    python3 build.py OUT.html [--fragment] [--3d | --mmu]
 
-Reads page.src.html (or page3d.src.html with --3d), puts the example data from
-example_data.py in place of the DATA marker, pastes every /*INCLUDE name.js*/
+Reads page.src.html (or page3d.src.html with --3d, or mmu3d.src.html with --mmu,
+the CPU-MMU view, which has its own small model in mmu_sim.js and takes no example
+data), puts the example data from example_data.py in place of the DATA marker, pastes every /*INCLUDE name.js*/
 file in place and writes one self-contained page. sim.js is the part both pages
 share. --fragment leaves out the document skeleton, which is the form the
 Artifact tool wants.
@@ -22,8 +23,11 @@ def render(fragment=False, name='page.src.html'):
     src = (HERE / name).read_text(encoding='utf-8')
     src = re.sub(r'/\*INCLUDE ([\w.]+)\*/', lambda m: (HERE / m.group(1)).read_text(encoding='utf-8'), src)
     marker = '/*DATA*/null'
-    assert src.count(marker) == 1
-    src = src.replace(marker, json.dumps(build(), separators=(',', ':')))
+    if name == 'mmu3d.src.html':
+        assert marker not in src
+    else:
+        assert src.count(marker) == 1
+        src = src.replace(marker, json.dumps(build(), separators=(',', ':')))
     head, body = src.split('<!--BODY-->')
     if fragment:
         return head + body
@@ -35,5 +39,6 @@ def render(fragment=False, name='page.src.html'):
 if __name__ == '__main__':
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     out = Path(args[0])
-    out.write_text(render('--fragment' in sys.argv, 'page3d.src.html' if '--3d' in sys.argv else 'page.src.html'), encoding='utf-8')
+    name = 'mmu3d.src.html' if '--mmu' in sys.argv else 'page3d.src.html' if '--3d' in sys.argv else 'page.src.html'
+    out.write_text(render('--fragment' in sys.argv, name), encoding='utf-8')
     print(f'[addrspace] wrote {out} ({out.stat().st_size} B)')

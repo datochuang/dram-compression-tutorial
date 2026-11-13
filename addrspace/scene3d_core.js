@@ -4,14 +4,10 @@ const REDUCE = window.matchMedia && window.matchMedia('(prefers-reduced-motion: 
 const MONO = '"IBM Plex Mono", ui-monospace, Menlo, monospace', DISP = 'Archivo, "Noto Sans TC", system-ui, sans-serif';
 
 // World units: one page frame is U wide. Board = the tilted plate at the back, floor = DRAM.
-const U = 10, CWU = U * CHUNK / PAGE;
+// This file is shared by every 3D page. What a page puts on the board and the floor is in its own files.
+const U = 10;
 const BW = 92, BH = 27.3, BPX = 24, TILT = 52 * Math.PI / 180, BZ = -4.6, BY = 0.3;      // board size, px per unit, tilt from the floor, bottom edge
-const ROW = { title: 1.25, pin: 3.55, sym0: 4, sym1: 8.4, pg: 9.65, pteH: 11.15, pte0: 11.55, pte1: 16.15, stH: 17.45, st0: 17.8, st1: 20.4, cotH: 21.7, cot0: 22.05, cot1: 26.65 };
-const pageU = p => p < SEG.rw.first ? 3 + p * U : 3 + SEG.rw.first * U + 6 + (p - SEG.rw.first) * U;
 const FLX = 38, FLZ0 = -3.6, FLZ1 = 31.4, FPX = 24;                                    // floor plate: x in [-38, 38], z in [-3.6, 31.4]
-const HOTZ = 0, SLABD = 8, COLDZ = 20.6, HWX = 16, HWZ0 = 11.4, HWZ1 = 17.4, HWH = 1.0;
-const frameX0 = f => -NF * U / 2 + f * U;
-const chunkX0 = c => c < NRO ? -31.5 + c * CWU : -8.5 + (c - NRO) * CWU;
 
 // A point of the board, given in board units (u from the left, v from the top), lifted off its surface.
 function B2W(u, v, lift = 0) {
@@ -125,13 +121,11 @@ function clearGroup(grp) {
   while (grp.children.length) { const o = grp.children.pop(); if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map && o.userData.ownMap) o.material.map.dispose(); o.material.dispose(); } }
 }
 
-// What the three tables say about page p in state st.
-function tabOf(st, p) {
-  const ps = st.pages[p];
-  return {
-    pte: ps.frame !== null ? frNo(ps.frame) : null,
-    state: ps.busy ? ps.busy.toLowerCase() : (ps.frame !== null ? 'present' : 'compressed'),
-    cot: ps.chunks ? { len: ps.csize, n: ps.chunks.length, cs: ps.chunks } : null,
-  };
+/* drawing on a plate: board units to pixels, fonts, text, boxes */
+const bx = u => u * BPX;
+const fnt = (w, u, fam) => w + ' ' + Math.round(u * BPX) + 'px ' + fam;
+function txt(g, s, x, y, font, color, align = 'left') { g.font = font; g.fillStyle = color; g.textAlign = align; g.textBaseline = 'alphabetic'; g.fillText(s, x, y); }
+function box(g, x, y, w, h, fill, stroke, lw = 2, dash = null) {
+  if (fill) { g.fillStyle = fill; g.fillRect(x, y, w, h); }
+  if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw; g.setLineDash(dash || []); g.strokeRect(x, y, w, h); g.setLineDash([]); }
 }
-const sameCot = (a, b) => (!a && !b) || (a && b && a.len === b.len && a.cs.join() === b.cs.join());

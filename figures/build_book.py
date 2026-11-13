@@ -5,6 +5,10 @@ The HTML is one self-contained file: the figures are embedded as JPEG
 data URIs so it can be read on a device that has no access to this folder.
 
     python3 figures/build_book.py
+    python3 figures/build_book.py SOURCE.md OUT.html
+
+With two arguments it builds another document the same way. Image paths are
+read relative to the source file.
 
 Only the Markdown subset used by the source is handled: #/##/### headings,
 paragraphs, "- " lists, pipe tables, one image per line, **bold**, `code`.
@@ -24,6 +28,7 @@ HERE = Path(__file__).resolve().parent
 SRC = HERE / 'README.md'
 OUT = HERE / 'kernel-sw-figures.html'
 JPEG_QUALITY = 90
+BASE = HERE                     # folder that image paths are relative to
 
 CSS = """
 :root{--bg:#fbfaf7;--fg:#1f2328;--muted:#5c6570;--line:#d9d6cf;--card:#ffffff;
@@ -66,6 +71,7 @@ main{max-width:none;padding:0}}
 
 def inline(text):
     out = html.escape(text, quote=False)
+    out = re.sub(r'(?<!!)\[([^\]]+)\]\((https?://[^)]+)\)', r'<a href="\2">\1</a>', out)
     out = re.sub(r'(?<!!)\[([^\]]+)\]\([^)]+\)', r'`\1`', out)
     out = re.sub(r'`([^`]+)`', r'<code>\1</code>', out)
     out = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', out)
@@ -73,13 +79,13 @@ def inline(text):
 
 
 def image_tag(alt, name):
-    im = Image.open(HERE / name).convert('RGB')
+    im = Image.open(BASE / name).convert('RGB')
     buf = io.BytesIO()
     im.save(buf, 'JPEG', quality=JPEG_QUALITY, optimize=True)
     data = base64.b64encode(buf.getvalue()).decode('ascii')
     return (f'<figure><img alt="{html.escape(alt)}" width="{im.width}" '
             f'height="{im.height}" src="data:image/jpeg;base64,{data}">'
-            f'<figcaption>{inline(alt)}　<code>{html.escape(name)}</code>'
+            f'<figcaption>{inline(alt)}　<code>{html.escape(re.sub(r'^([.][.]/)+', '', name))}</code>'
             f'</figcaption></figure>')
 
 
@@ -138,17 +144,23 @@ def convert(lines):
     return '\n'.join(body).replace('<!--toc-->', ''.join(nav))
 
 
-def main():
-    lines = SRC.read_text(encoding='utf-8').splitlines()
+def main(argv):
+    global BASE
+    if len(argv) not in (0, 2):
+        print('usage: build_book.py [SOURCE.md OUT.html]', file=sys.stderr)
+        return 2
+    src, out = (Path(argv[0]).resolve(), Path(argv[1]).resolve()) if argv else (SRC, OUT)
+    BASE = src.parent
+    lines = src.read_text(encoding='utf-8').splitlines()
     title = lines[0].lstrip('# ').strip()
     page = (f'<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>{html.escape(title)}</title><style>{CSS}</style></head>'
             f'<body><main>{convert(lines)}</main></body></html>')
-    OUT.write_text(page, encoding='utf-8')
-    print(f'{OUT.name}: {OUT.stat().st_size // 1024} KB')
+    out.write_text(page, encoding='utf-8')
+    print(f'{out.name}: {out.stat().st_size // 1024} KB')
     return 0
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

@@ -1,0 +1,98 @@
+<title>CPU MMU TLB 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* layout: one column. Scene tabs and the step caption sit above one 3D stage: a tilted board at the back (two cores, each with two hardware threads, one CPU MMU, one TLB and one L1 cache; one L2 cache shared by both cores along the bottom), DRAM flat in front (frames next to the board, then the page table with mm_lock beside it, then what the compression layer keeps). State table last. */
+/*INCLUDE common.css*/
+.view { position: relative; height: clamp(380px, calc(100vh - 300px), 700px); border-bottom: 1px solid var(--line); }
+.view canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; outline-offset: -2px; }
+.view canvas.drag { cursor: grabbing; }
+.hint { margin: 0; padding: 7px 14px 0; font-size: 12.5px; color: var(--muted); }
+.view .reset { position: absolute; right: 10px; bottom: 8px; border: 1px solid var(--line); background: var(--paper); border-radius: 6px; padding: 4px 12px; font-family: var(--disp); font-weight: 700; font-size: 13px; cursor: pointer; }
+.view .nogl { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; color: var(--muted); text-align: center; }
+.ctl .rwsel { flex-wrap: wrap; }
+.ctl .rwsel .gap { width: 8px; }
+.legend i.flow { border: 0; height: 8px; background: repeating-linear-gradient(90deg, var(--ink) 0 6px, transparent 6px 10px); }
+.legend i.kn { border: 0; height: 4px; background: var(--accent); }
+.legend i.chg { background: var(--flash); border-color: var(--ink); }
+.legend i.stl { background: var(--warn-tint); border-color: var(--warn); }
+.legend i.cd { background: var(--rw); border-color: var(--rw); }
+.legend i.lk { background: var(--accent-tint); border-color: var(--accent); }
+.legend i.pg { background: var(--rw-bg); border-color: var(--rw); }
+td.inv, td.stale { color: var(--warn); } td.stale { font-weight: 600; }
+@media (max-width: 560px) { .view { height: 340px; } }
+</style>
+<!--BODY-->
+<main class="wrap">
+  <header>
+    <h1>一次 access，CPU MMU 與 kernel SW 各做什麼</h1>
+    <p class="lede">後面那塊斜板是 processor：兩個 core，每個 core 有兩個 hardware thread，共用那個 core 的 CPU MMU、TLB 與 L1 cache。斜板最下面是兩個 core 共用的 L2 cache。每個 thread 平常跑 user SW，出了 exception 就換成一份 kernel SW instance。前面平放的是 DRAM，由遠到近三列：frame、page table、壓縮層收著的 page。page table 旁邊是 kernel SW 的 <code>mm_lock</code>。選一個場景，一步一步看誰讀了哪一格、誰改了哪一格。</p>
+  </header>
+
+  <nav class="scenes" id="scenes" aria-label="場景"></nav>
+
+  <section class="stage" aria-label="動畫">
+    <div class="cap" aria-live="polite">
+      <span class="count" id="count"></span>
+      <span class="who" id="who"></span>
+      <p id="text"></p>
+    </div>
+    <div class="ctl">
+      <button type="button" id="back">上一步</button>
+      <button type="button" id="next" class="go">下一步</button>
+      <button type="button" id="play">自動播放</button>
+      <span class="sp"></span>
+      <span class="rwsel">自己發 access：
+        <button type="button" id="c0" aria-pressed="true">Core 0</button>
+        <button type="button" id="c1" aria-pressed="false">Core 1</button>
+        <span class="gap"></span>
+        <button type="button" id="t0" aria-pressed="true">T0</button>
+        <button type="button" id="t1" aria-pressed="false">T1</button>
+        <span class="gap"></span>
+        <button type="button" id="kread" aria-pressed="true">read</button>
+        <button type="button" id="kwrite" aria-pressed="false">write</button>
+        <span class="gap"></span>page
+        <span class="rwsel" id="pages"></span>
+      </span>
+    </div>
+    <div class="view" id="view">
+      <canvas id="gl" tabindex="0" role="img" aria-label="3D 場景：後方斜板是兩個 core，各有兩個 hardware thread、一個 CPU MMU、一個 TLB、一個 L1 cache，最下面是共用的 L2 cache。前方是 DRAM，由遠到近：frame、page table 與 mm_lock、壓縮層收著的 page。Access 與 kernel 的讀寫以線與流動的小點表示。"></canvas>
+      <button type="button" class="reset" id="reset">回到預設視角</button>
+      <div class="nogl" id="nogl">這個瀏覽器無法啟動 WebGL，3D 場景畫不出來。下方的表格仍然會跟著每一步更新。</div>
+    </div>
+    <p class="hint">拖曳旋轉 · 雙指或 Ctrl 加滾輪縮放 · Shift 加拖曳平移</p>
+    <div class="legend" aria-hidden="true">
+      <span><i class="flow"></i>access 走的路</span><span><i class="kn"></i>kernel SW 的讀寫</span>
+      <span><i class="chg"></i>這一步被改寫的格子</span><span><i class="stl"></i>過期的 TLB entry</span>
+      <span><i class="lk"></i>mm_lock 有人拿著</span>
+      <span><i class="pg"></i>frame 裡的 page，或 cache 裡和 DRAM 相同的一份</span><span><i class="cd"></i>cache 裡比 DRAM 新的一份</span><span><i class="hz"></i>壓縮後的資料</span><span><i class="fr"></i>空的</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>每個 page 一列：PTE、兩個 core 的 TLB、內容在哪裡、哪些 cache 有一份</h2>
+    <p class="lede" style="margin-bottom:10px">PTE 只有一份，在 DRAM 裡，只有 kernel SW 讀寫。TLB 每個 core 一份，是 kernel SW 照 PTE 抄進去的。CPU MMU 只看自己那個 core 的 TLB。兩邊說的不一樣時，那一格標成 STALE。最後一欄是這個 page 所在的 frame 目前在哪些 cache 裡有一份，哪一份比 DRAM 新。這一步有變動的格子會標色。</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Logical page</th><th>PTE</th><th>Core 0 的 TLB</th><th>Core 1 的 TLB</th><th>這個 page 的內容在哪裡</th><th>哪些 cache 有一份</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+  </section>
+
+  <section class="notes">
+    <p>這一頁照專案的平台前提畫：CPU MMU 沒有 hardware page table walk，TLB miss 之後一律進 exception，由 kernel SW 讀 page table 並填 TLB。每個 core 一個 TLB 是目前的假設，還沒有對過 CPU 手冊。</p>
+    <p>範例的部分：TLB 畫 3 格、滿了輪流蓋掉、讓出 frame 的是最早拿到 frame 的 page、2 個 core、每個 core 2 個 hardware thread、6 個 page、4 個 frame。平台的 TLB 有幾格、怎麼取代，目前不知道。壓縮後資料畫的寬度只表示變小，不是量出來的大小。</p>
+    <p>Cache 的畫法是範例：每個 frame 在每個 cache 裡只有「沒有、有一份、比 DRAM 新」三種狀態，cache 永遠放得下。兩個 core 之間怎麼交接比較新的那一份，畫的是一種常見的做法，不是這個平台查到的行為。L1 與 L2 的大小目前不知道。Kernel SW 自己讀 page table 也會經過 cache，這一頁沒有畫。</p>
+    <p>Kernel SW 在把 frame 交給 LZ4 HW 之前做 cache clean，在 LZ4 HW 寫完 frame 之後做 cache invalidate，原因是 LZ4 HW 直接讀寫 DRAM，看不到 CPU 的 cache。用哪一個指令、怎麼讓其他 core 的 L1 也照做，這個平台目前不知道，圖上標成 not known。</p>
+    <p>一個 core 上的 kernel SW 用什麼機制清掉另一個 core 的 TLB，這個平台目前不知道。場景 7 只畫出結果。同一個 core 的兩個 hardware thread 同時改 TLB 時 CPU 有什麼限制，也不知道。場景 5 只畫兩個 thread 一前一後。</p>
+    <p>場景 8 的錯誤，在 host simulation 裡有一個故意改壞的版本與它對應：只清自己那個 core 的 TLB。測試會抓到它，訊息是 StaleTlb。</p>
+    <p>場景 9 與 10 的順序照 host simulation 的 kernel：改表的時候拿著 <code>mm_lock</code>，等 LZ4 HW 的時候不拿，page 的狀態寫在 kernel 自己的表裡，PTE 最後才設成有效。只填 TLB 的 TLB miss handler 要不要拿 <code>mm_lock</code>，目前沒有設計，這一頁畫成不拿。</p>
+    <p>簡化的部分：這一頁由發生 page fault 的那份 kernel SW instance 自己把別的 page 趕出去，而且等到 frame 用完才做。實際的設計由另一個 reclaimer 在空 frame 低於門檻時先做，fault 的那一邊只在沒有空 frame 時等它。</p>
+    <p>壓縮層在這一頁只算一步。壓縮後的資料放在哪裡、LZ4 HW 怎麼讀寫，見 <a href="https://datochuang.github.io/dram-compression-tutorial/addrspace/">address 動畫</a> 與 <a href="https://datochuang.github.io/dram-compression-tutorial/lesson/">3D 課程</a>。</p>
+  </section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/*INCLUDE mmu_sim.js*/
+/*INCLUDE scene3d_core.js*/
+/*INCLUDE mmu_scene.js*/
+</script>

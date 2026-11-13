@@ -55,7 +55,7 @@ td.pte b { font-weight: 600; } td.pte.inv { color: var(--warn); }
 
   <section>
     <h2>三張表，每個 page 各一格</h2>
-    <p class="lede" style="margin-bottom:10px">PTE 是 CPU MMU 唯一會讀的東西。Kernel 的 page 狀態只有 kernel 自己看。COT entry 告訴 LZ4 HW 壓縮後的 stream 在哪幾個 chunk。這一步有變動的格子會標色。</p>
+    <p class="lede" style="margin-bottom:10px">Page table 只有 kernel 讀寫。CPU MMU 只查 TLB，TLB 裡的對應是 kernel 照 PTE 填進去的，這張圖沒有畫 TLB。Kernel 的 page 狀態只有 kernel 自己看。COT entry 告訴 LZ4 HW 壓縮後的 stream 在哪幾個 chunk。這一步有變動的格子會標色。</p>
     <div class="tbl"><table>
       <thead><tr><th>Logical page</th><th>這個 page 上的 symbol</th><th>PTE</th><th>Kernel page state</th><th>COT entry：chunk 依 stream 順序</th><th>壓縮後大小</th></tr></thead>
       <tbody id="rows"></tbody>
@@ -64,7 +64,7 @@ td.pte b { font-weight: 600; } td.pte.inv { color: var(--warn); }
 
   <section class="notes">
     <p>圖只畫出可壓縮區段裡的一小段：3 個 RO page、5 個 RW page、7 個 frame 和 48 個 chunk。一個 frame 的面積等於 8 個 chunk。</p>
-    <p>PTE 只畫 valid bit 和 frame 號碼。Invalid 的 PTE 對 CPU MMU 來說沒有其他內容，page 是在 cold region 還是根本沒配置，要看 kernel 自己的 page 狀態。</p>
+    <p>PTE 只畫 valid bit 和 frame 號碼。Invalid 的 PTE 只表示這個 page 現在沒有 frame。Page 是在 cold region 還是根本沒配置，要看 kernel 自己的 page 狀態。</p>
     <p>壓縮後的大小是用 simulator 裡同一套 LZ4 對範例內容逐頁壓縮得到的。</p>
     <p>COT 由誰讀寫、空 chunk 由誰管理，HW-leaning 和 SW-leaning 兩種設計不同，這一頁不區分，標成 KERNEL / LZ4 HW。逐 byte 的過程見 <a href="https://datochuang.github.io/dram-compression-tutorial/lesson/">3D 課程</a>。</p>
     <p>這一頁等到 frame 用完才回收。實際的 kernel 在空 frame 低於門檻時就開始回收。</p>
@@ -75,6 +75,7 @@ td.pte b { font-weight: 600; } td.pte.inv { color: var(--warn); }
 const D = /*DATA*/null;
 /*INCLUDE sim.js*/
 /*INCLUDE scene3d_core.js*/
+/*INCLUDE scene3d_layout.js*/
 /*INCLUDE scene3d_board.js*/
 /*INCLUDE scene3d_dram.js*/
 /*INCLUDE scene3d_flow.js*/

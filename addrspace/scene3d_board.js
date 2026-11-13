@@ -1,13 +1,6 @@
 /* ---------- the board at the back: symbols, then one PTE, one kernel state and one COT entry per page ---------- */
 const board = plate(BW, BH, BPX);
 board.mesh.position.copy(B2W(BW / 2, BH / 2)); board.mesh.rotation.x = -(Math.PI / 2 - TILT); scene.add(board.mesh);
-const bx = u => u * BPX;
-const fnt = (w, u, fam) => w + ' ' + Math.round(u * BPX) + 'px ' + fam;
-function txt(g, s, x, y, font, color, align = 'left') { g.font = font; g.fillStyle = color; g.textAlign = align; g.textBaseline = 'alphabetic'; g.fillText(s, x, y); }
-function box(g, x, y, w, h, fill, stroke, lw = 2, dash = null) {
-  if (fill) { g.fillStyle = fill; g.fillRect(x, y, w, h); }
-  if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw; g.setLineDash(dash || []); g.strokeRect(x, y, w, h); g.setLineDash([]); }
-}
 const symU = s => pageU(SEG[s.seg].first) + (s.addr - SEG[s.seg].base) / PAGE * U;
 const tileMid = (p, row) => B2W(pageU(p) + U / 2, (ROW[row + '0'] + ROW[row + '1']) / 2, 0.15);
 let boardChanged = [];                           // tiles rewritten in the step on screen: [{ p, row }]
@@ -45,7 +38,7 @@ function drawBoard(step, prev) {
     txt(g, label, lx, bx(ROW.pin) - 16, f, col, 'center');
   }
 
-  head(ROW.pteH, 'PAGE TABLE', 'one PTE per page · the CPU MMU reads it, the kernel writes it');
+  head(ROW.pteH, 'PAGE TABLE', 'one PTE per page · only the kernel reads and writes it');
   head(ROW.stH, 'KERNEL state[ ]', 'the kernel’s own note per page · the CPU MMU never sees it');
   head(ROW.cotH, 'COT', 'one entry per page · where the compressed stream is, for LZ4 HW');
   boardChanged = [];
