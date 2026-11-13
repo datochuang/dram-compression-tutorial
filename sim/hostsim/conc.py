@@ -33,6 +33,9 @@ Things that go wrong on purpose, as steps of a user thread's script:
     hwfault   the next COMPRESS or DECOMPRESS of the LZ4 HW fails in a given way (hw.py)
     hwdown    the LZ4 HW stops answering for good
     kill      another user thread is ended; it notices between two kernel entries
+
+Option `tlb=SplitTlb(...)` (off by default): the TLB refill and the clearing of other cores' TLBs are
+several steps instead of one, with one example scheme of how a core is asked to clear its TLB. See SplitTlb.
 """
 import random
 import threading
@@ -104,12 +107,71 @@ ROOMY = TinyConfig(n_frames=22)                           # all 16 RW pages fit 
 TIGHT = TinyConfig(n_frames=3, n_data=1)                  # the two pages of one instruction and one frame more
 
 
+# ------------------------------------------------------------- option: split TLB steps
+@dataclass(frozen=True)
+class SplitTlb:
+    """A model experiment, off unless ConcMachine(tlb=SplitTlb(...)) is given.
+
+    Without it, conc.py treats two things as one step: pte_unmap sets the PTE invalid and empties every
+    core's TLB at once, and translate reads the PTE and fills the TLB at once. With it:
+
+    Refill (P1: every TLB miss traps to kernel SW). Step A reads the PTE; the scheduler may switch; step B
+    writes into the core's TLB what step A read.
+
+    Clearing. ONE EXAMPLE SCHEME, NOT THE PLATFORM'S: the mechanism for clearing another core's TLB is not
+    known for this platform. In this scheme each core clears only its own TLB. pte_unmap sets the PTE
+    invalid, clears its own core's TLB, posts a clear request to every other target, and waits with mm_lock
+    held until every target has acknowledged. A target handles its request only at a point where it can
+    take an interrupt; what such a point is, is what the fields below vary.
+
+    Hardware threads: every task with a CPU (each user SW thread and the reclaimer) is one hardware thread,
+    always on its core; the tasks on one core share that core's TLB (P3). With the usual two cores, users
+    0 and 2 share core 0, user 1 and the reclaimer share core 1. The model does not distinguish a hardware
+    thread from software threads time-sliced on it.
+
+    A use of a TLB entry that no longer matches the PTE is allowed while the clearing of that page is still
+    going on (the initiator has not seen every acknowledgement yet) and the entry holds the PA the PTE held
+    right before this unmap: it is ordered before the unmap, and the kernel does nothing with the frame until
+    pte_unmap returns. Any other such use is StaleTlb, and so is an entry left behind at the end of a run.
+    """
+    delivery: str = 'core'          # 'core': one request per other core, taken by whichever hardware thread of that
+    #                                 core can take an interrupt first; the initiator's own core is cleared locally only.
+    #                                 'thread': one request per other hardware thread, the initiator's siblings included
+    lock_wait_irq: bool = True      # (a) True: a hardware thread spinning or sleeping on mm_lock can take the request
+    #                                 (b) False: interrupts are off while it waits for mm_lock
+    refill_irq: bool = True         # (c) True: a hardware thread between step A and step B of a refill can take it
+    #                                     False: it takes it only once the refill has ended
+    isr_irq: bool = False           # an ISR (script op 'isr') can take it; False: an ISR runs with interrupts off
+    recheck: bool = False           # candidate fix: after step B the refill handler reads the PTE again (step C, a
+    #                                 separate step) and drops the entry it wrote if the PTE has changed
+    refill_locked: bool = False     # candidate fix: the refill handler holds mm_lock from before step A to after step B
+
+    def label(self):
+        fix = '+'.join(n for n in ('recheck', 'refill_locked') if getattr(self, n)) or 'none'
+        return (f"to={self.delivery} lockwait={'a:irq-on' if self.lock_wait_irq else 'b:irq-off'} "
+                f"refill={'c:can' if self.refill_irq else 'c:cannot'} isr={'can' if self.isr_irq else 'cannot'} fix={fix}")
+
+
+REFILLED = object()                 # translate_split: the TLB was refilled, the instruction runs again
+
+
+class ClearTarget:
+    """Where a clear request is posted (option SplitTlb): a core, or one hardware thread."""
+
+    def __init__(self, name, core, members):
+        self.name, self.core, self.members, self.pending = name, core, members, []
+
+
 # ------------------------------------------------------------------------- scheduler
 class Task:
     def __init__(self, sched, name, body, core, context='thread'):
         self.sched, self.name, self.body, self.core, self.context = sched, name, body, core, context
         self.state, self.on, self.error = RUNNABLE, None, None
         self.dying = False                                # somebody has ended this thread and it has not noticed yet
+        self.cpu = False                                  # a hardware thread of `core` (user SW, reclaimer)
+        self.in_lock = False                              # inside port.lock(), not yet holding mm_lock
+        self.refilling = None                             # option SplitTlb: (page, PA) between refill steps A and B
+        self.ready_if = None                              # option SplitTlb: runnable only while this says so
         self.gate = threading.Lock()
         self.gate.acquire()
         self.thread = threading.Thread(target=self._run, daemon=True)
@@ -193,7 +255,7 @@ class Scheduler:
             t.thread.start()
         try:
             while True:
-                ready = [t for t in self.tasks if t.state == RUNNABLE]
+                ready = [t for t in self.tasks if t.state == RUNNABLE and (t.ready_if is None or t.ready_if())]
                 if not ready:
                     break
                 t = self.chooser.pick(self.steps, ready, self.current)
@@ -271,6 +333,9 @@ class ConcPort(Port):
         self.tlb = [{} for _ in range(m.cores)]
         self.shootdown = True                             # pte_unmap flushes the TLB of every core
         self.atomic_wait = True                           # unlock and sleep are one step
+        self.split = m.split                              # option SplitTlb, None by default
+        self.unmapping = {}                               # option SplitTlb: page -> targets that have not acknowledged
+        self.unmapped_pa = {}                             # option SplitTlb: page -> PA its PTE held before that unmap
 
     def _held(self):
         if not self.booting and self.holder is not self.sched.current:
@@ -278,12 +343,15 @@ class ConcPort(Port):
 
     def lock(self):
         s = self.sched
+        me = s.current
+        me.in_lock = True
         s.pause('lock')
         while self.locked:
             self.st['lock_waits'] += 1
             s.block('lock')
         super().lock()
         self.holder = s.current
+        me.in_lock = False
 
     def unlock(self):
         if self.holder is not self.sched.current:
@@ -293,9 +361,33 @@ class ConcPort(Port):
         self.sched.wake('lock')
 
     def pte_unmap(self, h):
+        old = self.pte[h]
         super().pte_unmap(h)
+        if self.split is not None:
+            return self.clear_by_requests(h, old)
         for tlb in self.tlb if self.shootdown else [self.tlb[self.sched.current.core]]:
             tlb.pop(h, None)
+
+    def clear_by_requests(self, h, old):
+        """Option SplitTlb. ONE EXAMPLE SCHEME, not the platform's: the PTE is already invalid; clear the own
+        core's TLB here, post a request to every other target, wait with mm_lock held for every acknowledgement.
+        old: the PA the PTE held until now; only an entry with this PA may still be used while this goes on."""
+        s, m = self.sched, self.m
+        self.unmapped_pa[h] = old
+        me = s.current
+        self.tlb[me.core].pop(h, None)
+        targets = m.clear_targets(me) if self.shootdown else []
+        m.tev(f'PTE {h:#x} invalid, own core {me.core} TLB cleared, requests to {[t.name for t in targets]}', h)
+        if not targets:
+            return
+        self.unmapping[h] = {t.name for t in targets}
+        for t in targets:
+            t.pending.append(h)
+        self.st['clear_requests'] += len(targets)
+        while self.unmapping[h]:
+            s.block(('ack', h))                           # mm_lock stays held, as pte_unmap does without the option
+        del self.unmapping[h]
+        m.tev(f'every target acknowledged page {h:#x}; pte_unmap returns', h)
 
     def lz4_job(self, desc):
         s, k, cfg = self.sched, self.m.kernel, self.cfg
@@ -356,9 +448,11 @@ class ConcPort(Port):
 class ConcMachine(Machine):
     PORT = ConcPort
 
-    def __init__(self, cfg=TINY, seed=1, chooser=None, cores=2, protect=2, **kw):
+    def __init__(self, cfg=TINY, seed=1, chooser=None, cores=2, protect=2, tlb=None, **kw):
         self.sched = Scheduler(chooser or RandomChooser(seed))
         self.cores = cores
+        self.split = tlb                                  # SplitTlb or None
+        self.targets, self.events = [], []
         super().__init__(cfg, seed, protect=protect, **kw)
         self.kinds = Counter()
         self.ended = {}
@@ -431,6 +525,137 @@ class ConcMachine(Machine):
             self.ended[task.name] = end
         return body
 
+    # ---- option SplitTlb: clear requests and the refill in steps
+    def tev(self, text, h):
+        """A TLB event of option SplitTlb about page h, for the interleaving of a failure."""
+        if self.split is not None:
+            self.events.append((self.sched.steps, self.sched.current.name, h, text))
+
+    def make_targets(self, hw):
+        if self.split.delivery == 'core':
+            self.targets = [ClearTarget(f'core{c}', c, [t for t in hw if t.core == c]) for c in range(self.cores)]
+        elif self.split.delivery == 'thread':
+            self.targets = [ClearTarget(f'hwt {t.name}', t.core, [t]) for t in hw]
+        else:
+            raise ValueError(self.split.delivery)
+        for target in self.targets:
+            task = self.sched.spawn(f'clear@{target.name}', self._clear_handler(target), core=target.core)
+            task.ready_if = lambda target=target: bool(target.pending) and self.can_take(target) is not None
+
+    def clear_targets(self, initiator):
+        if self.split.delivery == 'core':
+            return [t for t in self.targets if t.core != initiator.core]
+        return [t for t in self.targets if initiator not in t.members]
+
+    def can_take(self, target):
+        """The hardware thread of the target that can take an interrupt right now, or None.
+        A core without any hardware thread of the model is idle and takes it itself."""
+        if not target.members:
+            return target.name
+        for t in target.members:
+            if self.irq_open(t):
+                return t.name
+        return None
+
+    def irq_open(self, t):
+        """Can hardware thread t take an interrupt at the point where it is now? Each answer is an assumption
+        of SplitTlb, not a fact about the platform's CPU."""
+        o = self.split
+        if t.state == DONE:
+            return True                                   # nothing runs on it any more
+        if t.context == 'isr':
+            return o.isr_irq
+        if t.in_lock:                                     # spinning or sleeping on mm_lock
+            return o.lock_wait_irq
+        if t.refilling:                                   # between step A and step B (or C) of a refill
+            return o.refill_irq
+        return True                                       # user code at an instruction, or asleep on a page, a frame, a job
+
+    def why_closed(self, t):
+        if t.context == 'isr':
+            return f'{t.name} is in an ISR'
+        if t.in_lock:
+            return f'{t.name} waits for mm_lock with interrupts off'
+        if t.refilling:
+            return f'{t.name} is in a refill'
+        return f'{t.name} is {t.state}'
+
+    def _clear_handler(self, target):
+        """The interrupt handler for one target. It runs only while some hardware thread of the target can take it."""
+        def body(task):
+            s, port = self.sched, self.port
+            while True:
+                by = self.can_take(target)
+                pages, target.pending[:] = list(target.pending), []
+                for h in pages:
+                    port.tlb[target.core].pop(h, None)
+                    left = port.unmapping[h]
+                    left.discard(target.name)
+                    self.tev(f'{target.name} clears page {h:#x} from core {target.core} TLB (taken by {by}), acks', h)
+                    if not left:
+                        s.wake(('ack', h))
+                s.pause('clear request handled')
+        return body
+
+    def translate_split(self, task, h):
+        """Option SplitTlb. A TLB hit, a page fault (0), or REFILLED after the kernel SW refill handler ran."""
+        port, o, core = self.port, self.split, task.core
+        tlb = port.tlb[core]
+        pa = tlb.get(h)
+        if pa:
+            if port.pte[h] != pa:
+                if h in port.unmapping and port.unmapped_pa[h] == pa:   # its clearing is still going on, and the
+                    #                                       entry is the one being cleared: ordered before the unmap
+                    port.st['tlb_use_while_clearing'] += 1
+                    self.tev(f'uses page {h:#x} -> {pa:#x} from core {core} TLB while its clearing is going on', h)
+                    return pa
+                self.tev(f'uses page {h:#x} -> {pa:#x} from core {core} TLB, PTE says {port.pte[h]:#x}: STALE', h)
+                e = StaleTlb(f'core {core} still translates page {h:#x} to {pa:#x}, the PTE says {port.pte[h]:#x}')
+                e.page, e.core, e.pa = h, core, pa
+                raise e
+            return pa
+        if o.refill_locked:
+            port.lock()
+        pa = port.pte[h]                                  # step A
+        if pa:
+            task.refilling = (h, pa)
+            self.tev(f'refill A: reads PTE {h:#x} = {pa:#x}', h)
+            self.sched.pause('refill between A and B')
+            tlb[h] = pa                                   # step B: what step A read, whatever the PTE says now
+            self.tev(f'refill B: writes core {core} TLB {h:#x} -> {pa:#x} (PTE now {port.pte[h]:#x})', h)
+            if o.recheck:
+                self.sched.pause('refill between B and C')
+                if port.pte[h] != pa and tlb.get(h) == pa:
+                    del tlb[h]                            # step C: the PTE changed under the refill
+                    port.st['refill_recheck_dropped'] += 1
+                    self.tev(f'refill C: PTE {h:#x} changed, drops the entry', h)
+            task.refilling = None
+            port.st['refills'] += 1
+        if o.refill_locked:
+            port.unlock()
+        return REFILLED if pa else 0
+
+    def check_tlb_left(self):
+        port = self.port
+        for core, tlb in enumerate(port.tlb):
+            for h, pa in tlb.items():
+                if port.pte[h] != pa:
+                    e = StaleTlb(f'core {core} was left translating page {h:#x} to {pa:#x}, the PTE says {port.pte[h]:#x}')
+                    e.page, e.core, e.pa = h, core, pa
+                    raise e
+
+    def deadlock_on_clear(self):
+        port = self.port
+        for t, on in self.sched.left:
+            if isinstance(on, tuple) and on[0] == 'ack':
+                h = on[1]
+                why = '; '.join(f"{tg.name}: {', '.join(self.why_closed(x) for x in tg.members)}"
+                                for tg in self.targets if tg.name in port.unmapping[h])
+                users = ', '.join(f'{u.name} waits for {w}' for u, w in self.sched.left if u in self.users)
+                e = Deadlock(f'{t.name} holds mm_lock and waits for the clear of page {h:#x} by [{why}]; {users}')
+                e.page = h
+                raise e
+
     # ---- the CPU
     def translate(self, core, h):
         port = self.port
@@ -445,11 +670,19 @@ class ConcMachine(Machine):
 
     def instruction(self, task, uses):
         """One instruction. It runs only when every page it needs is mapped at the same moment."""
-        s, tries = self.sched, 0
+        s, tries, refills = self.sched, 0, 0
         while True:
             s.pause('cpu')                                # between the return from a fault and the instruction
+            pas = []
             for h, write, code in uses:
-                if not self.translate(task.core, h):
+                pa = self.translate_split(task, h) if self.split is not None else self.translate(task.core, h)
+                if pa is REFILLED:                        # back from the TLB miss exception: the instruction runs again
+                    refills += 1
+                    if refills > 4 * RETRY_LIMIT * len(uses):
+                        raise NoProgress(f'the instruction on pages {[hex(u[0]) for u in uses]} refilled {refills} times')
+                    break
+                pas.append(pa)
+                if not pa:
                     r = self.kernel.page_fault(h)
                     self.kinds[r] += 1
                     if r == 'lost':
@@ -463,8 +696,8 @@ class ConcMachine(Machine):
             else:
                 break
         self.kinds['instructions'] += 1
-        for h, write, code in uses:
-            self.use(h, self.port.pte[h], write, code)
+        for (h, write, code), pa in zip(uses, pas):
+            self.use(h, pa if self.split is not None else self.port.pte[h], write, code)   # split: what the TLB gave
         return 'ran'
 
     def use(self, h, pa, write, code):
@@ -516,13 +749,25 @@ class ConcMachine(Machine):
         s.spawn('LZ4 HW', self._hw)
         self.reclaimer_task = s.spawn('reclaimer', self._reclaimer, core=self.cores - 1)
         self.users = users = [s.spawn(f'user{i}', self._user(sc), core=i % self.cores) for i, sc in enumerate(scripts)]
-        s.run()
-        stuck = [(t, on) for t, on in s.left if t in users]
-        if stuck:
-            what = ', '.join(f'{t.name} waits for {on}' for t, on in stuck)
-            if all(on == 'frame' for _, on in stuck) and not self.could_free():
-                raise OutOfMemory(what)
-            raise Deadlock(what)
+        for t in [self.reclaimer_task] + users:
+            t.cpu = True
+        if self.split is not None:
+            self.make_targets([self.reclaimer_task] + users)
+        try:
+            s.run()
+            if self.split is not None:
+                self.deadlock_on_clear()
+            stuck = [(t, on) for t, on in s.left if t in users]
+            if stuck:
+                what = ', '.join(f'{t.name} waits for {on}' for t, on in stuck)
+                if all(on == 'frame' for _, on in stuck) and not self.could_free():
+                    raise OutOfMemory(what)
+                raise Deadlock(what)
+            if self.split is not None:
+                self.check_tlb_left()
+        except Exception as e:
+            e.tlb_events = self.events                    # option SplitTlb only; empty otherwise
+            raise
         self.result = audit(self)
         return self
 
