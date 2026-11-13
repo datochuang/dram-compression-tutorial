@@ -69,7 +69,7 @@ P4 取代先前「LZ4 HW 只有一個 engine，一次做一個 job」的假設�
 - `README.md`：以 CPU MMU 為主角的入門文件，給沒有 CPU MMU 背景的讀者。LZ4 的過程只提到接上去的位置。
 - `figures/cpu-mmu-basics/`：三張白板圖，嵌在 `README.md` 裡。
 - CPU MMU 動畫：`addrspace/mmu_sim.js`、`addrspace/mmu_scene.js`、`addrspace/mmu3d.src.html`。十個場景。畫 2 個 core，每個 core 2 個 hardware thread、1 個 TLB、1 個 L1，兩個 core 共用 1 個 L2，kernel SW 的 `mm_lock` 畫在 page table 旁邊。TLB 畫 3 格。格數、取代方式、cache 的行為都是範例，不是平台的數字。清掉另一個 core 的 TLB、讓其他 core 做 cache clean 與 cache invalidate 都只畫結果，機制標為不知道。順序照 `sim/hostsim` 的 kernel，但由 fault 的那份 instance 自己趕 page，沒有畫 reclaimer。只填 TLB 的 handler 畫成不拿 `mm_lock`，這件事仍然沒有設計。2026-11-13 照負責人的決定放進 `docs/mmu/`，從 GitHub Pages 發佈。
-- 兩種節奏動畫：`addrspace/rhythm_sim.js`、`rhythm_scene.js`、`rhythm_draw.js`、`rhythm_state.js`、`rhythm_story.js`、`rhythm3d.src.html`。白板圖 D 會動的版本，四幕。下方的表格畫 TLB、page table 與 COT、frame，標出誰讀誰寫。模型的大小與時間都是範例；page 有沒有被用過由模型直接知道（D5 還沒設計）；漂移帶進來的新 page 被當成壓縮過的；chunk pool 沒有畫。2026-11-13 照負責人的決定放進 `docs/rhythm/`。
+- 兩種節奏動畫：`addrspace/rhythm_sim.js`、`rhythm_scene.js`、`rhythm_draw.js`、`rhythm_state.js`、`rhythm_story.js`、`rhythm3d.src.html`。白板圖 D 會動的版本，四幕。下方的表格畫 TLB、page table 與 COT、frame，標出誰讀誰寫。模型的大小與時間都是範例；L2 以 cache line 計，一個 page 算 64 行，每個 page 用到幾行可以調，2026-11-14 加上，用來表現稀疏存取時 L2 放得下的 page 多於 TLB reach；資料那一行在不在 L2 只計數，不改變 access 的時間；page 有沒有被用過由模型直接知道（D5 還沒設計）；漂移帶進來的新 page 被當成壓縮過的；chunk pool 沒有畫。2026-11-13 照負責人的決定放進 `docs/rhythm/`。
 - address 動畫裡與 P1、每個 core 一個 TLB 衝突的三句話已經改掉。這個動畫仍然沒有畫 TLB 與 core。
 
 寫 `README.md` 時發現的：`sim/hostsim/conc.py` 的 `translate` 不經過 kernel、不拿 lock 就填 TLB。單純的 TLB refill handler 要不要拿 `mm_lock`，目前沒有設計。

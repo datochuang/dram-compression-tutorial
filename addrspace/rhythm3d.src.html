@@ -134,7 +134,7 @@
     <div class="rate">
       <div>
         <h2>頻率由什麼決定</h2>
-        <svg id="ratesvg" viewBox="0 0 560 210" role="img" aria-label="working set 與三個容量的比較：TLB reach、L2、frame 區。"></svg>
+        <svg id="ratesvg" viewBox="0 0 560 224" role="img" aria-label="working set 與三個容量的比較：TLB reach、L2 放得下的 page、frame 區。"></svg>
         <p class="say" id="say"></p>
       </div>
       <div>
@@ -147,7 +147,8 @@
   <section class="notes">
     <p>這一頁照專案的平台前提：CPU MMU 沒有 hardware page table walk，每一次 TLB miss 都進 exception，由 kernel SW 讀 PTE、填 TLB（P1）。每個 core 一個 TLB，由那個 core 的 hardware thread 共用（P3，還沒有對過 CPU 手冊）。LZ4 HW 同時最多做 4 個 job（P4，4 是暫定值）。</p>
     <p>模型是範例：兩個 user SW 程式各跑在一個 core 上。每個程式在一段短時間裡只用 24 個 page，每 40 次 access 往前移一個 page，在自己的長期 working set 裡繞圈；長期 working set 本身以「漂移」控制的速度往前移。TLB 是 LRU。frame 不夠時，reclaimer 用 clock 挑一個最近沒用過的 page 收起來，一次最多 2 個 COMPRESS 在跑。每一次 access 算 1 個時間單位，其他事件的長短也是範例。這個平台的 TLB 有幾格、TLB miss handler 一次多久、fault 有多常發生，目前都不知道。</p>
-    <p>L2 在模型裡只決定 kernel SW 讀 PTE 時那一行在不在 L2：在就短，不在就長。它不參與決定哪一次是 TLB miss、哪一次是 page fault，所以只改變每一次的長短，不改變次數。L2 裡一格算一個 page 的資料或一行 PTE，這也是範例。</p>
+    <p>L2 在模型裡以 cache line 計，資料和 PTE 都是一行算一格，兩個 core 共用，LRU。一個 page 算 64 行，像 4 KB 的 page 配 64 byte 的 line；這個平台的 page 與 line 有多大，目前不知道。程式在一個 page 裡只用其中幾行，由「每個 page 用到的行」控制，所以 L2 放得下的 page 數等於 L2 的行數除以這個數：用得越稀疏，放得下的 page 越多。</p>
+    <p>L2 只決定 kernel SW 讀 PTE 時那一行在不在 L2：在就短，不在就長。user SW 要用的那一行在不在 L2，模型只記下來，不改變 access 的時間；左上角「data already in L2」就是 TLB miss 時那一行本來就在 L2 的比例。L2 不參與決定哪一次是 TLB miss、哪一次是 page fault，所以只改變每一次的長短，不改變次數。</p>
     <p>簡化的部分：page 有沒有被用過，模型直接知道。照 P1，這件事只能由 kernel 在 TLB miss handler 裡記，一直 TLB hit 的 page 會被當成沒用過；怎麼做是控制程序的 D5，還沒有設計。TLB miss 本身也會讓 user SW 停一下，時間太短，軌道上沒有畫成缺口。兩個程式的 access 照時間交錯，所以改 TLB 或 L2 時，page fault 的次數會因交錯順序不同而有很小的差別；只有一個程式時完全不變。</p>
     <p>一個 core 上的 kernel SW 用什麼機制清掉另一個 core 的 TLB，這個平台目前不知道。畫面上只畫出結果。</p>
     <p>舞台下面的表格是「現在」這一刻的狀態。模型會先往前算，表格另外保留一份，每一筆讀寫到了它發生的時間才套上去。誰讀寫哪裡照專案的前提與介面規格：TLB 由 CPU MMU HW 讀、由 kernel SW 寫（P1）；page table 與 COT 只有 kernel SW 讀寫，HW 不讀；frame 是 user SW 的資料，LZ4 HW 做 COMPRESS 時讀它、做 DECOMPRESS 時寫它。壓縮後的資料放在 chunk pool，表格沒有畫；LZ4 HW 讀寫的 chunk 只寫在步驟紀錄裡。page table 與 COT 只畫每個程式長期 working set 範圍內的 page，上方的色條是這一刻正在用的那一段。單次 access 對 TLB 與 frame 的讀寫只在時間鏡頭 ×3 以內畫出來，再拉遠就太多了。TLB 每一格放哪一頁是畫面自己排的，模型只記 LRU 的順序。working set 漂移帶進來的新 page，模型當成壓縮過的，所以會有 COT entry；照現有設計那其實是還沒碰過的 page，不需要 DECOMPRESS。</p>

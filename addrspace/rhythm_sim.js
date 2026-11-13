@@ -14,11 +14,13 @@ const STEP = 40;               // accesses before that short stretch moves on by
 const ENGINES = 4;             // P4: the LZ4 HW takes N jobs at once, N = 4 for now
 const INFLIGHT = 2;            // COMPRESS jobs the reclaimer keeps in flight
 const PTE_PER_LINE = 8;        // PTEs in one cache line of the page table
+const LPP = 64;                // cache lines in one page, like a 4 KB page with 64-byte lines; the platform's sizes are not known
 const MASK = 0x3FFFF, NPG = 0x80000, FMAX = 2048;
 // relative time units; one access that hits the TLB takes 1
 const COST = { access: 1, refillL2: 2, refillDram: 6, lockA: 6, decomp: 30, lockB: 6, recA: 4, comp: 60, recB: 4 };
-const DEF = { ws: 160, drift: 5, tlb: 16, frames: 360, l2: 64 };
-const RANGE = { ws: [32, 1024], drift: [0, 120], tlb: [4, 128], frames: [64, 1024], l2: [8, 512] };
+// l2: cache lines, data or PTE alike. lines: how many of a page's LPP lines a program actually uses
+const DEF = { ws: 160, drift: 5, tlb: 16, frames: 360, l2: 1024, lines: 8 };
+const RANGE = { ws: [32, 1024], drift: [0, 120], tlb: [4, 128], frames: [64, 1024], l2: [8, 4096], lines: [1, LPP] };
 
 function rng32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
@@ -31,9 +33,10 @@ function create(opt) {
   const tlb = [], l2 = new Map(), engFree = new Array(ENGINES).fill(0), slotEnd = new Array(INFLIGHT).fill(0);
   let free = [], pending = [], hand = 0, rt = 0;
   const ev = { acc: [], tick: [], fault: [], wait: [], rec: [], clr: [], job: [] };
-  const cnt = { acc: 0, refill: [0, 0], fault: 0, evict: 0, waitFrame: 0, waitComp: 0, refillDram: 0 };
+  const cnt = { acc: 0, refill: [0, 0], fault: 0, evict: 0, waitFrame: 0, waitComp: 0, refillDram: 0, missDataL2: 0 };
   const progs = [];
-  for (let i = 0; i < nprog; i++) { tlb.push(new Map()); progs.push({ i, core: i, off: i * 0x40000, base: 0x2A0 + i * 0x150, c: 0, k: 0, dacc: 0, t: i * 0.5, rng: rng32((opt.seed || 7) * 31 + i) }); }
+  // lr picks the line inside a page from its own stream, so the pages a program touches do not depend on lines
+  for (let i = 0; i < nprog; i++) { tlb.push(new Map()); progs.push({ i, core: i, off: i * 0x40000, base: 0x2A0 + i * 0x150, c: 0, k: 0, dacc: 0, t: i * 0.5, rng: rng32((opt.seed || 7) * 31 + i), lr: rng32((opt.seed || 7) * 31 + i + 977) }); }
   // tr: what each step reads or writes, with its time, for the table panel. Recording it changes nothing in the model.
   const s = { prm, ev, cnt, progs, recAcc: false, nprog, tr: [] };
   let booted = false;
@@ -41,6 +44,7 @@ function create(opt) {
 
   const l2touch = key => { if (l2.has(key)) l2.delete(key); l2.set(key, 1); while (l2.size > prm.l2) l2.delete(l2.keys().next().value); };
   const pteKey = p => -1 - Math.floor(p / PTE_PER_LINE);
+  const dropPage = p => { for (let l = 0; l < LPP; l++) l2.delete(p * LPP + l); };   // the frame's data changed: its lines leave the L2
   const tlbFill = (core, p) => { const m = tlb[core]; let out = -1; if (m.has(p)) m.delete(p); m.set(p, 1); while (m.size > prm.tlb) { out = m.keys().next().value; m.delete(out); } return out; };
   const pageAt = (P, off) => P.off + ((P.base + (P.c + off) % prm.ws) & MASK);
 
@@ -101,7 +105,7 @@ function create(opt) {
       tr({ k: 'cj', t: j.start, t1: j.start + COST.comp, p, f, e: j.e }); tr({ k: 'cd', t: rel, p, f });
       ev.rec.push({ t0, t1: rel, p, slot: sl });
       slotEnd[sl] = rel; rt = t0 + COST.recA; compT[p] = rel;
-      frames[f] = -1; l2.delete(p); cnt.evict++;
+      frames[f] = -1; dropPage(p); cnt.evict++;
       if (f >= prm.frames) return false;
       let i = pending.length; while (i > 0 && pending[i - 1].t > rel) i--; pending.splice(i, 0, { t: rel, f });
       return true;
@@ -116,15 +120,17 @@ function create(opt) {
 
   function stepProg(P) {
     const t = P.t, p = nextPage(P), core = P.core, m = tlb[core];
-    cnt.acc++; l2touch(p); ref[p] = 1;
+    // one line of the page; whether it was already in the L2 does not change the access time in this model, it is only counted
+    const dk = p * LPP + Math.floor(P.lr() * prm.lines), dIn = frameOf[p] >= 0 && l2.has(dk);
+    cnt.acc++; l2touch(dk); ref[p] = 1;
     if (s.recAcc) { ev.acc.push({ t, prog: P.i }); tr({ k: 'a', t, i: P.i, c: core, p, hit: m.has(p) }); }
     if (m.has(p)) { m.delete(p); m.set(p, 1); P.t = t + COST.access; return; }
     // TLB miss: an exception, the kernel reads the PTE. Its cache line may or may not be in the L2.
     const k = pteKey(p), inL2 = l2.has(k); l2touch(k);
     const d = inL2 ? COST.refillL2 : COST.refillDram; if (!inL2) cnt.refillDram++;
-    cnt.refill[core]++;
+    cnt.refill[core]++; if (dIn) cnt.missDataL2++;
     tr({ k: 'm', t, d, c: core, p, l2: inL2, f: frameOf[p] < 0 });
-    if (frameOf[p] >= 0) { ev.tick.push({ t, d, core, l2: inL2 }); tr({ k: 'tf', t: t + d, c: core, p, out: tlbFill(core, p) }); P.t = t + d + COST.access; return; }
+    if (frameOf[p] >= 0) { ev.tick.push({ t, d, core, l2: inL2, dl2: dIn }); tr({ k: 'tf', t: t + d, c: core, p, out: tlbFill(core, p) }); P.t = t + d + COST.access; return; }
     // the PTE is invalid: page fault
     ev.tick.push({ t, d, core, l2: inL2, fault: true });
     const t1 = t + d, t2 = t1 + COST.lockA;
@@ -136,7 +142,7 @@ function create(opt) {
     ev.job.push({ eng: j.e, t0: j.start, d: COST.decomp, op: 'D', p });
     const tB = j.start + COST.decomp + COST.lockB;
     tr({ k: 'dj', t: j.start, t1: j.start + COST.decomp, p, f: fr.f, e: j.e });
-    frames[fr.f] = p; frameOf[p] = fr.f; l2.delete(p);
+    frames[fr.f] = p; frameOf[p] = fr.f; dropPage(p);
     tr({ k: 'pd', t: tB, c: core, p, f: fr.f }); tr({ k: 'tf', t: tB, c: core, p, out: tlbFill(core, p) });
     ev.fault.push({ t0: t1, t1: tB, core, prog: P.i, p, tw: tF > t2 ? [t2, tF] : null });
     ev.wait.push({ prog: P.i, t0: t, t1: tB, p });
@@ -180,6 +186,6 @@ function create(opt) {
   return s;
 }
 
-const RHY = { create, DEF, RANGE, COST, SHORT, STEP, ENGINES, NCORE, INFLIGHT, MASK, FMAX };
+const RHY = { create, DEF, RANGE, COST, SHORT, STEP, ENGINES, NCORE, INFLIGHT, MASK, FMAX, LPP, PTE_PER_LINE };
 if (typeof module !== 'undefined' && module.exports) module.exports = RHY; else root.RHY = RHY;
 })(typeof window !== 'undefined' ? window : this);

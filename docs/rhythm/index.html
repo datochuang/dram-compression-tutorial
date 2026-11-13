@@ -206,7 +206,7 @@ td.chg { background: var(--flash); } tr.selrow td:first-child { box-shadow: inse
     <div class="rate">
       <div>
         <h2>頻率由什麼決定</h2>
-        <svg id="ratesvg" viewBox="0 0 560 210" role="img" aria-label="working set 與三個容量的比較：TLB reach、L2、frame 區。"></svg>
+        <svg id="ratesvg" viewBox="0 0 560 224" role="img" aria-label="working set 與三個容量的比較：TLB reach、L2 放得下的 page、frame 區。"></svg>
         <p class="say" id="say"></p>
       </div>
       <div>
@@ -219,7 +219,8 @@ td.chg { background: var(--flash); } tr.selrow td:first-child { box-shadow: inse
   <section class="notes">
     <p>這一頁照專案的平台前提：CPU MMU 沒有 hardware page table walk，每一次 TLB miss 都進 exception，由 kernel SW 讀 PTE、填 TLB（P1）。每個 core 一個 TLB，由那個 core 的 hardware thread 共用（P3，還沒有對過 CPU 手冊）。LZ4 HW 同時最多做 4 個 job（P4，4 是暫定值）。</p>
     <p>模型是範例：兩個 user SW 程式各跑在一個 core 上。每個程式在一段短時間裡只用 24 個 page，每 40 次 access 往前移一個 page，在自己的長期 working set 裡繞圈；長期 working set 本身以「漂移」控制的速度往前移。TLB 是 LRU。frame 不夠時，reclaimer 用 clock 挑一個最近沒用過的 page 收起來，一次最多 2 個 COMPRESS 在跑。每一次 access 算 1 個時間單位，其他事件的長短也是範例。這個平台的 TLB 有幾格、TLB miss handler 一次多久、fault 有多常發生，目前都不知道。</p>
-    <p>L2 在模型裡只決定 kernel SW 讀 PTE 時那一行在不在 L2：在就短，不在就長。它不參與決定哪一次是 TLB miss、哪一次是 page fault，所以只改變每一次的長短，不改變次數。L2 裡一格算一個 page 的資料或一行 PTE，這也是範例。</p>
+    <p>L2 在模型裡以 cache line 計，資料和 PTE 都是一行算一格，兩個 core 共用，LRU。一個 page 算 64 行，像 4 KB 的 page 配 64 byte 的 line；這個平台的 page 與 line 有多大，目前不知道。程式在一個 page 裡只用其中幾行，由「每個 page 用到的行」控制，所以 L2 放得下的 page 數等於 L2 的行數除以這個數：用得越稀疏，放得下的 page 越多。</p>
+    <p>L2 只決定 kernel SW 讀 PTE 時那一行在不在 L2：在就短，不在就長。user SW 要用的那一行在不在 L2，模型只記下來，不改變 access 的時間；左上角「data already in L2」就是 TLB miss 時那一行本來就在 L2 的比例。L2 不參與決定哪一次是 TLB miss、哪一次是 page fault，所以只改變每一次的長短，不改變次數。</p>
     <p>簡化的部分：page 有沒有被用過，模型直接知道。照 P1，這件事只能由 kernel 在 TLB miss handler 裡記，一直 TLB hit 的 page 會被當成沒用過；怎麼做是控制程序的 D5，還沒有設計。TLB miss 本身也會讓 user SW 停一下，時間太短，軌道上沒有畫成缺口。兩個程式的 access 照時間交錯，所以改 TLB 或 L2 時，page fault 的次數會因交錯順序不同而有很小的差別；只有一個程式時完全不變。</p>
     <p>一個 core 上的 kernel SW 用什麼機制清掉另一個 core 的 TLB，這個平台目前不知道。畫面上只畫出結果。</p>
     <p>舞台下面的表格是「現在」這一刻的狀態。模型會先往前算，表格另外保留一份，每一筆讀寫到了它發生的時間才套上去。誰讀寫哪裡照專案的前提與介面規格：TLB 由 CPU MMU HW 讀、由 kernel SW 寫（P1）；page table 與 COT 只有 kernel SW 讀寫，HW 不讀；frame 是 user SW 的資料，LZ4 HW 做 COMPRESS 時讀它、做 DECOMPRESS 時寫它。壓縮後的資料放在 chunk pool，表格沒有畫；LZ4 HW 讀寫的 chunk 只寫在步驟紀錄裡。page table 與 COT 只畫每個程式長期 working set 範圍內的 page，上方的色條是這一刻正在用的那一段。單次 access 對 TLB 與 frame 的讀寫只在時間鏡頭 ×3 以內畫出來，再拉遠就太多了。TLB 每一格放哪一頁是畫面自己排的，模型只記 LRU 的順序。working set 漂移帶進來的新 page，模型當成壓縮過的，所以會有 COT entry；照現有設計那其實是還沒碰過的 page，不需要 DECOMPRESS。</p>
@@ -244,11 +245,13 @@ const STEP = 40;               // accesses before that short stretch moves on by
 const ENGINES = 4;             // P4: the LZ4 HW takes N jobs at once, N = 4 for now
 const INFLIGHT = 2;            // COMPRESS jobs the reclaimer keeps in flight
 const PTE_PER_LINE = 8;        // PTEs in one cache line of the page table
+const LPP = 64;                // cache lines in one page, like a 4 KB page with 64-byte lines; the platform's sizes are not known
 const MASK = 0x3FFFF, NPG = 0x80000, FMAX = 2048;
 // relative time units; one access that hits the TLB takes 1
 const COST = { access: 1, refillL2: 2, refillDram: 6, lockA: 6, decomp: 30, lockB: 6, recA: 4, comp: 60, recB: 4 };
-const DEF = { ws: 160, drift: 5, tlb: 16, frames: 360, l2: 64 };
-const RANGE = { ws: [32, 1024], drift: [0, 120], tlb: [4, 128], frames: [64, 1024], l2: [8, 512] };
+// l2: cache lines, data or PTE alike. lines: how many of a page's LPP lines a program actually uses
+const DEF = { ws: 160, drift: 5, tlb: 16, frames: 360, l2: 1024, lines: 8 };
+const RANGE = { ws: [32, 1024], drift: [0, 120], tlb: [4, 128], frames: [64, 1024], l2: [8, 4096], lines: [1, LPP] };
 
 function rng32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
@@ -261,9 +264,10 @@ function create(opt) {
   const tlb = [], l2 = new Map(), engFree = new Array(ENGINES).fill(0), slotEnd = new Array(INFLIGHT).fill(0);
   let free = [], pending = [], hand = 0, rt = 0;
   const ev = { acc: [], tick: [], fault: [], wait: [], rec: [], clr: [], job: [] };
-  const cnt = { acc: 0, refill: [0, 0], fault: 0, evict: 0, waitFrame: 0, waitComp: 0, refillDram: 0 };
+  const cnt = { acc: 0, refill: [0, 0], fault: 0, evict: 0, waitFrame: 0, waitComp: 0, refillDram: 0, missDataL2: 0 };
   const progs = [];
-  for (let i = 0; i < nprog; i++) { tlb.push(new Map()); progs.push({ i, core: i, off: i * 0x40000, base: 0x2A0 + i * 0x150, c: 0, k: 0, dacc: 0, t: i * 0.5, rng: rng32((opt.seed || 7) * 31 + i) }); }
+  // lr picks the line inside a page from its own stream, so the pages a program touches do not depend on lines
+  for (let i = 0; i < nprog; i++) { tlb.push(new Map()); progs.push({ i, core: i, off: i * 0x40000, base: 0x2A0 + i * 0x150, c: 0, k: 0, dacc: 0, t: i * 0.5, rng: rng32((opt.seed || 7) * 31 + i), lr: rng32((opt.seed || 7) * 31 + i + 977) }); }
   // tr: what each step reads or writes, with its time, for the table panel. Recording it changes nothing in the model.
   const s = { prm, ev, cnt, progs, recAcc: false, nprog, tr: [] };
   let booted = false;
@@ -271,6 +275,7 @@ function create(opt) {
 
   const l2touch = key => { if (l2.has(key)) l2.delete(key); l2.set(key, 1); while (l2.size > prm.l2) l2.delete(l2.keys().next().value); };
   const pteKey = p => -1 - Math.floor(p / PTE_PER_LINE);
+  const dropPage = p => { for (let l = 0; l < LPP; l++) l2.delete(p * LPP + l); };   // the frame's data changed: its lines leave the L2
   const tlbFill = (core, p) => { const m = tlb[core]; let out = -1; if (m.has(p)) m.delete(p); m.set(p, 1); while (m.size > prm.tlb) { out = m.keys().next().value; m.delete(out); } return out; };
   const pageAt = (P, off) => P.off + ((P.base + (P.c + off) % prm.ws) & MASK);
 
@@ -331,7 +336,7 @@ function create(opt) {
       tr({ k: 'cj', t: j.start, t1: j.start + COST.comp, p, f, e: j.e }); tr({ k: 'cd', t: rel, p, f });
       ev.rec.push({ t0, t1: rel, p, slot: sl });
       slotEnd[sl] = rel; rt = t0 + COST.recA; compT[p] = rel;
-      frames[f] = -1; l2.delete(p); cnt.evict++;
+      frames[f] = -1; dropPage(p); cnt.evict++;
       if (f >= prm.frames) return false;
       let i = pending.length; while (i > 0 && pending[i - 1].t > rel) i--; pending.splice(i, 0, { t: rel, f });
       return true;
@@ -346,15 +351,17 @@ function create(opt) {
 
   function stepProg(P) {
     const t = P.t, p = nextPage(P), core = P.core, m = tlb[core];
-    cnt.acc++; l2touch(p); ref[p] = 1;
+    // one line of the page; whether it was already in the L2 does not change the access time in this model, it is only counted
+    const dk = p * LPP + Math.floor(P.lr() * prm.lines), dIn = frameOf[p] >= 0 && l2.has(dk);
+    cnt.acc++; l2touch(dk); ref[p] = 1;
     if (s.recAcc) { ev.acc.push({ t, prog: P.i }); tr({ k: 'a', t, i: P.i, c: core, p, hit: m.has(p) }); }
     if (m.has(p)) { m.delete(p); m.set(p, 1); P.t = t + COST.access; return; }
     // TLB miss: an exception, the kernel reads the PTE. Its cache line may or may not be in the L2.
     const k = pteKey(p), inL2 = l2.has(k); l2touch(k);
     const d = inL2 ? COST.refillL2 : COST.refillDram; if (!inL2) cnt.refillDram++;
-    cnt.refill[core]++;
+    cnt.refill[core]++; if (dIn) cnt.missDataL2++;
     tr({ k: 'm', t, d, c: core, p, l2: inL2, f: frameOf[p] < 0 });
-    if (frameOf[p] >= 0) { ev.tick.push({ t, d, core, l2: inL2 }); tr({ k: 'tf', t: t + d, c: core, p, out: tlbFill(core, p) }); P.t = t + d + COST.access; return; }
+    if (frameOf[p] >= 0) { ev.tick.push({ t, d, core, l2: inL2, dl2: dIn }); tr({ k: 'tf', t: t + d, c: core, p, out: tlbFill(core, p) }); P.t = t + d + COST.access; return; }
     // the PTE is invalid: page fault
     ev.tick.push({ t, d, core, l2: inL2, fault: true });
     const t1 = t + d, t2 = t1 + COST.lockA;
@@ -366,7 +373,7 @@ function create(opt) {
     ev.job.push({ eng: j.e, t0: j.start, d: COST.decomp, op: 'D', p });
     const tB = j.start + COST.decomp + COST.lockB;
     tr({ k: 'dj', t: j.start, t1: j.start + COST.decomp, p, f: fr.f, e: j.e });
-    frames[fr.f] = p; frameOf[p] = fr.f; l2.delete(p);
+    frames[fr.f] = p; frameOf[p] = fr.f; dropPage(p);
     tr({ k: 'pd', t: tB, c: core, p, f: fr.f }); tr({ k: 'tf', t: tB, c: core, p, out: tlbFill(core, p) });
     ev.fault.push({ t0: t1, t1: tB, core, prog: P.i, p, tw: tF > t2 ? [t2, tF] : null });
     ev.wait.push({ prog: P.i, t0: t, t1: tB, p });
@@ -410,7 +417,7 @@ function create(opt) {
   return s;
 }
 
-const RHY = { create, DEF, RANGE, COST, SHORT, STEP, ENGINES, NCORE, INFLIGHT, MASK, FMAX };
+const RHY = { create, DEF, RANGE, COST, SHORT, STEP, ENGINES, NCORE, INFLIGHT, MASK, FMAX, LPP, PTE_PER_LINE };
 if (typeof module !== 'undefined' && module.exports) module.exports = RHY; else root.RHY = RHY;
 })(typeof window !== 'undefined' ? window : this);
 
@@ -696,7 +703,7 @@ function colors() {
 const BIN = 0.4, BASE = 2;                              // at lens ×1 one world unit is BASE time units
 function draw(s, now, lens) {
   const tpw = lens * BASE, k = 1 / tpw, tMin = now - XB * tpw, X = t => (t - now) * k, ev = s.ev;
-  const out = { tick: [0, 0], refillTime: [0, 0], fault: 0, rec: 0, last: [null, null], faultNow: [], recNow: [], jobNow: [], waitNow: [], clrRecent: null, faultTick: null };
+  const out = { tick: [0, 0], dl2: 0, refillTime: [0, 0], fault: 0, rec: 0, last: [null, null], faultNow: [], recNow: [], jobNow: [], waitNow: [], clrRecent: null, faultTick: null };
   begin();
   // TLB misses: one tick each while they can be told apart, a band whose height is the busy share once they cannot
   const band = lens >= 60, NB = Math.ceil(XB / BIN) + 1, busy = band ? [new Float32Array(NB), new Float32Array(NB)] : null;
@@ -704,7 +711,7 @@ function draw(s, now, lens) {
     const e = ev.tick[i];
     if (e.t > now) continue;
     if (e.t + e.d < tMin) break;
-    out.tick[e.core]++; out.refillTime[e.core] += e.d;
+    out.tick[e.core]++; out.refillTime[e.core] += e.d; if (e.dl2) out.dl2++;
     if (!out.last[e.core]) out.last[e.core] = e;
     if (e.fault) {                                         // meeting point one: this TLB miss finds the PTE invalid
       const x = X(e.t), z0 = LANE.cpu[e.core], z1 = LANE.comp[e.core];
@@ -1007,7 +1014,8 @@ let act = 0, actT = 0, beat = '', beatT = 0, lastOut = null, pruneT = 0, demoOn 
 /* ---------- the controls under the stage ---------- */
 const SL = [
   ['ws', '長期 working set', '每個程式，page'], ['drift', 'working set 漂移', '每 10 000 次 access 換進的新 page'],
-  ['tlb', 'TLB entries', '每個 core'], ['frames', 'frame 區', '兩個程式共用，page'], ['l2', 'L2', '放得下的 page 或 PTE 行'],
+  ['tlb', 'TLB entries', '每個 core'], ['frames', 'frame 區', '兩個程式共用，page'], ['l2', 'L2', '兩個 core 共用，cache line'],
+  ['lines', '每個 page 用到的行', `一個 page ${RHY.LPP} 行，範例`],
 ];
 const IN = {}, OUT = {};
 SL.forEach(([k, name, sub]) => {
@@ -1035,22 +1043,26 @@ $('defaults').addEventListener('click', () => { demoOn = false; Object.keys(RHY.
 /* what sets the rate: the working sets against the three capacities, on a log scale of pages */
 function drawRate() {
   if (!sim) return;
-  const p = sim.prm, L = v => 30 + 500 * Math.log2(Math.max(1, v)) / 11, svg = $('ratesvg');
+  const p = sim.prm, L = v => 30 + 500 * Math.log2(Math.max(1, v)) / 12, svg = $('ratesvg');
   const longWS = p.ws * sim.nprog, ink = 'var(--ink)', mut = 'var(--muted)';
+  // the L2 holds pages only as far as their used lines go: l2 lines ÷ lines used per page
+  const cov = p.l2 / p.lines, covS = cov >= 10 ? fmt(Math.floor(cov)) : cov.toFixed(1).replace(/\.0$/, ''), reach = p.tlb * sim.nprog;
   let h = '';
-  [1, 4, 16, 64, 256, 1024].forEach(v => { h += `<line x1="${L(v)}" y1="186" x2="${L(v)}" y2="191" stroke="${mut}"/><text x="${L(v)}" y="204" font-size="11" text-anchor="middle" fill="${mut}" font-family="var(--mono)">${v}</text>`; });
-  h += `<line x1="${L(1)}" y1="186" x2="${L(2048)}" y2="186" stroke="${mut}"/><text x="${L(2048)}" y="178" font-size="11" text-anchor="end" fill="${mut}" font-family="var(--mono)">pages, log scale</text>`;
+  [1, 4, 16, 64, 256, 1024, 4096].forEach(v => { h += `<line x1="${L(v)}" y1="198" x2="${L(v)}" y2="203" stroke="${mut}"/><text x="${L(v)}" y="216" font-size="11" text-anchor="middle" fill="${mut}" font-family="var(--mono)">${v}</text>`; });
+  h += `<line x1="${L(1)}" y1="198" x2="${L(4096)}" y2="198" stroke="${mut}"/><text x="${L(4096)}" y="190" font-size="11" text-anchor="end" fill="${mut}" font-family="var(--mono)">pages, log scale</text>`;
   const bar = (y, v, label, col) => { h += `<rect x="${L(1)}" y="${y}" width="${L(v) - L(1)}" height="14" fill="${col}" opacity=".85" rx="2"/><text x="${L(1) + 4}" y="${y - 4}" font-size="12" fill="${ink}" font-family="var(--mono)">${label}: ${v}</text>`; };
   const brk = (y, v, label, col) => { const x = L(v); h += `<path d="M${L(1)} ${y + 7} V${y} H${x} V${y + 7}" fill="none" stroke="${col}" stroke-width="2"/><text x="${x + 4}" y="${y + 6}" font-size="12" fill="${col}" font-family="var(--mono)">${label}: ${v}</text>`; };
   brk(14, p.tlb, 'TLB reach (entries per core)', 'var(--kern)');
-  bar(44, RHY.SHORT, 'short-term working set, per program', 'var(--ua)');
-  brk(88, p.l2, 'L2: cost, not count', mut);
-  brk(114, p.frames, 'frames', 'var(--lz)');
-  bar(146, longWS, 'long-term working set, both programs', 'var(--ub)');
+  bar(48, RHY.SHORT, 'short-term working set, per program', 'var(--ua)');
+  // label above the bracket: it is long and the bracket can reach far right
+  h += `<path d="M${L(1)} ${96} V${89} H${L(cov)} V${96}" fill="none" stroke="${ink}" stroke-width="2"/><text x="${L(1) + 4}" y="${84}" font-size="12" fill="${ink}" font-family="var(--mono)">L2, shared: ${fmt(p.l2)} lines ÷ ${p.lines} used per page ≈ ${covS} pages</text>`;
+  brk(124, p.frames, 'frames', 'var(--lz)');
+  bar(160, longWS, 'long-term working set, both programs', 'var(--ub)');
   svg.innerHTML = h;
   const s1 = RHY.SHORT > p.tlb ? `短時間用到的 ${RHY.SHORT} 個 page 多於 TLB 的 ${p.tlb} 格：<b>TLB miss 一直發生</b>。` : `短時間用到的 ${RHY.SHORT} 個 page 放得進 TLB：只有 working set 往前移時才 TLB miss。`;
   const s2 = longWS > p.frames ? `兩個程式的長期 working set 共 ${longWS} 個 page，多於 ${p.frames} 個 frame：<b>thrashing</b>，page fault 一直發生。` : `長期 working set 共 ${longWS} 個 page，放得進 ${p.frames} 個 frame：只有 working set 漂移時才 page fault。`;
-  $('say').innerHTML = s1 + '<br>' + s2 + '<br>L2 只改變每一次的長短，不改變次數。';
+  const s3 = cov > reach ? `L2 放得下大約 ${covS} 個 page 用到的行，兩個 core 的 TLB 加起來只涵蓋 ${reach} 個 page：<b>資料常常已經在 L2 裡，還是 TLB miss</b>，每一次都進 exception。` : `L2 放得下的 page 不比兩個 core 的 TLB 加起來的 ${reach} 個多：TLB miss 時，資料多半也不在 L2。`;
+  $('say').innerHTML = s1 + '<br>' + s2 + '<br>' + s3 + '<br>L2 只改變每一次 TLB miss 的長短，不改變次數。';
 }
 
 /* ---------- acts ---------- */
@@ -1095,13 +1107,14 @@ function runAct(dt) {
     const steps = [
       [0, null, '下面的長條和白板圖 D 一樣：working set 和三個容量比。控制只改變之後駛來的事件。先看自動示範。'],
       [8, { tlb: 64 }, 'TLB entries 16 → 64：短時間用到的 24 個 page 放得進 TLB 了。只有 CPU MMU 那條變薄，壓縮層那條不變。'],
-      [21, { tlb: 16, l2: 8 }, 'TLB 回到 16，L2 縮到 8：TLB miss 的次數不變，但 PTE 那一行常常不在 L2，每一次都變長，帶子變高。對照左上角的次數。'],
-      [34, { l2: 64, frames: 240 }, `L2 回到 64，frame 區從 ${RHY.DEF.frames} 縮到 240，比兩個程式的長期 working set 320 小：page fault 突然變密，壓縮層這邊幾乎沒停過，user SW 一直在等。這就是 thrashing。`],
-      [56, { frames: RHY.DEF.frames, drift: 60 }, `frame 區回到 ${RHY.DEF.frames}，working set 漂移變快：新的 page 不斷進來，兩邊都變多。`],
-      [70, { drift: 5 }, '全部回到預設值。你也可以自己拖動下面的控制。'],
+      [21, { tlb: 16, l2: 16 }, `TLB 回到 16，L2 從 ${fmt(RHY.DEF.l2)} 行縮到 16 行：TLB miss 的次數不變，但 PTE 那一行常常不在 L2，每一次都變長，帶子變高。對照左上角的次數。`],
+      [34, { l2: RHY.DEF.l2, lines: RHY.LPP }, `L2 回到 ${fmt(RHY.DEF.l2)} 行，每個 page 用到的行從 ${RHY.DEF.lines} 改成 ${RHY.LPP}，整個 page 都用：L2 放得下的 page 少了很多，和 TLB reach 差不多。TLB miss 的次數一樣，左上角「資料已在 L2」的比例下降。TLB miss 的次數只由 TLB 決定。`],
+      [47, { lines: RHY.DEF.lines, frames: 240 }, `每個 page 回到 ${RHY.DEF.lines} 行。frame 區從 ${RHY.DEF.frames} 縮到 240，比兩個程式的長期 working set 320 小：page fault 突然變密，壓縮層這邊幾乎沒停過，user SW 一直在等。這就是 thrashing。`],
+      [69, { frames: RHY.DEF.frames, drift: 60 }, `frame 區回到 ${RHY.DEF.frames}，working set 漂移變快：新的 page 不斷進來，兩邊都變多。`],
+      [83, { drift: 5 }, '全部回到預設值。你也可以自己拖動下面的控制。'],
     ];
     if (demoOn) steps.forEach(([t, ch, text], j) => { if (actT >= t && beat !== 'd' + j && (j === steps.length - 1 || actT < steps[j + 1][0])) { if (ch) Object.keys(ch).forEach(k => setParam(k, ch[k], true)); setBeat('d' + j, text); } });
-    if (demoOn && actT > 80) next();
+    if (demoOn && actT > 93) next();
   } else if (act === 3) {
     const w = 14 * lens * BASE;
     const ft = upcoming(sim.ev.fault, 't0', now - 2 * lens, now + w), cl = upcoming(sim.ev.clr, 't', now - 2 * lens, now + w);
@@ -1182,7 +1195,8 @@ function hud(o) {
   const L = lens < 1.5 ? '×1' : '×' + fmt(lens);
   const m = o.tick[0] + o.tick[1];
   $('hud').innerHTML = `<div><span class="lens">time lens ${L}</span> <span class="why">example model time, not measured</span></div>` +
-    `<div>in view: ${fmt(m)} TLB misses · ${fmt(o.fault)} page faults · ${fmt(o.rec)} reclaims` + (o.fault >= 5 && lens >= 10 ? ` <span class="why">· ${fmt(m / o.fault)} per fault</span>` : '') + '</div>';
+    `<div>in view: ${fmt(m)} TLB misses · ${fmt(o.fault)} page faults · ${fmt(o.rec)} reclaims` + (o.fault >= 5 && lens >= 10 ? ` <span class="why">· ${fmt(m / o.fault)} per fault</span>` : '') + '</div>' +
+    (m >= 20 ? `<div><span class="why">data already in L2 at ${Math.round(100 * o.dl2 / m)}% of the TLB misses</span></div>` : '');
 }
 
 /* ---------- the loop ---------- */

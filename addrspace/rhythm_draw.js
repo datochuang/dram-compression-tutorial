@@ -8,7 +8,7 @@ function colors() {
 const BIN = 0.4, BASE = 2;                              // at lens ×1 one world unit is BASE time units
 function draw(s, now, lens) {
   const tpw = lens * BASE, k = 1 / tpw, tMin = now - XB * tpw, X = t => (t - now) * k, ev = s.ev;
-  const out = { tick: [0, 0], refillTime: [0, 0], fault: 0, rec: 0, last: [null, null], faultNow: [], recNow: [], jobNow: [], waitNow: [], clrRecent: null, faultTick: null };
+  const out = { tick: [0, 0], dl2: 0, refillTime: [0, 0], fault: 0, rec: 0, last: [null, null], faultNow: [], recNow: [], jobNow: [], waitNow: [], clrRecent: null, faultTick: null };
   begin();
   // TLB misses: one tick each while they can be told apart, a band whose height is the busy share once they cannot
   const band = lens >= 60, NB = Math.ceil(XB / BIN) + 1, busy = band ? [new Float32Array(NB), new Float32Array(NB)] : null;
@@ -16,7 +16,7 @@ function draw(s, now, lens) {
     const e = ev.tick[i];
     if (e.t > now) continue;
     if (e.t + e.d < tMin) break;
-    out.tick[e.core]++; out.refillTime[e.core] += e.d;
+    out.tick[e.core]++; out.refillTime[e.core] += e.d; if (e.dl2) out.dl2++;
     if (!out.last[e.core]) out.last[e.core] = e;
     if (e.fault) {                                         // meeting point one: this TLB miss finds the PTE invalid
       const x = X(e.t), z0 = LANE.cpu[e.core], z1 = LANE.comp[e.core];

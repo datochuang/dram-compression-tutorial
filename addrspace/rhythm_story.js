@@ -9,7 +9,8 @@ let act = 0, actT = 0, beat = '', beatT = 0, lastOut = null, pruneT = 0, demoOn 
 /* ---------- the controls under the stage ---------- */
 const SL = [
   ['ws', '長期 working set', '每個程式，page'], ['drift', 'working set 漂移', '每 10 000 次 access 換進的新 page'],
-  ['tlb', 'TLB entries', '每個 core'], ['frames', 'frame 區', '兩個程式共用，page'], ['l2', 'L2', '放得下的 page 或 PTE 行'],
+  ['tlb', 'TLB entries', '每個 core'], ['frames', 'frame 區', '兩個程式共用，page'], ['l2', 'L2', '兩個 core 共用，cache line'],
+  ['lines', '每個 page 用到的行', `一個 page ${RHY.LPP} 行，範例`],
 ];
 const IN = {}, OUT = {};
 SL.forEach(([k, name, sub]) => {
@@ -37,22 +38,26 @@ $('defaults').addEventListener('click', () => { demoOn = false; Object.keys(RHY.
 /* what sets the rate: the working sets against the three capacities, on a log scale of pages */
 function drawRate() {
   if (!sim) return;
-  const p = sim.prm, L = v => 30 + 500 * Math.log2(Math.max(1, v)) / 11, svg = $('ratesvg');
+  const p = sim.prm, L = v => 30 + 500 * Math.log2(Math.max(1, v)) / 12, svg = $('ratesvg');
   const longWS = p.ws * sim.nprog, ink = 'var(--ink)', mut = 'var(--muted)';
+  // the L2 holds pages only as far as their used lines go: l2 lines ÷ lines used per page
+  const cov = p.l2 / p.lines, covS = cov >= 10 ? fmt(Math.floor(cov)) : cov.toFixed(1).replace(/\.0$/, ''), reach = p.tlb * sim.nprog;
   let h = '';
-  [1, 4, 16, 64, 256, 1024].forEach(v => { h += `<line x1="${L(v)}" y1="186" x2="${L(v)}" y2="191" stroke="${mut}"/><text x="${L(v)}" y="204" font-size="11" text-anchor="middle" fill="${mut}" font-family="var(--mono)">${v}</text>`; });
-  h += `<line x1="${L(1)}" y1="186" x2="${L(2048)}" y2="186" stroke="${mut}"/><text x="${L(2048)}" y="178" font-size="11" text-anchor="end" fill="${mut}" font-family="var(--mono)">pages, log scale</text>`;
+  [1, 4, 16, 64, 256, 1024, 4096].forEach(v => { h += `<line x1="${L(v)}" y1="198" x2="${L(v)}" y2="203" stroke="${mut}"/><text x="${L(v)}" y="216" font-size="11" text-anchor="middle" fill="${mut}" font-family="var(--mono)">${v}</text>`; });
+  h += `<line x1="${L(1)}" y1="198" x2="${L(4096)}" y2="198" stroke="${mut}"/><text x="${L(4096)}" y="190" font-size="11" text-anchor="end" fill="${mut}" font-family="var(--mono)">pages, log scale</text>`;
   const bar = (y, v, label, col) => { h += `<rect x="${L(1)}" y="${y}" width="${L(v) - L(1)}" height="14" fill="${col}" opacity=".85" rx="2"/><text x="${L(1) + 4}" y="${y - 4}" font-size="12" fill="${ink}" font-family="var(--mono)">${label}: ${v}</text>`; };
   const brk = (y, v, label, col) => { const x = L(v); h += `<path d="M${L(1)} ${y + 7} V${y} H${x} V${y + 7}" fill="none" stroke="${col}" stroke-width="2"/><text x="${x + 4}" y="${y + 6}" font-size="12" fill="${col}" font-family="var(--mono)">${label}: ${v}</text>`; };
   brk(14, p.tlb, 'TLB reach (entries per core)', 'var(--kern)');
-  bar(44, RHY.SHORT, 'short-term working set, per program', 'var(--ua)');
-  brk(88, p.l2, 'L2: cost, not count', mut);
-  brk(114, p.frames, 'frames', 'var(--lz)');
-  bar(146, longWS, 'long-term working set, both programs', 'var(--ub)');
+  bar(48, RHY.SHORT, 'short-term working set, per program', 'var(--ua)');
+  // label above the bracket: it is long and the bracket can reach far right
+  h += `<path d="M${L(1)} ${96} V${89} H${L(cov)} V${96}" fill="none" stroke="${ink}" stroke-width="2"/><text x="${L(1) + 4}" y="${84}" font-size="12" fill="${ink}" font-family="var(--mono)">L2, shared: ${fmt(p.l2)} lines ÷ ${p.lines} used per page ≈ ${covS} pages</text>`;
+  brk(124, p.frames, 'frames', 'var(--lz)');
+  bar(160, longWS, 'long-term working set, both programs', 'var(--ub)');
   svg.innerHTML = h;
   const s1 = RHY.SHORT > p.tlb ? `短時間用到的 ${RHY.SHORT} 個 page 多於 TLB 的 ${p.tlb} 格：<b>TLB miss 一直發生</b>。` : `短時間用到的 ${RHY.SHORT} 個 page 放得進 TLB：只有 working set 往前移時才 TLB miss。`;
   const s2 = longWS > p.frames ? `兩個程式的長期 working set 共 ${longWS} 個 page，多於 ${p.frames} 個 frame：<b>thrashing</b>，page fault 一直發生。` : `長期 working set 共 ${longWS} 個 page，放得進 ${p.frames} 個 frame：只有 working set 漂移時才 page fault。`;
-  $('say').innerHTML = s1 + '<br>' + s2 + '<br>L2 只改變每一次的長短，不改變次數。';
+  const s3 = cov > reach ? `L2 放得下大約 ${covS} 個 page 用到的行，兩個 core 的 TLB 加起來只涵蓋 ${reach} 個 page：<b>資料常常已經在 L2 裡，還是 TLB miss</b>，每一次都進 exception。` : `L2 放得下的 page 不比兩個 core 的 TLB 加起來的 ${reach} 個多：TLB miss 時，資料多半也不在 L2。`;
+  $('say').innerHTML = s1 + '<br>' + s2 + '<br>' + s3 + '<br>L2 只改變每一次 TLB miss 的長短，不改變次數。';
 }
 
 /* ---------- acts ---------- */
@@ -97,13 +102,14 @@ function runAct(dt) {
     const steps = [
       [0, null, '下面的長條和白板圖 D 一樣：working set 和三個容量比。控制只改變之後駛來的事件。先看自動示範。'],
       [8, { tlb: 64 }, 'TLB entries 16 → 64：短時間用到的 24 個 page 放得進 TLB 了。只有 CPU MMU 那條變薄，壓縮層那條不變。'],
-      [21, { tlb: 16, l2: 8 }, 'TLB 回到 16，L2 縮到 8：TLB miss 的次數不變，但 PTE 那一行常常不在 L2，每一次都變長，帶子變高。對照左上角的次數。'],
-      [34, { l2: 64, frames: 240 }, `L2 回到 64，frame 區從 ${RHY.DEF.frames} 縮到 240，比兩個程式的長期 working set 320 小：page fault 突然變密，壓縮層這邊幾乎沒停過，user SW 一直在等。這就是 thrashing。`],
-      [56, { frames: RHY.DEF.frames, drift: 60 }, `frame 區回到 ${RHY.DEF.frames}，working set 漂移變快：新的 page 不斷進來，兩邊都變多。`],
-      [70, { drift: 5 }, '全部回到預設值。你也可以自己拖動下面的控制。'],
+      [21, { tlb: 16, l2: 16 }, `TLB 回到 16，L2 從 ${fmt(RHY.DEF.l2)} 行縮到 16 行：TLB miss 的次數不變，但 PTE 那一行常常不在 L2，每一次都變長，帶子變高。對照左上角的次數。`],
+      [34, { l2: RHY.DEF.l2, lines: RHY.LPP }, `L2 回到 ${fmt(RHY.DEF.l2)} 行，每個 page 用到的行從 ${RHY.DEF.lines} 改成 ${RHY.LPP}，整個 page 都用：L2 放得下的 page 少了很多，和 TLB reach 差不多。TLB miss 的次數一樣，左上角「資料已在 L2」的比例下降。TLB miss 的次數只由 TLB 決定。`],
+      [47, { lines: RHY.DEF.lines, frames: 240 }, `每個 page 回到 ${RHY.DEF.lines} 行。frame 區從 ${RHY.DEF.frames} 縮到 240，比兩個程式的長期 working set 320 小：page fault 突然變密，壓縮層這邊幾乎沒停過，user SW 一直在等。這就是 thrashing。`],
+      [69, { frames: RHY.DEF.frames, drift: 60 }, `frame 區回到 ${RHY.DEF.frames}，working set 漂移變快：新的 page 不斷進來，兩邊都變多。`],
+      [83, { drift: 5 }, '全部回到預設值。你也可以自己拖動下面的控制。'],
     ];
     if (demoOn) steps.forEach(([t, ch, text], j) => { if (actT >= t && beat !== 'd' + j && (j === steps.length - 1 || actT < steps[j + 1][0])) { if (ch) Object.keys(ch).forEach(k => setParam(k, ch[k], true)); setBeat('d' + j, text); } });
-    if (demoOn && actT > 80) next();
+    if (demoOn && actT > 93) next();
   } else if (act === 3) {
     const w = 14 * lens * BASE;
     const ft = upcoming(sim.ev.fault, 't0', now - 2 * lens, now + w), cl = upcoming(sim.ev.clr, 't', now - 2 * lens, now + w);
@@ -184,7 +190,8 @@ function hud(o) {
   const L = lens < 1.5 ? '×1' : '×' + fmt(lens);
   const m = o.tick[0] + o.tick[1];
   $('hud').innerHTML = `<div><span class="lens">time lens ${L}</span> <span class="why">example model time, not measured</span></div>` +
-    `<div>in view: ${fmt(m)} TLB misses · ${fmt(o.fault)} page faults · ${fmt(o.rec)} reclaims` + (o.fault >= 5 && lens >= 10 ? ` <span class="why">· ${fmt(m / o.fault)} per fault</span>` : '') + '</div>';
+    `<div>in view: ${fmt(m)} TLB misses · ${fmt(o.fault)} page faults · ${fmt(o.rec)} reclaims` + (o.fault >= 5 && lens >= 10 ? ` <span class="why">· ${fmt(m / o.fault)} per fault</span>` : '') + '</div>' +
+    (m >= 20 ? `<div><span class="why">data already in L2 at ${Math.round(100 * o.dl2 / m)}% of the TLB misses</span></div>` : '');
 }
 
 /* ---------- the loop ---------- */
