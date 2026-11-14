@@ -42,6 +42,12 @@
 | `prompts-v4.md` | 第 3 張的第一版 |
 | `gen6/`、`gen7/` | 第 3 張的兩版 |
 | `review-gen7-20261114.md` | 第 3 張的驗收紀錄與還沒解決的反駁 |
+| `prompts-v5.md` | 第 1 張的第二版 |
+| `gen8/` | 第 1 張的第三版 |
+| `review-gen8-20261114.md` | 第 1 張第三版的驗收紀錄，採用的是這一版：兩欄各加一行大字點出工作性質 |
+| `prompts-v6.md` | 第 2 張的第三版 |
+| `gen9/` | 第 2 張的第四版。採用的 `.r3` 是拼接的，見驗收紀錄 |
+| `review-gen9-20261114.md` | 第 2 張第四版的驗收紀錄，採用的是這一版：架構也用大字，ON 與 OFF THE ACCESS PATH |
 | `generation-log.jsonl` | 每一次 generate 與 accept 各一行 |
 | `blind-review/` | 只給圖、不給提示詞的冷讀報告，每版一份 |
 | `review-gen1-20261114.md` | 第一版的驗收紀錄 |

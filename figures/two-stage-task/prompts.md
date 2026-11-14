@@ -120,6 +120,8 @@ Hard limits:
 
 ## Prompt 1：01-two-stages
 
+第三版，2026-11-14。負責人要每一欄有一眼就看得到的字，點出工作的性質：左邊是一定走得到終點、把已經存在的東西帶起來的工作；右邊是範圍小、但需要較多探索的工作。只加這兩組大字，其他內容和第二版相同。第二版的提示詞在 `prompts-v5.md`，圖在 `gen2/`。
+
 ```
 Badge: "1"
 Title: "The Task in Two Stages"
@@ -132,8 +134,11 @@ right panel about two fifths, with a narrow gap between them. Then the bottom ba
 the full width.
 
 THE LEFT PANEL, named "Stage 1: bring up the CPU MMU and memory management". At its
-top-right corner, inside, a tag: "MATURE DESIGN, NEW TO US". The panel has an upper half
-and a lower half.
+top-right corner, inside, a tag: "MATURE DESIGN, NEW TO US". Right under the panel name,
+across the full width of the panel, in very large bold dark blue capitals, the largest
+words on the sheet after the title: "A SURE PATH TO THE END". Under it, in smaller dark blue
+letters: "the CPU MMU already exists in the chip: steady work brings it up". Under these
+two lines the panel has an upper half and a lower half.
 
 Upper half of the left panel, two blocks side by side.
 
@@ -186,7 +191,11 @@ swap tile. Along the upper zoom line, in small black letters: "zoom in on page s
 No other line crosses the gap between the panels.
 
 THE RIGHT PANEL, named "Stage 2: compression inside page swap". At its top-right corner,
-inside, a tag: "A SPECIAL CASE OF PAGE SWAP". The panel has three parts from top to bottom.
+inside, a tag: "A SPECIAL CASE OF PAGE SWAP". Right under the panel name, across the full
+width of the panel, in very large bold dark green capitals, the same size as the big words
+in the left panel: "SMALL SCOPE, MORE EXPLORATION". Under it, in smaller dark green letters:
+"only one part of page swap, but its best design is still to be found". Under these two
+lines the panel has three parts from top to bottom.
 
 Top part of the right panel, a small sketch:
 - at the top-left, a kernel instance: "page swap", "page out, page back in".
@@ -240,6 +249,8 @@ non-English text.
 - 補上 CPU MMU 到 kernel SW 的 TLB miss 箭頭。
 - 箭頭不交叉。
 
+第四版，2026-11-14。負責人要上半部的架構差異也用大字表示，和下半部的 DENSE、SPARSE 配成一對：ON THE ACCESS PATH 對 OFF THE ACCESS PATH。原本兩個小標籤講同一件事，拿掉。第三版靠 edit 修過的兩處，寫進提示詞：DECOMPRESS 的標籤，以及 processor 框只框兩個 core 與 L2。第三版的提示詞在 `prompts-v6.md`，圖在 `gen5/`。
+
 ```
 Badge: "2"
 Title: "CPU MMU and Compression Layer: Apart in Space and Time"
@@ -253,8 +264,10 @@ sheet width. The gap holds a few shared items described below. Then the bottom b
 the full width. Each domain frame has an upper part, the space sketch, and a lower part,
 the timeline. The two timelines sit at the same height and have the same length.
 
-THE LEFT DOMAIN FRAME, dark blue, named "CPU MMU domain". Just right of its name, a tag:
-"ON EVERY ACCESS".
+THE LEFT DOMAIN FRAME, dark blue, named "CPU MMU domain". Right under its name, across the
+frame, in very large bold dark blue capitals, the same size as the word DENSE below:
+"ON THE ACCESS PATH". Under it, in smaller dark blue letters:
+"every load and store goes through the TLB of its core". There is no tag in this frame.
 
 Upper part of the left frame:
 - left two thirds: one box with a black outline named "processor". Inside it, two core
@@ -262,10 +275,11 @@ Upper part of the left frame:
   from top to bottom: two thread slots side by side, labeled "hw thread" and "hw thread";
   one CPU hardware box "CPU MMU and TLB"; one CPU hardware box "L1". Under the two core
   boxes, still inside the processor box, one wide CPU hardware box spanning both cores:
-  "L2".
-- right third, at the top, level with the CPU MMU and TLB boxes: a kernel instance:
+  "L2". The processor box encloses only the two core boxes and the L2 box; its right edge
+  sits just right of Core 1 and L2.
+- right third, outside the processor box, at the top, level with the CPU MMU and TLB boxes: a kernel instance:
   "kernel SW: TLB miss", "read one PTE, fill the TLB".
-- right third, under the kernel instance, level with the L1 boxes: a small table outline
+- right third, outside the processor box, under the kernel instance, level with the L1 boxes: a small table outline
   labeled "page table, in DRAM".
 
 Arrows in the left frame, exactly five, all on Core 1, none crossing:
@@ -291,8 +305,10 @@ arrowhead at its right end, labeled "time".
 Above the two lanes, in very large bold dark blue capitals: "DENSE", with beside it in
 smaller dark blue letters: "every access; kernel SW on every TLB miss".
 
-THE RIGHT DOMAIN FRAME, dark green, named "compression domain". Just right of its name, a
-tag: "OFF THE ACCESS PATH".
+THE RIGHT DOMAIN FRAME, dark green, named "compression domain". Right under its name,
+across the frame, in very large bold dark green capitals, the same size as the word SPARSE
+below: "OFF THE ACCESS PATH". Under it, in smaller dark green letters:
+"its table, the COT, is read only when a page swaps". There is no tag in this frame.
 
 Upper part of the right frame:
 - top row, left: the LZ4 HW box: "LZ4 HW", "outside the processor".
@@ -310,7 +326,9 @@ Arrows in the right frame, exactly four, none crossing:
 - a kernel arrow from the kernel instance straight down to the COT, label "which chunks"
 - a hardware arrow from the LZ4 HW box straight down to the chunk pool, label "COMPRESS"
 - a hardware arrow from the left side of the LZ4 HW box to the left, out through the left
-  side of the right frame, into the frame region in the gap, label "DECOMPRESS"
+  side of the right frame, into the frame region in the gap, label "DECOMPRESS". This is
+  the only arrow labeled DECOMPRESS; the arrow down to the chunk pool is the only one
+  labeled COMPRESS.
 
 Lower part of the right frame, the timeline, at the same height and the same length as
 the left one. One horizontal lane with its bold label at its left end,
@@ -336,7 +354,8 @@ Text manifest: auto
 
 Do not: write any digit or number that is not quoted, apart from the badge and the core
 names; draw any person or stick figure; draw any arrow between the processor and the LZ4
-HW box; draw the LZ4 HW box inside the left frame; put the frame region inside either
+HW box; draw the LZ4 HW box inside the left frame; put the kernel instance or the page table inside
+the processor box; draw a tag in either frame; put the frame region inside either
 domain frame; let any two arrows cross; draw the solid orange arrow past the L2 box; put
 more than two blocks on the page swap lane; draw a clock, a ruler or numbers on a time
 axis; draw a chart, a bar or percentages; hatch anything except the chunk icons; hatch a
