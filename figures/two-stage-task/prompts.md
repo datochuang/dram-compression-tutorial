@@ -41,6 +41,12 @@
 | # | 檔名 | 讀者的問題 | 主張 |
 |---|------|------|------|
 | 1 | `01-two-stages.png` | 這次的工作到底是什麼，難在哪裡？ | 第一段：在 multi-core、multi-thread 的 processor 上，把成熟但我們沒用過的 CPU MMU 與記憶體管理框架打通並驗證。第二段：框架裡的 page swap 是其中一部分，我們只做它的一個特例，把 swap 的目的地換成 DRAM 裡壓縮過的空間，由 LZ4 HW 搬。 |
+| 2 | `02-apart-in-space-and-time.png` | 既然第二段是第一段的延伸，CPU MMU 與壓縮層會不會綁在一起？ | 不會。空間上，CPU MMU 在每個 core 裡、在每一次 access 的路上；LZ4 HW 在 processor 外、DRAM 旁，不在 access 的路上。兩邊查的表也不同。時間上，CPU MMU 每次 access 都動，kernel SW 常因 TLB miss 被叫起來；壓縮層只在 page swap 時動，很稀疏。frame region 比 L2 大很多倍，page swap 只在 working set 超過 frame region 時發生；少但每一次都算進 WCET。 |
+| 3 | `03-apart-even-in-software.png` | 壓縮層現在是純 kernel SW，為什麼不乾脆和 CPU MMU 的 kernel SW 一起設計？ | 因為兩邊將來長到不同的地方。CPU MMU 這邊的加速就是 TLB，在每個 core 裡，每個 core 一份。壓縮這邊要加速時，是所有 core 共用的一套，放在 LZ4 HW 旁邊，由一個總管使用。一起設計會把每個 core 一份的東西和共用一套的東西綁在一起。所以兩邊分開設計、分開開發，只用一條 request queue 相接。 |
+
+第 3 張是負責人 2026-11-14 要的，主題仍是「兩邊要分開」，補的論點是：即使壓縮層是純 kernel SW，將來的硬體加速也是共用一套、放在 LZ4 HW 旁邊，和 CPU MMU 每個 core 一份的性質不同。一個總管可以分給平行的 worker，只是補充，用一行小字帶過。硬體加速的原則照負責人的說法：先用 kernel SW，針對特定子動作，kernel SW 能接手硬體寫的任何東西。這些都是方向，還沒有定案，圖上標 proposal。
+
+第 2 張是負責人 2026-11-14 要的。內容和 `figures/cpu-mmu-basics/` 的第 D 張重疊在時間軸與頻率的部分。這一張多了空間：兩邊在架構上的位置與各自查的表。比例的論點照負責人的意思放上 L2 與 frame region，但條件寫成 working set 超過 frame region，因為 page swap 的次數由 frame region 對 working set 決定，L2 只改變每一次 access 的代價。時間軸的間距不是量測。
 
 ---
 
@@ -86,12 +92,16 @@ Named objects: whenever the prompt says 'the <object>', draw the same object eve
 - a sticky note: a pale yellow sticky note with a bold heading and the quoted lines under
   it, one per row.
 - a tag: a small rounded label with a thick black outline, its quoted text in bold capitals.
+- a domain frame: a very large rectangle drawn with a very thick dashed outline in the
+  color the prompt gives, plain white inside, its quoted name in large bold letters of
+  that same color at its top-left corner, inside. It encloses only what the prompt lists.
 - Hatching: light diagonal hatching always means compressed data and appears nowhere else.
 
 Color rules: orange for access arrows and the title underline; purple for kernel
 instances, part tiles and kernel arrows; green for hardware arrows; light blue fill only
 for CPU hardware boxes; light green fill only for the LZ4 HW box; pale yellow only for
-sticky notes; blue for the subtitle line and small notes; all other lines and text black.
+sticky notes; blue for the subtitle line and small notes; dark blue and dark green only
+for the two domain frames and their names and big words; all other lines and text black.
 No gradients, no photo textures, no logos, no watermarks.
 
 Fixed layout: a numbered square badge at the top-left; the title to its right, underlined
@@ -212,5 +222,205 @@ seventh part tile; give any tile other than page swap a thick outline; add a thi
 box or a third thread slot in a core; draw a thick arrow between the panels; draw more
 than five arrows in total, not counting the zoom lines; write MMU without CPU in front of
 it; write any vendor or product name; rewrite the subtitle or the bottom bar; write any
+non-English text.
+```
+
+## Prompt 2：02-apart-in-space-and-time
+
+第三版，2026-11-14。第二版的圖在 `gen4/`，採用過 `.r4`，冷讀困惑指數 2，提示詞在 `prompts-v3.md`。
+
+負責人看過第二版，說內容準確，但視覺上不夠突出「兩個獨立的工作範圍」。這一版照負責人的建議修改：
+- 用兩個粗虛線大框框出兩塊範圍：藍框是 CPU MMU 與它的 kernel SW，綠框是 LZ4 HW 與它的 kernel SW。
+- 時間軸分進各自的框，兩條等長、代表同一段時間，旁邊用大字標 DENSE 與 SPARSE。
+
+為了騰出空間，比例長條拿掉，條件改寫成便條裡的一行。L2 改放在 access 箭頭的標籤上，只說大部分 access 停在 L1 或 L2。這樣冷讀者兩次指出的「L2 和 page swap 的關係不清楚」不會再出現。
+
+同時修掉第二版冷讀者指出的幾點：
+- access、TLB miss、fills the TLB 都畫在同一個 core。
+- 補上 CPU MMU 到 kernel SW 的 TLB miss 箭頭。
+- 箭頭不交叉。
+
+```
+Badge: "2"
+Title: "CPU MMU and Compression Layer: Apart in Space and Time"
+Subtitle (blue): "Two separate domains. The CPU MMU stands on every access inside each core. The compression layer stands beside DRAM and works only when a page swaps."
+
+This sheet has no person, no stick figure, no zoom lines, no card and no chart.
+
+Layout: two domain frames side by side fill most of the sheet, the left one and the right
+one, the same size and the same height, with a gap between them about one sixth of the
+sheet width. The gap holds a few shared items described below. Then the bottom bar across
+the full width. Each domain frame has an upper part, the space sketch, and a lower part,
+the timeline. The two timelines sit at the same height and have the same length.
+
+THE LEFT DOMAIN FRAME, dark blue, named "CPU MMU domain". Just right of its name, a tag:
+"ON EVERY ACCESS".
+
+Upper part of the left frame:
+- left two thirds: one box with a black outline named "processor". Inside it, two core
+  boxes of the same size side by side, named "Core 0" and "Core 1". Each core box holds,
+  from top to bottom: two thread slots side by side, labeled "hw thread" and "hw thread";
+  one CPU hardware box "CPU MMU and TLB"; one CPU hardware box "L1". Under the two core
+  boxes, still inside the processor box, one wide CPU hardware box spanning both cores:
+  "L2".
+- right third, at the top, level with the CPU MMU and TLB boxes: a kernel instance:
+  "kernel SW: TLB miss", "read one PTE, fill the TLB".
+- right third, under the kernel instance, level with the L1 boxes: a small table outline
+  labeled "page table, in DRAM".
+
+Arrows in the left frame, exactly five, all on Core 1, none crossing:
+- an access arrow, solid, from the right hw thread of Core 1 straight down through the
+  CPU MMU and TLB box and the L1 box, ending on the L2 box, label
+  "every load and store; most end in L1 or L2"
+- a kernel arrow from the CPU MMU and TLB box of Core 1 to the right, to the kernel
+  instance, label "TLB miss"
+- a kernel arrow from the kernel instance back to the left, to the CPU MMU and TLB box of
+  Core 1, drawn just below the first one and parallel to it, label "fills the TLB"
+- a kernel arrow from the kernel instance straight down to the page table, label "one PTE"
+- an access arrow drawn as a dashed orange line with one arrowhead, from the right end of
+  the L2 box to the right, passing under the page table, out through the right side of
+  the left frame, into the frame region in the gap, label "on an L2 miss"
+
+Lower part of the left frame, the timeline. Two horizontal lanes stacked, the same length,
+each with its bold label at its left end, and under them one thin black axis line with one
+arrowhead at its right end, labeled "time".
+- upper lane, label "TLB lookup": a dense row of very thin orange ticks packed so close
+  together that the lane looks almost solid along its whole length.
+- lower lane, label "kernel SW: TLB miss": many short purple ticks, all the same height,
+  spread unevenly along the whole lane.
+Above the two lanes, in very large bold dark blue capitals: "DENSE", with beside it in
+smaller dark blue letters: "every access; kernel SW on every TLB miss".
+
+THE RIGHT DOMAIN FRAME, dark green, named "compression domain". Just right of its name, a
+tag: "OFF THE ACCESS PATH".
+
+Upper part of the right frame:
+- top row, left: the LZ4 HW box: "LZ4 HW", "outside the processor".
+- top row, right: a kernel instance: "kernel SW: page swap", "read the COT, hand LZ4 HW a job".
+- second row, left, under the LZ4 HW box: four chunk icons in a row with the label
+  "chunk pool: cold pages, in DRAM".
+- second row, right, under the kernel instance: a small table outline labeled
+  "COT, in DRAM: where each compressed page is".
+- third row, across the right frame: a sticky note. Heading: "Rare, but each one counts".
+  Two lines: "page swap happens only when the pages in use outgrow the frame region",
+  "each one takes locks, a COT lookup and an LZ4 HW job: budget the WCET".
+
+Arrows in the right frame, exactly four, none crossing:
+- a kernel arrow from the kernel instance to the left, to the LZ4 HW box, label "a job"
+- a kernel arrow from the kernel instance straight down to the COT, label "which chunks"
+- a hardware arrow from the LZ4 HW box straight down to the chunk pool, label "COMPRESS"
+- a hardware arrow from the left side of the LZ4 HW box to the left, out through the left
+  side of the right frame, into the frame region in the gap, label "DECOMPRESS"
+
+Lower part of the right frame, the timeline, at the same height and the same length as
+the left one. One horizontal lane with its bold label at its left end,
+"kernel SW and LZ4 HW: page swap", and under it one thin black axis line with one
+arrowhead at its right end, labeled "time". The lane is a thin empty line with exactly two
+short blocks on it, one near the left third and one near the right end. Each block is a
+kernel instance, dashed purple outline and white fill, holding only the word "page swap",
+with one tiny light green box with a gear icon touching its right end. Nothing else is on
+the lane.
+Above the lane, in very large bold dark green capitals: "SPARSE", with beside it in
+smaller dark green letters: "only when a page swaps".
+
+THE GAP between the two frames, from top to bottom:
+- in small blue letters: "one kernel SW, two separate jobs and tables"
+- a DRAM box named "frame region" holding three frame icons stacked or in a small grid,
+  with under them the small label "hot pages, used by both". The dashed orange arrow from
+  the left and the DECOMPRESS arrow from the right both end on this box.
+- level with the two timelines, in small blue letters: "both timelines: the same stretch of time, spacing not measured"
+
+Bottom bar, label "Key point": "The CPU MMU sits inside every core, on every access, and wakes kernel SW often. The compression layer sits outside, beside DRAM, and works only on page swap: rarely, but each time counts toward the worst case."
+
+Text manifest: auto
+
+Do not: write any digit or number that is not quoted, apart from the badge and the core
+names; draw any person or stick figure; draw any arrow between the processor and the LZ4
+HW box; draw the LZ4 HW box inside the left frame; put the frame region inside either
+domain frame; let any two arrows cross; draw the solid orange arrow past the L2 box; put
+more than two blocks on the page swap lane; draw a clock, a ruler or numbers on a time
+axis; draw a chart, a bar or percentages; hatch anything except the chunk icons; hatch a
+frame icon; add a third core box or a third thread slot in a core; draw more than nine
+arrows in total; write MMU without CPU in front of it; write any vendor or product name;
+rewrite the subtitle or the bottom bar; write any non-English text.
+```
+
+## Prompt 3：03-apart-even-in-software
+
+第二版，2026-11-14。第一版的圖在 `gen6/`，提示詞在 `prompts-v4.md`，冷讀困惑指數 2。這一版照冷讀者的懷疑修改：總管註明在 core 上跑但程式與表是自己的；表名寫成 COT 與 chunk pool；補上回程箭頭；one at a time 改成 one entry point；便條不要勾選框。第一版生成後發現「the only link」與「meet only at a request queue」不準：總管還要改 PTE、清每個 core 的 TLB，這兩件屬於 CPU MMU 那邊。改成窄的介面，用 edit 修圖。
+
+```
+Badge: "3"
+Title: "Apart Even in Software"
+Subtitle (blue): "The compression layer starts as pure kernel SW. That is no reason to design it together with the CPU MMU's kernel SW: the two grow in different places."
+
+This sheet has no person, no stick figure, no zoom lines, no timeline and no chart.
+
+Layout: an upper band about three fifths of the sheet height holding two domain frames
+side by side, the same size, with a gap between them about one sixth of the sheet width.
+Under them, across the full width, a table on the left two thirds and a sticky note on the
+right third. Then the bottom bar.
+
+THE LEFT DOMAIN FRAME, dark blue, named "CPU MMU domain".
+Inside it, one box with a black outline named "processor". Inside the processor, two core
+boxes of the same size side by side, named "Core 0" and "Core 1". Each core box holds,
+from top to bottom:
+- one CPU hardware box: "CPU MMU and TLB"
+- one kernel instance: "TLB miss handler", "runs on this core"
+Under the processor, in very large bold dark blue capitals: "ONE PER CORE".
+Under that, in smaller dark blue letters: "its hardware help is the TLB, built into each core".
+
+THE RIGHT DOMAIN FRAME, dark green, named "compression domain". At its top-right corner,
+inside, a tag: "PROPOSAL".
+Inside it, from top to bottom:
+- at the top, one kernel instance drawn a little larger than the others:
+  "kernel SW: one manager", "takes every request, owns the COT and the chunk pool".
+  Under it, in small blue letters, two lines: "runs on a core like any kernel SW, but its code and tables are its own",
+  "may dispatch to parallel workers, for throughput, not per core".
+- under that, side by side: at the left, the LZ4 HW box: "LZ4 HW", "shared by all cores";
+  at the right, touching the LZ4 HW box, one rounded box with a thick dashed dark green
+  outline and a light green fill holding: "future HW assists", "one shared set, beside the LZ4 HW",
+  "CRC, headers, chunk lists". Under the dashed box, in small blue letters:
+  "kernel SW can override everything they write".
+- under them, in very large bold dark green capitals: "ONE SHARED SET".
+- under that, in smaller dark green letters: "its hardware help sits beside the LZ4 HW, used by every core".
+
+THE GAP between the two frames, level with the upper half of the cores: one small box with a black outline
+and a plain white fill, shaped like a short horizontal queue of three empty slots, labeled
+above it: "request queue". Under it, in small blue letters: "a narrow link: requests in, PTE updates and TLB clears back".
+
+Exactly five arrows, none crossing:
+- a kernel arrow from the right edge of the processor box to the request queue, label
+  "page fault from any core"
+- a kernel arrow from the request queue to the manager, label "one entry point"
+- a kernel arrow from the bottom-left corner of the manager back to the lower right edge
+  of the processor box, running down and to the left through the lower half of the gap,
+  well below the request queue and its note, label "PTE updates, TLB clears on every core"
+- a kernel arrow from the manager down to the LZ4 HW box, label "a job"
+- a kernel arrow from the manager down to the future HW assists box, label
+  "a sub-action, once verified in SW"
+
+The table, under the two frames on the left two thirds. Heading: "Where each one grows".
+Three columns. Column headings: "", "CPU MMU domain", "compression domain". Three rows:
+- "where the work runs" | "on the core that missed" | "in one manager, for all cores"
+- "where hardware help goes" | "inside each core: the TLB" | "one shared set beside the LZ4 HW"
+- "how it scales" | "one copy per core" | "more workers and engines, not per core"
+
+The sticky note, on the right third. Heading: "Why not co-design them".
+Three lines: "the CPU MMU side grows inside each core",
+"the compression side grows in one shared place",
+"design them together and a per-core path gets tied to a shared one".
+
+Bottom bar, label "Key point": "Even as pure kernel SW, the compression layer is designed apart from the CPU MMU's kernel SW: its future hardware help is one shared set beside the LZ4 HW, not something inside each core. The two meet only at a narrow interface."
+
+Text manifest: auto
+
+Do not: write any digit or number that is not quoted, apart from the badge and the core
+names; draw any person or stick figure; draw a timeline, a clock or a chart; draw the LZ4
+HW box or the future HW assists box inside the processor or inside the left frame; put
+the request queue inside either frame; draw any arrow between a core and the LZ4 HW box;
+draw more than five arrows; draw check boxes in the sticky note; underline any word; let two arrows cross; add a third core box; add a fourth row
+or a fourth column to the table; hatch anything; write MMU without CPU in front of it;
+write any vendor or product name; rewrite the subtitle or the bottom bar; write any
 non-English text.
 ```

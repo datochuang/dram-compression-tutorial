@@ -1,10 +1,40 @@
 # DRAM compression study
 
+## 先看全貌：這次的工作
+
+這一節給第一次碰這顆 processor 的團隊。兩張圖先說工作的範圍，後面各節再一層一層講 CPU MMU。
+
+### 任務圖 1：工作分兩段
+
+![The task in two stages](figures/two-stage-task/01-two-stages.png)
+
+這張圖回答這次的工作是什麼，難在哪裡。第一段在 multi-core、multi-thread 的 processor 上，把 CPU MMU 與 kernel SW 的記憶體管理打通並驗證。CPU MMU 是成熟的設計，難在團隊沒用過，不在硬體。第二段在記憶體管理的 page swap 裡加上 LZ4 HW。一般的 page swap 把 page 送到 disk，這裡改送到 DRAM 裡壓縮過的空間。
+
+### 任務圖 2：CPU MMU 與壓縮層在空間與時間上分開
+
+![CPU MMU and compression layer: apart in space and time](figures/two-stage-task/02-apart-in-space-and-time.png)
+
+這張圖回答：第二段既然是第一段的延伸，CPU MMU 與壓縮層會不會綁在一起。答案是不會，兩者是分開的兩個範圍。
+
+| 項目 | CPU MMU | 壓縮層 |
+|---|---|---|
+| 在哪裡 | 每個 core 裡 | processor 外，DRAM 旁 |
+| 什麼時候動作 | 每一次 access 的路上 | 只在 page swap 時 |
+| kernel SW 多常起來 | 常常，每次 TLB miss 都起來 | 次數少 |
+| kernel SW 起來做什麼 | 讀一筆 PTE，填 TLB | 拿 lock，查 kernel 自己的表，交給 LZ4 HW 一個 job |
+| 每一次的分量 | 小工作 | 大工作，每一次都算進 WCET |
+
+時間與頻率的部分和第 8 節的白板圖 D 重疊，這一張多了空間。
+
+兩張圖的主張、依據與生成紀錄在 [figures/two-stage-task/README.md](figures/two-stage-task/README.md)。
+
+## 這份 README 給誰
+
 這個 repo 研究 SoC 上的 DRAM compression，目標是省容量。主要產出有兩個：LZ4 硬體加速器的設計規格，以及控制 LZ4 的 kernel SW 的設計規格與 pseudo code。
 
 這份 README 是入口，給沒有接觸過 CPU MMU 的 team member 與主管。主角是 CPU MMU：user SW 的一次 access 怎麼變成對 DRAM 的存取，kernel SW 什麼時候介入，有多個 core 時多了什麼問題。其他文件都假設讀者已經知道這些。
 
-壓縮層只在第 7 層出現，而且只講它接在哪裡。LZ4 HW 的內部、job 的格式、kernel SW 的每一步都在別的文件，第 11 節有清單。repo 裡有哪些東西、怎麼建置，在第 13 節之後。
+除了最前面的兩張任務圖，壓縮層只在第 7 層出現，而且只講它接在哪裡。LZ4 HW 的內部、job 的格式、kernel SW 的每一步都在別的文件，第 11 節有清單。repo 裡有哪些東西、怎麼建置，在第 13 節之後。
 
 內容照專案的平台前提 P1 到 P3，前提的全文在 [CLAUDE.md](CLAUDE.md)。前提、從前提推出來的事、還不知道的事，在文中分開說，第 9 節整理成表。文中的 address 都是例子。
 
@@ -24,7 +54,7 @@
 | 6 | kernel 改了 page table，各個 core 的 TLB 怎麼辦 | 白板圖 C | 要讀壓縮層文件的人 |
 | 7 | 壓縮層接在哪裡 | 沒有 | |
 
-白板圖有兩組。編號 1 到 3 的那一組先畫，讀者是已經知道 CPU MMU 的工程師。字母 A 到 C 的那一組是為這份文件補的。編號與字母都是畫的順序，不是閱讀的順序。
+白板圖有三組。最前面的任務圖 1 與 2 只講工作的範圍，不屬於上表的任何一層。編號 1 到 3 的那一組先畫，讀者是已經知道 CPU MMU 的工程師。字母 A 到 C 的那一組是為這份文件補的。編號與字母都是畫的順序，不是閱讀的順序。
 
 ## 2. 第 1 層：address 為什麼要轉換
 
@@ -311,7 +341,7 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 | `CLAUDE.md` | 平台前提 P1 到 P4、從前提推出來的事、還不知道的事、還沒照前提改的舊內容 |
 | `spec/` | 規格與分析。兩份主要產出是 `spec/lz4-hw-design-spec-v0.md` 與 `spec/control-procedures-v0.md`。兩者之間的介面在 `spec/hw-fw-interface.md` |
 | `sim/` | 模擬器與測試。`sim/ifsim` 是介面與時間的模型，`sim/hostsim` 是 kernel SW 的模型，`sim/hwref` 是 LZ4 HW 的 cycle 等級 reference，`sim/lz4sim` 是最早的系統模擬器 |
-| `figures/` | 白板工程圖與分析圖。`figures/cpu-mmu-basics/` 與 `figures/system-overview/` 是這份文件用的圖，`figures/README.md` 是 kernel SW 的十三張圖 |
+| `figures/` | 白板工程圖與分析圖。`figures/two-stage-task/`、`figures/cpu-mmu-basics/` 與 `figures/system-overview/` 是這份文件用的圖，`figures/README.md` 是 kernel SW 的十三張圖 |
 | `addrspace/` | address 動畫與 CPU MMU 動畫的原始檔。address 動畫的建置結果在 `docs/addrspace/`，CPU MMU 動畫的在 `docs/mmu/` |
 | `src/` | 圖解說明文件的原始檔與建置工具，見第 15 節 |
 | `docs/` | GitHub Pages 發佈的頁面，從 `main` 的 `/docs` 發佈。草稿不要放在這裡 |
