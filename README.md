@@ -228,7 +228,7 @@ CPU MMU 與壓縮層都在管 page，但它們是兩件事。CPU MMU 這邊是�
 
 working set 一旦超過 frame 區，轉換的頻率不是慢慢增加，而是突然跳上去。這是壓縮層最壞情況的來源。
 
-同一件事有一個會動的版本：[兩種節奏動畫](https://datochuang.github.io/dram-compression-tutorial/rhythm/)。時間沿著軌道連續往前跑，可以拉遠時間鏡頭，也可以拖動 TLB、L2、frame 區與 working set 的大小。L2 以 cache line 計，另一個控制是每個 page 用到幾行：page 用得越稀疏，L2 放得下的 page 越多，TLB miss 時資料已經在 L2 的比例就越高，但 TLB miss 的次數不變。下方的表格同步顯示 TLB、page table 與 COT、frame 在每一步被誰讀、被誰寫。模型的大小與時間都是範例。
+同一件事有一個會動的版本：[兩種節奏動畫](https://datochuang.github.io/dram-compression-tutorial/rhythm/)。時間沿著軌道連續往前跑，可以拉遠時間鏡頭，也可以拖動 TLB、L2、frame 區與 working set 的大小。L2 以 cache line 計，另一個控制是每個 page 用到幾行：page 用得越稀疏，L2 放得下的 page 越多，TLB miss 時資料已經在 L2 的比例就越高，但 TLB miss 的次數不變。舞台下方是簡化的架構圖，表現兩個 MMU 在空間上的差別：CPU MMU 與它的 TLB 在每個 core 裡，每一次 access 都經過；LZ4 HW 在 processor 外面，只在 page 冷熱轉換時動作。正在動作的部分會亮，拉遠時亮度代表忙的比例。圖裡的格子同步顯示 TLB、page table 與 COT、frame、chunk pool 在每一步被誰讀、被誰寫。模型的大小與時間都是範例。
 
 有一個相關的推論沒有上圖。照 P1，page 有沒有被用過只能在 TLB miss handler 裡記。一個 page 一直 TLB hit，kernel 就看不到它被用過，挑要收起來的 page 時可能挑錯。這是控制程序文件的 D5，還沒有設計。
 

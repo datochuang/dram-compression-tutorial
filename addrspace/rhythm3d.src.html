@@ -31,7 +31,7 @@
 .hud .why { color: var(--muted); font-weight: 400; font-size: 12px; }
 .hint { margin: 0; padding: 7px 14px 0; font-size: 12.5px; color: var(--muted); }
 .state { border-bottom: 1px solid var(--line); background: var(--paper); }
-.state canvas { display: block; width: 100%; height: 272px; }
+.state canvas { display: block; width: 100%; height: 610px; }
 .slog { padding: 4px 16px 8px; min-height: 7.6em; }
 .slog p { margin: 0; padding: 1px 6px; font: 400 13px/1.45 var(--mono); color: var(--ink); border-radius: 4px; }
 .slog p.new { background: var(--flash); }
@@ -69,7 +69,7 @@
   .voices { flex: none; border-left: 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; padding: 8px; }
   .voices .bub { position: static; font-size: 13.5px; }
   .leads { display: none; }
-  .state canvas { height: 660px; }
+  .state canvas { height: 1150px; }
 }
 </style>
 <!--BODY-->
@@ -111,9 +111,11 @@
       <svg class="leads" id="leads" aria-hidden="true"></svg>
     </div>
     <div class="state">
-      <canvas id="statecv" role="img" aria-label="「現在」這一刻的表格：每個 core 的 TLB、兩個程式各自的 page table 與 COT、frame 區。被讀的格子亮外框，被寫的格子填色，顏色表示是誰做的。"></canvas>
+      <canvas id="statecv" role="img" aria-label="「現在」這一刻的簡化架構圖：user SW 在最上方；processor 裡每個 core 有 CPU MMU 與它的 TLB，和在那個 core 上跑的 kernel SW；L2 共用；LZ4 HW 在 processor 外面，只接 DRAM 的 frame 區與 chunk pool。DRAM 裡有 page table 與 COT、frame 區、chunk pool。正在動作的部分會亮。"></canvas>
       <div class="slog" id="slog" aria-live="off"></div>
       <div class="legend" aria-hidden="true">
+        <span>燈：亮的是這一刻正在動作的部分。時間鏡頭 ×20 以外，亮度與 busy 的百分比是最近一段時間忙的比例</span>
+        <span>實線框是 CPU MMU 這邊的 kernel SW，虛線框是壓縮層這邊的</span>
         <span><i class="hw"></i>外框：讀。灰色是 CPU MMU HW 查 TLB</span>
         <span><i class="rd"></i>紫框：kernel SW 讀</span><span><i class="wr"></i>紫色填滿：kernel SW 寫</span>
         <span><i class="lzr"></i>橘色：LZ4 HW 讀寫 frame</span>
@@ -151,7 +153,9 @@
     <p>L2 只決定 kernel SW 讀 PTE 時那一行在不在 L2：在就短，不在就長。user SW 要用的那一行在不在 L2，模型只記下來，不改變 access 的時間；左上角「data already in L2」就是 TLB miss 時那一行本來就在 L2 的比例。L2 不參與決定哪一次是 TLB miss、哪一次是 page fault，所以只改變每一次的長短，不改變次數。</p>
     <p>簡化的部分：page 有沒有被用過，模型直接知道。照 P1，這件事只能由 kernel 在 TLB miss handler 裡記，一直 TLB hit 的 page 會被當成沒用過；怎麼做是控制程序的 D5，還沒有設計。TLB miss 本身也會讓 user SW 停一下，時間太短，軌道上沒有畫成缺口。兩個程式的 access 照時間交錯，所以改 TLB 或 L2 時，page fault 的次數會因交錯順序不同而有很小的差別；只有一個程式時完全不變。</p>
     <p>一個 core 上的 kernel SW 用什麼機制清掉另一個 core 的 TLB，這個平台目前不知道。畫面上只畫出結果。</p>
-    <p>舞台下面的表格是「現在」這一刻的狀態。模型會先往前算，表格另外保留一份，每一筆讀寫到了它發生的時間才套上去。誰讀寫哪裡照專案的前提與介面規格：TLB 由 CPU MMU HW 讀、由 kernel SW 寫（P1）；page table 與 COT 只有 kernel SW 讀寫，HW 不讀；frame 是 user SW 的資料，LZ4 HW 做 COMPRESS 時讀它、做 DECOMPRESS 時寫它。壓縮後的資料放在 chunk pool，表格沒有畫；LZ4 HW 讀寫的 chunk 只寫在步驟紀錄裡。page table 與 COT 只畫每個程式長期 working set 範圍內的 page，上方的色條是這一刻正在用的那一段。單次 access 對 TLB 與 frame 的讀寫只在時間鏡頭 ×3 以內畫出來，再拉遠就太多了。TLB 每一格放哪一頁是畫面自己排的，模型只記 LRU 的順序。working set 漂移帶進來的新 page，模型當成壓縮過的，所以會有 COT entry；照現有設計那其實是還沒碰過的 page，不需要 DECOMPRESS。</p>
+    <p>舞台下面是簡化的架構圖，畫的是兩個 MMU 在空間上的位置。CPU MMU 在每一個 core 裡，user SW 的每一次 access 都經過它的 TLB；TLB miss 時，kernel SW 在同一個 core 上讀 PTE、填 TLB。壓縮層的硬體 LZ4 HW 在 processor 外面，只接 DRAM 的 frame 區與 chunk pool，access 不經過它；只有 page 從熱變冷（COMPRESS）或從冷變熱（DECOMPRESS）時它才動作，交給它工作的是 kernel SW 的 page fault 與 reclaim。兩邊的 kernel SW 是同一份程式碼，都在 core 上跑：實線框是 TLB miss handler，虛線框是 page fault 與 reclaim。reclaim 在哪一個 core 上跑，目前沒有設計，所以畫在 processor 裡、不屬於任何 core。</p>
+    <p>燈是從模型的事件算出來的。時間鏡頭 ×20 以內，一個事件在跑時亮，跑完很快暗掉。再拉遠，燈的亮度與上面的 busy 百分比是最近大約 1.2 秒畫面時間裡那一部分忙的比例；page fault 的燈包含等 LZ4 HW 做完的時間。L2 在每一次讀 PTE 時亮；PTE 那一行不在 L2 時，從 L2 到 page table 的線也會亮。L1 沒有畫。</p>
+    <p>架構圖裡的格子是「現在」這一刻的狀態。模型會先往前算，表格另外保留一份，每一筆讀寫到了它發生的時間才套上去。誰讀寫哪裡照專案的前提與介面規格：TLB 由 CPU MMU HW 讀、由 kernel SW 寫（P1）；page table 與 COT 只有 kernel SW 讀寫，HW 不讀；frame 是 user SW 的資料，LZ4 HW 做 COMPRESS 時讀它、做 DECOMPRESS 時寫它。壓縮後的資料放在 chunk pool。圖上 chunk pool 一格代表一個壓縮過的 page，實際上一個 page 佔好幾個 512 B 的 chunk；每個 page 放在哪一格是畫面自己排的。page table 與 COT 只畫每個程式長期 working set 範圍內的 page，上方的色條是這一刻正在用的那一段。單次 access 對 TLB 與 frame 的讀寫只在時間鏡頭 ×3 以內畫出來，再拉遠就太多了。TLB 每一格放哪一頁是畫面自己排的，模型只記 LRU 的順序。working set 漂移帶進來的新 page，模型當成壓縮過的，所以會有 COT entry；照現有設計那其實是還沒碰過的 page，不需要 DECOMPRESS。</p>
     <p>同一件事的白板圖是 <code>figures/cpu-mmu-basics/04-two-sides-two-rhythms.png</code>。一步一步看 TLB、page table 與 <code>mm_lock</code>，見 <a href="https://datochuang.github.io/dram-compression-tutorial/mmu/">CPU MMU 動畫</a>。</p>
   </section>
 </main>
