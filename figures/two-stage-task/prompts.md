@@ -366,7 +366,7 @@ rewrite the subtitle or the bottom bar; write any non-English text.
 
 ## Prompt 3：03-apart-even-in-software
 
-第二版，2026-11-14。第一版的圖在 `gen6/`，提示詞在 `prompts-v4.md`，冷讀困惑指數 2。這一版照冷讀者的懷疑修改：總管註明在 core 上跑但程式與表是自己的；表名寫成 COT 與 chunk pool；補上回程箭頭；one at a time 改成 one entry point；便條不要勾選框。第一版生成後發現「the only link」與「meet only at a request queue」不準：總管還要改 PTE、清每個 core 的 TLB，這兩件屬於 CPU MMU 那邊。改成窄的介面，用 edit 修圖。
+第三版，2026-11-14。第二版的圖在 `gen7/`，提示詞在 `prompts-v7.md`。第二版冷讀時，冷讀者站在「應該一起設計」的立場，留下兩個最強的反駁：兩邊共用 page table，PTE 格式兩邊都得懂；壓縮層要用 CPU MMU 那邊的機制清每個 core 的 TLB。回程箭頭繞過 queue，也和「窄介面」矛盾。這一版畫出 page table，標明屬於 CPU MMU 這邊；中間改成一份事先一起講定的小介面，列 request、PTE 格式、清 TLB 的服務三項，所有往來都經過它；結論改成只有這份介面一起講定，其他分開設計。冷讀者接受方向，但指出 agreed once 不準：page table 的 lock 與更新順序要兩邊一起訂，而且會一起演進。標題改成 agreed together，並補 lock 規則一行，用 edit 修圖。
 
 ```
 Badge: "3"
@@ -376,23 +376,26 @@ Subtitle (blue): "The compression layer starts as pure kernel SW. That is no rea
 This sheet has no person, no stick figure, no zoom lines, no timeline and no chart.
 
 Layout: an upper band about three fifths of the sheet height holding two domain frames
-side by side, the same size, with a gap between them about one sixth of the sheet width.
+side by side, the same size, with a gap between them about one fifth of the sheet width.
 Under them, across the full width, a table on the left two thirds and a sticky note on the
 right third. Then the bottom bar.
 
 THE LEFT DOMAIN FRAME, dark blue, named "CPU MMU domain".
-Inside it, one box with a black outline named "processor". Inside the processor, two core
-boxes of the same size side by side, named "Core 0" and "Core 1". Each core box holds,
-from top to bottom:
+Inside it, at the top, one box with a black outline named "processor". Inside the
+processor, two core boxes of the same size side by side, named "Core 0" and "Core 1". Each
+core box holds, from top to bottom:
 - one CPU hardware box: "CPU MMU and TLB"
 - one kernel instance: "TLB miss handler", "runs on this core"
-Under the processor, in very large bold dark blue capitals: "ONE PER CORE".
+Under the processor, at the right, outside the processor box but inside the frame, a
+small table outline labeled "page table, in DRAM", with under it in small dark blue
+letters: "owned by the CPU MMU side".
+Under that, in very large bold dark blue capitals: "ONE PER CORE".
 Under that, in smaller dark blue letters: "its hardware help is the TLB, built into each core".
 
 THE RIGHT DOMAIN FRAME, dark green, named "compression domain". At its top-right corner,
 inside, a tag: "PROPOSAL".
 Inside it, from top to bottom:
-- at the top, one kernel instance drawn a little larger than the others:
+- at the top-left, one kernel instance drawn a little larger than the others:
   "kernel SW: one manager", "takes every request, owns the COT and the chunk pool".
   Under it, in small blue letters, two lines: "runs on a core like any kernel SW, but its code and tables are its own",
   "may dispatch to parallel workers, for throughput, not per core".
@@ -404,42 +407,49 @@ Inside it, from top to bottom:
 - under them, in very large bold dark green capitals: "ONE SHARED SET".
 - under that, in smaller dark green letters: "its hardware help sits beside the LZ4 HW, used by every core".
 
-THE GAP between the two frames, level with the upper half of the cores: one small box with a black outline
-and a plain white fill, shaped like a short horizontal queue of three empty slots, labeled
-above it: "request queue". Under it, in small blue letters: "a narrow link: requests in, PTE updates and TLB clears back".
+THE GAP between the two frames: one tall rounded box with a thick solid black outline and a
+plain white fill, centered in the gap and level with the upper half of the frames. Its
+bold heading: "interface, agreed together". Under the heading, four lines, one per row:
+"a request: which page, which core", "the PTE format", "a TLB clear for every core",
+"the lock rules for the page table".
+Under the box, in small blue letters: "the only part designed together".
 
-Exactly five arrows, none crossing:
-- a kernel arrow from the right edge of the processor box to the request queue, label
-  "page fault from any core"
-- a kernel arrow from the request queue to the manager, label "one entry point"
-- a kernel arrow from the bottom-left corner of the manager back to the lower right edge
-  of the processor box, running down and to the left through the lower half of the gap,
-  well below the request queue and its note, label "PTE updates, TLB clears on every core"
-- a kernel arrow from the manager down to the LZ4 HW box, label "a job"
-- a kernel arrow from the manager down to the future HW assists box, label
+Exactly six arrows, all kernel arrows, none crossing:
+- from the right edge of the processor box to the left edge of the interface box, near its
+  top, label "page fault from any core"
+- from the right edge of the interface box, near its top, to the manager, label "one entry point"
+- from the manager back to the right edge of the interface box, drawn just below the
+  previous arrow and parallel to it, label "PTE update, TLB clear"
+- from the left edge of the interface box, near its bottom, down and to the left to the
+  page table, label "applied by the CPU MMU side"
+- from the manager down to the LZ4 HW box, label "a job"
+- from the manager down and to the right to the future HW assists box, label
   "a sub-action, once verified in SW"
+No arrow goes from either frame to the other frame without passing through the interface box.
 
-The table, under the two frames on the left two thirds. Heading: "Where each one grows".
-Three columns. Column headings: "", "CPU MMU domain", "compression domain". Three rows:
+The table, under the two frames on the left two thirds. Heading above the table:
+"Where each one grows". Three columns. Column headings: "", "CPU MMU domain",
+"compression domain". Three rows:
 - "where the work runs" | "on the core that missed" | "in one manager, for all cores"
 - "where hardware help goes" | "inside each core: the TLB" | "one shared set beside the LZ4 HW"
 - "how it scales" | "one copy per core" | "more workers and engines, not per core"
 
 The sticky note, on the right third. Heading: "Why not co-design them".
-Three lines: "the CPU MMU side grows inside each core",
+Three lines, with no check boxes: "the CPU MMU side grows inside each core",
 "the compression side grows in one shared place",
-"design them together and a per-core path gets tied to a shared one".
+"only the small interface is agreed together; the rest is designed apart".
 
-Bottom bar, label "Key point": "Even as pure kernel SW, the compression layer is designed apart from the CPU MMU's kernel SW: its future hardware help is one shared set beside the LZ4 HW, not something inside each core. The two meet only at a narrow interface."
+Bottom bar, label "Key point": "Even as pure kernel SW, the compression layer is designed apart from the CPU MMU's kernel SW: its future hardware help is one shared set beside the LZ4 HW, not inside each core. Only a small interface is agreed together."
 
 Text manifest: auto
 
 Do not: write any digit or number that is not quoted, apart from the badge and the core
 names; draw any person or stick figure; draw a timeline, a clock or a chart; draw the LZ4
 HW box or the future HW assists box inside the processor or inside the left frame; put
-the request queue inside either frame; draw any arrow between a core and the LZ4 HW box;
-draw more than five arrows; draw check boxes in the sticky note; underline any word; let two arrows cross; add a third core box; add a fourth row
-or a fourth column to the table; hatch anything; write MMU without CPU in front of it;
-write any vendor or product name; rewrite the subtitle or the bottom bar; write any
-non-English text.
+the interface box inside either frame; put the page table inside the processor box or in
+the right frame; draw any arrow that crosses from one frame to the other without touching
+the interface box; draw more than six arrows; let two arrows cross; add a third core box;
+add a fourth row or a fourth column to the table; draw check boxes in the sticky note;
+underline any word; hatch anything; write MMU without CPU in front of it; write any vendor
+or product name; rewrite the subtitle or the bottom bar; write any non-English text.
 ```
