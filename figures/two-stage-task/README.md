@@ -8,7 +8,9 @@
 | 2 | `02-apart-in-space-and-time.png` | 第二段既然是第一段的延伸，CPU MMU 與壓縮層會不會綁在一起 |
 | 3 | `03-apart-even-in-software.png` | 壓縮層現在是純 kernel SW，為什麼不和 CPU MMU 的 kernel SW 一起設計 |
 
-第 3 張的論點：兩邊將來長到不同的地方。CPU MMU 這邊的硬體幫手是每個 core 裡的 TLB。壓縮這邊要加速時，是所有 core 共用一套，放在 LZ4 HW 旁邊，由一個總管使用。圖上標 proposal。採用的是第三版：page table 歸 CPU MMU 這邊，中間是一份兩邊一起講定的小介面，列 request、PTE 格式、清每個 core 的 TLB、page table 的 lock 規則。其他分開設計。
+第 3 張的論點：兩邊將來長到不同的地方。CPU MMU 這邊的硬體幫手是每個 core 裡的 TLB。壓縮這邊要加速時，是所有 core 共用一套，放在 LZ4 HW 旁邊。圖上標 proposal。page table 歸 CPU MMU 這邊，中間是一份兩邊一起講定的小介面，列 request、PTE 格式、清每個 core 的 TLB、page table 的 lock 規則。其他分開設計。
+
+採用的是第六版。第三版把壓縮層畫成「one manager」，會被讀成只有一份 instance。第四、五版的最大字 ONE SHARED SET 與 LZ4 HW: SHARED BY ALL CORES 仍有同樣的誤讀。第六版把壓縮層 kernel SW 畫進每個 core，由 TLB miss handler 呼叫；兩個 domain frame 只放各自的表與硬體幫手；大字只講硬體幫手的位置。兩邊的差別在表由誰擁有、硬體幫手放在哪裡，不在程式在哪裡跑。
 
 第 1 張說兩者在工作上有延伸關係。第 2 張說兩者在硬體位置與軟體行為上是分開的：CPU MMU 在每個 core 裡、在每一次 access 的路上；壓縮層在 processor 外、DRAM 旁，只在 page swap 時動作。時間與頻率的部分和 `figures/cpu-mmu-basics/` 的第 D 張重疊，這一張多了空間。同一件事的動畫在 `docs/rhythm/`。
 
@@ -50,7 +52,13 @@
 | `review-gen9-20261114.md` | 第 2 張第四版的驗收紀錄，採用的是這一版：架構也用大字，ON 與 OFF THE ACCESS PATH |
 | `prompts-v7.md` | 第 3 張的第二版 |
 | `gen10/` | 第 3 張的第三版 |
-| `review-gen10-20261114.md` | 第 3 張第三版的驗收紀錄，採用的是這一版，以及冷讀者剩下的反駁 |
+| `review-gen10-20261114.md` | 第 3 張第三版的驗收紀錄，以及冷讀者剩下的反駁 |
+| `prompts-v8.md` | 第 3 張的第三版 |
+| `gen11/` | 第 3 張的第四版 |
+| `review-gen11-20261115.md` | 第 3 張第四版的驗收紀錄：一個 module，在 fault 的 core 上好幾份同時跑 |
+| `prompts-v9.md`、`prompts-v10.md` | 第 3 張的第四版與第五版 |
+| `gen12/`、`gen13/` | 第 3 張的第五版與第六版 |
+| `review-gen13-20261115.md` | 第 3 張第五版與第六版的驗收紀錄，採用的是第六版：壓縮層 kernel SW 畫進每個 core |
 | `generation-log.jsonl` | 每一次 generate 與 accept 各一行 |
 | `blind-review/` | 只給圖、不給提示詞的冷讀報告，每版一份 |
 | `review-gen1-20261114.md` | 第一版的驗收紀錄 |

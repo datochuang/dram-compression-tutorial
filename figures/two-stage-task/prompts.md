@@ -366,90 +366,94 @@ rewrite the subtitle or the bottom bar; write any non-English text.
 
 ## Prompt 3：03-apart-even-in-software
 
-第三版，2026-11-14。第二版的圖在 `gen7/`，提示詞在 `prompts-v7.md`。第二版冷讀時，冷讀者站在「應該一起設計」的立場，留下兩個最強的反駁：兩邊共用 page table，PTE 格式兩邊都得懂；壓縮層要用 CPU MMU 那邊的機制清每個 core 的 TLB。回程箭頭繞過 queue，也和「窄介面」矛盾。這一版畫出 page table，標明屬於 CPU MMU 這邊；中間改成一份事先一起講定的小介面，列 request、PTE 格式、清 TLB 的服務三項，所有往來都經過它；結論改成只有這份介面一起講定，其他分開設計。冷讀者接受方向，但指出 agreed once 不準：page table 的 lock 與更新順序要兩邊一起訂，而且會一起演進。標題改成 agreed together，並補 lock 規則一行，用 edit 修圖。
+第六版，2026-11-15。第五版的圖在 `gen12/`，提示詞在 `prompts-v10.md`。第五版冷讀困惑指數 3：最大的字 LZ4 HW: SHARED BY ALL CORES 放在綠框底部，像整欄的總結，讀者歸納成壓縮這邊連 kernel SW 都是集中的一份；LZ4 HW 只畫一個方塊，也被讀成只有一台；壓縮層 kernel SW 畫在 processor 外面，和「在 fault 的 core 上跑」的文字矛盾。負責人選擇改版面：每個 core 裡都畫一份壓縮層 kernel SW，兩個 domain frame 只放各自的表與硬體幫手。
+
+這一版的主張：兩種 kernel SW 都在 fault 的那個 core 上跑，好幾個 core 可以同時跑；它們仍然分開設計，因為各自的表與硬體幫手放在不同地方。卡片外框的顏色表示由哪一邊設計，對應下面的 domain frame。大字只講硬體幫手的位置，不講份數。表格拿掉，以免太擠；PROPOSAL 只貼在 future HW assists 上。四版以前的說明在 `prompts-v10.md` 以前的檔案。
 
 ```
 Badge: "3"
 Title: "Apart Even in Software"
-Subtitle (blue): "The compression layer starts as pure kernel SW. That is no reason to design it together with the CPU MMU's kernel SW: the two grow in different places."
+Subtitle (blue): "Both kernel SWs run on the core that faulted. They are still designed apart: their tables and their hardware help live in different places."
 
-This sheet has no person, no stick figure, no zoom lines, no timeline and no chart.
+This sheet has no person, no stick figure, no zoom lines, no timeline, no table and no chart.
 
-Layout: an upper band about three fifths of the sheet height holding two domain frames
-side by side, the same size, with a gap between them about one fifth of the sheet width.
-Under them, across the full width, a table on the left two thirds and a sticky note on the
-right third. Then the bottom bar.
+This sheet makes one exception to the color rules: the kernel instances inside the cores
+have a thick dashed outline in dark blue or in dark green instead of purple, matching the
+domain frame of the side that designs them.
 
-THE LEFT DOMAIN FRAME, dark blue, named "CPU MMU domain".
-Inside it, at the top, one box with a black outline named "processor". Inside the
-processor, two core boxes of the same size side by side, named "Core 0" and "Core 1". Each
-core box holds, from top to bottom:
+Layout, from top to bottom: the header; an upper band about one third of the sheet height
+holding the processor across the full width; a middle band about two fifths of the sheet
+height holding two domain frames side by side, the same size, with a gap between them about
+one fifth of the sheet width; a lower band with one sticky note across the full width; then
+the bottom bar.
+
+THE PROCESSOR, the upper band: one wide box with a black outline named "processor",
+spanning the full width of the sheet. Inside it, two core boxes of the same size side by
+side, named "Core 0" and "Core 1". Each core box holds, in one row from left to right:
 - one CPU hardware box: "CPU MMU and TLB"
-- one kernel instance: "TLB miss handler", "runs on this core"
-Under the processor, at the right, outside the processor box but inside the frame, a
-small table outline labeled "page table, in DRAM", with under it in small dark blue
-letters: "owned by the CPU MMU side".
-Under that, in very large bold dark blue capitals: "ONE PER CORE".
-Under that, in smaller dark blue letters: "its hardware help is the TLB, built into each core".
+- one kernel instance with a thick dashed dark blue outline: "TLB miss handler"
+- one kernel instance with a thick dashed dark green outline: "compression kernel SW", "when a fault needs it"
+- one short kernel arrow from the dark blue instance to the dark green instance in the same
+  core, label "a call"
+Under the two core boxes, still inside the processor, one line of small blue letters:
+"both run on the core that faulted, on several cores at once".
+At the bottom-right inside the processor, two short lines of small letters, the first in
+dark blue, the second in dark green: "blue outline: designed by the CPU MMU side",
+"green outline: designed by the compression side".
 
-THE RIGHT DOMAIN FRAME, dark green, named "compression domain". At its top-right corner,
-inside, a tag: "PROPOSAL".
-Inside it, from top to bottom:
-- at the top-left, one kernel instance drawn a little larger than the others:
-  "kernel SW: one manager", "takes every request, owns the COT and the chunk pool".
-  Under it, in small blue letters, two lines: "runs on a core like any kernel SW, but its code and tables are its own",
-  "may dispatch to parallel workers, for throughput, not per core".
-- under that, side by side: at the left, the LZ4 HW box: "LZ4 HW", "shared by all cores";
+THE LEFT DOMAIN FRAME, dark blue, named "CPU MMU domain", in the middle band at the left.
+Inside it:
+- at the top-left, a small table outline labeled "page table, in DRAM", with under it in
+  small blue letters: "a lock guards it".
+- at the right half, very large bold dark blue capitals on two lines: "HW HELP:" above
+  "INSIDE EACH CORE".
+- under the big words, in smaller dark blue letters: "the TLB, built into every core above".
+
+THE RIGHT DOMAIN FRAME, dark green, named "compression domain", in the middle band at the
+right. Inside it:
+- at the top-left, a small table outline labeled "COT, in DRAM"; to its right, four chunk
+  icons in a row labeled "chunk pool, in DRAM". Under both, in small blue letters:
+  "a lock guards them".
+- under them, side by side: at the left, the LZ4 HW box: "LZ4 HW", "several engines";
   at the right, touching the LZ4 HW box, one rounded box with a thick dashed dark green
-  outline and a light green fill holding: "future HW assists", "one shared set, beside the LZ4 HW",
-  "CRC, headers, chunk lists". Under the dashed box, in small blue letters:
-  "kernel SW can override everything they write".
-- under them, in very large bold dark green capitals: "ONE SHARED SET".
-- under that, in smaller dark green letters: "its hardware help sits beside the LZ4 HW, used by every core".
+  outline and a light green fill holding: "future HW assists", "CRC, headers, chunk lists".
+  A tag "PROPOSAL" sits on the top edge of the dashed box. Under the dashed box, in small
+  blue letters: "kernel SW can override everything they write".
+- at the bottom, very large bold dark green capitals on two lines: "HW HELP:" above
+  "BESIDE THE LZ4 HW".
+- under the big words, in smaller dark green letters: "outside the cores, used by every core".
 
-THE GAP between the two frames: one tall rounded box with a thick solid black outline and a
-plain white fill, centered in the gap and level with the upper half of the frames. Its
-bold heading: "interface, agreed together". Under the heading, four lines, one per row:
-"a request: which page, which core", "the PTE format", "a TLB clear for every core",
-"the lock rules for the page table".
-Under the box, in small blue letters: "the only part designed together".
+THE GAP between the two domain frames: one tall rounded box with a thick solid black
+outline and a plain white fill. Its bold heading: "interface, agreed together". Under the
+heading, four lines, one per row: "a request: which page, which core", "the PTE format",
+"a TLB clear for every core", "the lock rules for the page table".
+Under the box, in small blue letters: "the call in each core follows it".
 
-Exactly six arrows, all kernel arrows, none crossing:
-- from the right edge of the processor box to the left edge of the interface box, near its
-  top, label "page fault from any core"
-- from the right edge of the interface box, near its top, to the manager, label "one entry point"
-- from the manager back to the right edge of the interface box, drawn just below the
-  previous arrow and parallel to it, label "PTE update, TLB clear"
-- from the left edge of the interface box, near its bottom, down and to the left to the
-  page table, label "applied by the CPU MMU side"
-- from the manager down to the LZ4 HW box, label "a job"
-- from the manager down and to the right to the future HW assists box, label
-  "a sub-action, once verified in SW"
-No arrow goes from either frame to the other frame without passing through the interface box.
+Exactly four kernel arrows in total, none crossing:
+- the two short arrows labeled "a call", one inside each core, described above
+- from the bottom edge of the processor, at its far left, straight down to the page table,
+  label "reads PTEs"
+- from the bottom edge of the processor, at its far right, straight down to the COT,
+  label "reads the COT, hands LZ4 HW a job"
 
-The table, under the two frames on the left two thirds. Heading above the table:
-"Where each one grows". Three columns. Column headings: "", "CPU MMU domain",
-"compression domain". Three rows:
-- "where the work runs" | "on the core that missed" | "in one manager, for all cores"
-- "where hardware help goes" | "inside each core: the TLB" | "one shared set beside the LZ4 HW"
-- "how it scales" | "one copy per core" | "more workers and engines, not per core"
-
-The sticky note, on the right third. Heading: "Why not co-design them".
-Three lines, with no check boxes: "the CPU MMU side grows inside each core",
-"the compression side grows in one shared place",
+The sticky note, in the lower band across the full width. Heading: "Why not co-design them".
+Three lines, with no check boxes: "both run on the core that faulted",
+"but their tables and hardware help live apart",
 "only the small interface is agreed together; the rest is designed apart".
 
-Bottom bar, label "Key point": "Even as pure kernel SW, the compression layer is designed apart from the CPU MMU's kernel SW: its future hardware help is one shared set beside the LZ4 HW, not inside each core. Only a small interface is agreed together."
+Bottom bar, label "Key point": "The compression kernel SW runs on whichever core faulted, several cores at once, called from the CPU MMU's fault path. It is still designed apart: its tables and its future hardware help sit beside the LZ4 HW, not inside each core. Only a small interface is agreed together."
 
 Text manifest: auto
 
 Do not: write any digit or number that is not quoted, apart from the badge and the core
-names; draw any person or stick figure; draw a timeline, a clock or a chart; draw the LZ4
-HW box or the future HW assists box inside the processor or inside the left frame; put
-the interface box inside either frame; put the page table inside the processor box or in
-the right frame; draw any arrow that crosses from one frame to the other without touching
-the interface box; draw more than six arrows; let two arrows cross; add a third core box;
-add a fourth row or a fourth column to the table; draw check boxes in the sticky note;
-underline any word; hatch anything; write MMU without CPU in front of it; write any vendor
-or product name; rewrite the subtitle or the bottom bar; write any non-English text.
+names; draw any person or stick figure; draw a timeline, a clock, a table or a chart; draw a
+queue, a waiting line or an inbox; write the words manager, module, instance or shared; write
+the word one in capitals; draw any kernel instance outside the processor; draw a kernel
+instance in either domain frame; draw a stack of cards; draw the LZ4 HW box or the future
+HW assists box inside the processor; put the interface box inside either frame; put the
+page table in the right frame or the COT in the left frame; draw more than four arrows; let
+two arrows cross; let an arrow pass through the interface box; add a third core box; draw
+check boxes in the sticky note; underline any word; hatch anything except the four chunk
+icons; write MMU without CPU in front of it; write any vendor or product name; rewrite the
+subtitle or the bottom bar; write any non-English text.
 ```
