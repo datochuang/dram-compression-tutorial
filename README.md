@@ -26,7 +26,13 @@
 
 時間與頻率的部分和第 8 節的白板圖 D 重疊，這一張多了空間。
 
-兩張圖的主張、依據與生成紀錄在 [figures/two-stage-task/README.md](figures/two-stage-task/README.md)。
+### 任務圖 3：即使都是 kernel SW，兩邊也分開設計
+
+![CPU MMU and compression layer: apart even in software](figures/two-stage-task/03-apart-even-in-software.png)
+
+這張圖回答：壓縮層現在是純 kernel SW，為什麼不和 CPU MMU 的 kernel SW 一起設計。兩邊的差別在表由誰擁有、硬體幫手放在哪裡，不在程式在哪裡跑。壓縮層的 kernel SW 畫在每個 core 裡，由 page fault 的路徑呼叫，和 CPU MMU 的 kernel SW 在同一個 hw thread 上跑。page table 歸 CPU MMU 這一邊；兩邊之間是一份一起講定的小介面，列 request、PTE 格式、清每個 core 的 TLB、page table 的 lock 規則。圖上標 proposal，還沒有定案。
+
+三張圖的主張、依據與生成紀錄在 [figures/two-stage-task/README.md](figures/two-stage-task/README.md)。三張合成的 PDF 是 [two-stage-task.pdf](figures/two-stage-task/two-stage-task.pdf)。
 
 ## 這份 README 給誰
 
@@ -34,15 +40,15 @@
 
 這份 README 是入口，給沒有接觸過 CPU MMU 的 team member 與主管。主角是 CPU MMU：user SW 的一次 access 怎麼變成對 DRAM 的存取，kernel SW 什麼時候介入，有多個 core 時多了什麼問題。其他文件都假設讀者已經知道這些。
 
-除了最前面的兩張任務圖，壓縮層只在第 7 層出現，而且只講它接在哪裡。LZ4 HW 的內部、job 的格式、kernel SW 的每一步都在別的文件，第 11 節有清單。repo 裡有哪些東西、怎麼建置，在第 13 節之後。
+前七層裡，壓縮層只在第 7 層出現，而且只講它接在哪裡。七層之後的第 9 節與第 10 節是兩份設計：CPU MMU kernel SW 與 LZ4 kernel SW。LZ4 HW 的內部、job 的格式、kernel SW 的每一步都在別的文件，第 13 節有清單。repo 裡有哪些東西、怎麼建置，在第 15 節之後。
 
-內容照專案的平台前提 P1 到 P3，前提的全文在 [CLAUDE.md](CLAUDE.md)。前提、從前提推出來的事、還不知道的事，在文中分開說，第 9 節整理成表。文中的 address 都是例子。
+內容照專案的平台前提 P1 到 P3，前提的全文在 [CLAUDE.md](CLAUDE.md)。前提、從前提推出來的事、還不知道的事，在文中分開說，第 11 節整理成表。文中的 address 都是例子。
 
 **單一檔案的版本**：`python3 figures/build_book.py README.md OUT.html` 會產生一個把圖嵌在裡面的 HTML。
 
 ## 1. 怎麼讀
 
-每一層回答一個問題。每一層的結尾留下一個疑問，由下一層回答。不熟的名詞查第 12 節。
+每一層回答一個問題。每一層的結尾留下一個疑問，由下一層回答。不熟的名詞查第 14 節。
 
 | 層 | 回答的問題 | 圖 | 讀到這裡就夠的人 |
 |---|---|---|---|
@@ -52,9 +58,11 @@
 | 4 | 有多個 core 時，哪些東西每個 core 一份 | 白板圖 1 | |
 | 5 | 好幾個 core 同時進 kernel 會怎樣 | 白板圖 3 | 想知道為什麼需要 lock 的人 |
 | 6 | kernel 改了 page table，各個 core 的 TLB 怎麼辦 | 白板圖 C | 要讀壓縮層文件的人 |
-| 7 | 壓縮層接在哪裡 | 沒有 | |
+| 7 | 壓縮層接在哪裡 | 白板圖 D | |
+| 設計之一 | CPU MMU kernel SW 怎麼設計，多個 core 時要守哪些規則 | 設計圖 5 到 14，`figures/cpu-mmu-kernel-sw/` | 要寫 TLB miss handler 與 page fault handler 的人 |
+| 設計之二 | LZ4 kernel SW 怎麼設計，怎麼讓 fault 短 | 設計圖 4 到 13，`figures/kernel-sw-design/` | 要寫壓縮層的人 |
 
-白板圖有三組。最前面的任務圖 1 與 2 只講工作的範圍，不屬於上表的任何一層。編號 1 到 3 的那一組先畫，讀者是已經知道 CPU MMU 的工程師。字母 A 到 C 的那一組是為這份文件補的。編號與字母都是畫的順序，不是閱讀的順序。
+白板圖有三組，加上兩份設計各自的一組。最前面的任務圖 1 到 3 只講工作的範圍，不屬於上表的任何一層。編號 1 到 3 的那一組先畫，讀者是已經知道 CPU MMU 的工程師。字母 A 到 C 的那一組是為這份文件補的。編號與字母都是畫的順序，不是閱讀的順序。兩份設計的圖沿用各自那一組的編號，所以設計圖從 5 或 4 開始。
 
 ## 2. 第 1 層：address 為什麼要轉換
 
@@ -239,7 +247,7 @@ lock 保護的是共用的表，不是硬體。core 再多、硬體再快，只�
 
 所以從 CPU MMU 這一邊看，加了壓縮層之後只有兩件事不同。第 3 層的第三種結果有時候要更久，因為要等解壓縮。kernel 把 PTE 改成 invalid 的次數變多，因為它要騰出 frame。
 
-CPU MMU 自己看到的仍然只有 TLB 裡有或沒有。kernel 的 TLB miss handler 看到的是 PTE 是 valid 或 invalid。「invalid 的 page 內容現在在哪裡」完全記在 kernel 自己的表裡，CPU 不知道。這是壓縮層文件的起點，見第 11 節的「page 的六種狀態」。
+CPU MMU 自己看到的仍然只有 TLB 裡有或沒有。kernel 的 TLB miss handler 看到的是 PTE 是 valid 或 invalid。「invalid 的 page 內容現在在哪裡」完全記在 kernel 自己的表裡，CPU 不知道。這是壓縮層文件的起點，見第 10 節的設計圖 6「一個 page 的六種 state」。
 
 ### 白板圖 D：兩邊各多常叫醒 kernel SW，由什麼決定
 
@@ -264,7 +272,181 @@ working set 一旦超過 frame 區，轉換的頻率不是慢慢增加，而是�
 
 所以兩者的 co-design 發生在 kernel 改表的順序與 lock，不在硬體。
 
-## 9. 前提、推論、還不知道的
+## 9. 設計之一：CPU MMU kernel SW
+
+前面七層講 CPU MMU 怎麼運作。這一節講 kernel SW 這一側要怎麼設計：有哪些部分，每個部分做什麼，多個 core 同時跑時要守哪些規則。
+
+圖來自 [figures/cpu-mmu-kernel-sw/](figures/cpu-mmu-kernel-sw/README.md)，那一組共 14 張，整組的 PDF 是 [cpu-mmu-kernel-sw.pdf](figures/cpu-mmu-kernel-sw/cpu-mmu-kernel-sw.pdf)。第 1 到 4 張重講第 1 到 4 層，讓那一組可以單獨讀，這裡從第 5 張開始。
+
+CPU MMU kernel SW 大部分還沒有設計。圖上分三種寫法：模型裡跑過的寫 in the model；一般的做法寫 a common way；還沒決定、或要看 CPU 手冊的標 OPEN。
+
+### 設計圖 5：CPU MMU kernel SW 的各個部分
+
+![The parts of the CPU MMU kernel SW](figures/cpu-mmu-kernel-sw/05-parts-of-the-cpu-mmu-kernel-sw.png)
+
+| 部分 | 什麼時候跑 | 在哪裡跑 |
+|---|---|---|
+| TLB miss handler | 每一次 TLB miss，由 exception 進來 | 發生 miss 的那個 hw thread。很短，不能 sleep |
+| page fault handler | TLB miss handler 發現 PTE 是 invalid 時接手 | 同一個 hw thread。可以 sleep |
+| 幾個服務：改 PTE、清每個 core 的 TLB、frame allocator、切換程式 | 由兩個 handler 呼叫 | 呼叫它的那個 hw thread |
+
+沒有一個部分有自己的 thread，所以同一段程式可以同時在好幾個 hw thread 上跑，圖上畫成疊起來的幾張。共用的表在 `mm_lock` 下改。壓縮層由 page fault handler 用 function call 叫起來，也在同一個 hw thread 上。TLB miss handler 讀 PTE 時要不要拿 `mm_lock` 還沒決定，第 11、12 張講為什麼這件事重要。
+
+### 設計圖 6：PTE 的格式由 kernel 決定
+
+![The PTE is ours to design](figures/cpu-mmu-kernel-sw/06-the-pte-is-ours.png)
+
+TLB entry 的格式由 CPU 決定，要看手冊。PTE 只有 kernel 讀，所以格式由 kernel 決定，PTE 是 invalid 時多出來的位元可以記資料在哪裡。page table 的形狀是取捨：一層的平面表，TLB miss handler 讀一次就好，但表很大；兩層的樹在記憶體稀疏時省空間，要讀兩次；hash table 的大小跟著對到的 page 數走。選哪一種還沒決定。
+
+### 設計圖 7：TLB miss handler 的八步
+
+![The TLB miss handler, step by step](figures/cpu-mmu-kernel-sw/07-tlb-miss-handler.png)
+
+handler 讀一筆 PTE，寫一筆 TLB entry，返回之後同一道指令重跑。它跑得比 page fault 頻繁得多，每一道指令都算數，而且自己不能再 TLB miss：它的程式、stack 與 page table 都要不經過 TLB 就讀得到。怎麼做到要看 CPU 手冊。照 P1，page 有沒有被用過也只有這裡看得到，這是推論。
+
+### 設計圖 8：page fault handler 怎麼分原因
+
+![The page fault handler: find the cause, then fix it](figures/cpu-mmu-kernel-sw/08-page-fault-handler.png)
+
+handler 先拿 `mm_lock` 再讀一次 PTE，因為別的 hw thread 可能剛修好。之後分五種原因：
+
+| 原因 | 處理 | 結果 |
+|---|---|---|
+| 已經 valid | 只寫 TLB entry | page 在 frame 裡 |
+| 第一次碰，還沒有資料 | 拿一個 free frame，填 0 | page 在 frame 裡 |
+| 資料壓縮過 | 呼叫壓縮層解壓縮 | page 在 frame 裡 |
+| 不允許的 access，例如寫 read-only 的 page | 放開 lock | 程式收到錯誤 |
+| address 不屬於任何東西 | 放開 lock | 程式收到錯誤 |
+
+page swap 只是其中一種原因。這個 handler 可以 sleep，sleep 時放開 `mm_lock`，所以發生 fault 的程式必須是允許等待的程式。kernel model 裡，在 interrupt handler、握著 lock 的程式、hard real-time thread 裡發生的 page fault 一律拒絕。
+
+### 設計圖 9：改 PTE 的方向決定要做什麼
+
+![Changing a mapping: which way matters](figures/cpu-mmu-kernel-sw/09-changing-a-mapping.png)
+
+這一張是第 6 層白板圖 C 的延伸，多了一種情況：減少權限，例如 read-write 改成 read-only，也要清每個 core 的 TLB，因為舊的 entry 還允許寫。
+
+| 改的方向 | 要做的事 |
+|---|---|
+| 給 page 一個 frame | 只寫 PTE |
+| 拿走 frame | 先把 PTE 改成 invalid，清每個 core 的 TLB 並等全部清完，才能動 frame |
+| 減少權限 | 寫 PTE，清每個 core 的 TLB |
+
+### 設計圖 10：好幾支程式共用一個 TLB
+
+![Many programs, one TLB per core](figures/cpu-mmu-kernel-sw/10-many-programs.png)
+
+如果每支程式有自己的 page table，同一個 page 編號在不同程式裡對到不同的 frame。一個 core 換程式時，TLB 裡還是舊程式的對應：要嘛每次切換都清掉，要嘛每筆 entry 加上 address space tag。照 P3，同一個 core 的兩個 hw thread 共用一個 TLB，它們同時跑不同程式時一定要靠 tag。CPU 有沒有 tag、我們的程式要不要各自有 address space，都還沒有答案。
+
+### 設計圖 11：不拿 lock 的 TLB miss handler 會把清掉的對應寫回去
+
+![A TLB miss handler without a lock can undo a clear](figures/cpu-mmu-kernel-sw/11-refill-against-clear.png)
+
+這是 kernel model 找到的交錯順序。handler 先讀到 PTE 是 valid，接著另一個 hw thread 上的 kernel 把 PTE 改成 invalid、清完每個 core 的 TLB、把 frame 給了別的 page。handler 這時才把剛才讀到的舊對應寫進 TLB，程式就讀到別的 page 的資料。讀和寫是兩個時間點，整個清除剛好落在中間。
+
+清別的 core 的 TLB 用的 clear request 是模型裡的一個例子，不是這顆 CPU 的機制。
+
+### 設計圖 12：模型裡沒出錯的兩種做法，與一個和做法無關的 deadlock
+
+![Two ways with no stale entry, and a separate deadlock](figures/cpu-mmu-kernel-sw/12-what-held-in-the-model.png)
+
+| 做法 | TLB miss handler | 模型裡有沒有留下過期的對應 |
+|---|---|---|
+| way 1 | 不拿 lock，clear request 送到每個 core | 有 |
+| way 2 | 不拿 lock，它那幾步關著 interrupt，clear request 送到每個 hw thread | 沒找到 |
+| way 3 | 不拿 lock，寫完再讀一次 PTE，變了就丟掉那筆 | 有：丟掉之前，同 core 的另一個 hw thread 可能先用到 |
+| way 4 | 握著 `mm_lock` 讀與寫，等 lock 時開著 interrupt，在 interrupt handler 裡也一樣 | 沒找到 |
+
+另外，任何 kernel 程式只要關著 interrupt 等 `mm_lock`，就會和「握著 `mm_lock`、在等 clear request 回覆」的 kernel 互相等，四種做法都會發生。所以這是一定要守的規則。way 2 與 way 4 選哪一種還沒決定。
+
+結果來自 `sim/hostsim/tlbsplit.py`，每種組合跑 100 個隨機順序，加上搜尋最多一次插隊的所有順序。輸出存在 `figures/cpu-mmu-kernel-sw/`。「沒找到」是證據，不是證明。
+
+### 設計圖 13：六個容易出錯的地方
+
+![Where it goes wrong if you are careless](figures/cpu-mmu-kernel-sw/13-where-it-goes-wrong.png)
+
+TLB 裡的每一筆都是 kernel 寫的，所以過期的、重複的、別的程式的 entry 都要 kernel 自己防。六個陷阱是：留下沒清的 entry、太晚寫進舊的 entry、關著 interrupt 等 lock、handler 自己 TLB miss、切換程式後的舊 entry、兩個 hw thread 為同一個 page 各寫一筆。後三個的答案要等 CPU 手冊。
+
+### 設計圖 14：模型裡有的，還沒決定的
+
+![What is in the model, what is open](figures/cpu-mmu-kernel-sw/14-modeled-and-open.png)
+
+步驟順序的規則已經在模型裡驗過。待決定的九項大多是這顆 CPU 提供什麼，例如指令集、TLB 有幾格、有沒有 tag、怎麼清別的 core 的 TLB。其他是設計與產品的決定：TLB miss handler 要不要拿 `mm_lock`、page table 的形狀、程式要不要各自有 address space。手冊回答之前，handler 寫不出來。
+
+## 10. 設計之二：LZ4 kernel SW
+
+這一節講壓縮層的 kernel SW。圖來自 [figures/kernel-sw-design/](figures/kernel-sw-design/README.md)，那一組共 13 張，整組的 PDF 是 [kernel-sw-design.pdf](figures/kernel-sw-design/kernel-sw-design.pdf)。第 1 到 3 張講為什麼壓縮、page 與 frame、page swap，和第 1 到 3 層與任務圖 1 重疊，這裡從第 4 張開始。
+
+數字來自 `spec/sim-results-v0.md`，是小機器、4 個 engine 的模擬。通知、叫醒與指令的時間是假設的。
+
+### 設計圖 4：壓縮過的 page 怎麼放
+
+![How a compressed page is stored](figures/kernel-sw-design/04-how-a-page-is-stored.png)
+
+一個 4 KB 的 page 壓完多大，事先不知道。kernel 把它放進幾個 512 B 的 chunk，chunk 不必相鄰。
+
+| 表 | 記什麼 |
+|---|---|
+| COT，compressed object table | 每個 page 一筆：用了哪些 chunk、長度、CRC |
+| chunk bitmap | 每個 chunk 一個 bit：有沒有在用 |
+
+一個 page 最多用 7 個 chunk，8 個就等於整個 4 KB，什麼都沒省。需要 8 個的 page 目前留在 frame 裡，標 OPEN。LZ4 HW 只照 job 上寫的 chunk 讀寫，不讀 COT。
+
+### 設計圖 5：LZ4 kernel SW 的各個部分
+
+![The parts of the LZ4 kernel SW](figures/kernel-sw-design/05-parts-of-the-kernel-sw.png)
+
+把 page 拿回來的是 fault path，在發生 fault 的 core 上跑，好幾個 core 可以同時在裡面。把 page 推出去的是 reclaimer，一個背景的 kernel thread，所有的壓縮都由它做。兩邊共用一組表，由一把 `mm_lock` 保護，LZ4 HW 工作時兩邊都不握 lock。
+
+### 設計圖 6：一個 page 的六種 state
+
+![The six states of a page](figures/kernel-sw-design/06-page-states.png)
+
+UNTOUCHED、PRESENT、COMPRESSING、COMPRESSED、DECOMPRESSING、LOST。每個 page 一定在其中一種。read-only 的 page 在 frame 裡時壓縮的那一份也一直留著，離開 frame 不用 job；read-write 的 page 只有一份，不在 frame 就在 chunk pool。job 進行時，page 屬於那個 job，別的 thread 碰到就等，不會再開第二個 job。
+
+### 設計圖 7：fault path
+
+![Bringing a page back: the fault path](figures/kernel-sw-design/07-fault-path.png)
+
+九步。fault 從預留的 free frame 拿一個 frame，交給 LZ4 HW 一個 DECOMPRESS job，`mm_lock` 只在兩個短步驟裡握著。等 HW 的那段不握 lock，別的 core 可以進來。最後填 TLB、返回，程式的指令重跑。這就是第 9 節設計圖 8 裡「資料壓縮過」那一列的內容。
+
+### 設計圖 8：reclaimer
+
+![The reclaimer](figures/kernel-sw-design/08-reclaimer.png)
+
+free frame 低於下水位時叫醒 reclaimer，補到上水位。它用 clock 挑最近沒被用過的 page，跳過每個 thread 剛 fault 回來的那幾個。read-only 的 page 直接丟掉 frame；read-write 的 page 送 COMPRESS。
+
+### 設計圖 9：壓縮不放在 fault 路徑上
+
+![Design choice: keep compression off the fault](figures/kernel-sw-design/09-keeping-faults-short.png)
+
+預留 free frame，所有壓縮都在背景做，fault 只解壓縮。正常負載下沒有 fault 等過 frame；負載重到 reclaimer 跟不上時就會等，40 倍負載時有 716 次。一般的 kernel 在這時讓需要記憶體的 thread 自己壓縮，叫 direct reclaim；我們目前沒有，要不要加還沒決定。
+
+### 設計圖 10：時間花在哪裡，sleep 還是 poll
+
+![Where the time goes](figures/kernel-sw-design/10-where-the-time-goes.png)
+
+一次需要解壓縮的 fault 平均 6.20 µs，其中等 interrupt 通知與叫醒就佔 3.32 µs，比解壓縮本身還多。改成 poll 時 p50 是 3.23 µs，代價是 CPU 一直在等。要選哪一種需要實際的 interrupt 時間。
+
+### 設計圖 11：很多 core 同時 fault
+
+![Many cores fault at once](figures/kernel-sw-design/11-many-cores-at-once.png)
+
+不同 page 的 fault 可以同時進行，共用 LZ4 HW 的 engine。同一個 page 的 fault 共用一個 job。只有短短的改表步驟要輪流。completion 回來的順序不一定，每個 thread 用 tag 找自己的。目前看到最慢的 fault，是碰到正在被 COMPRESS 的 page，它要等那個 COMPRESS 做完，engine 再多也沒用。
+
+### 設計圖 12：容易出錯的地方
+
+![Where it goes wrong if you are careless](figures/kernel-sw-design/12-where-it-goes-wrong.png)
+
+LZ4 HW 不檢查它讀寫的位置。kernel 要負責：cache 與 TLB 不留舊的資料，剛回來的 page 不馬上又被推出去，每個 frame 同時只交給一個 job，HW 回報失敗時用自己的 decoder 再試一次。不能等待的程式不碰壓縮過的記憶體。
+
+### 設計圖 13：已經設計的，還沒決定的
+
+![What is designed, what is open](figures/kernel-sw-design/13-designed-and-open.png)
+
+結構已經在模擬裡建好、檢查過，但還沒有負責人簽核。還沒決定的大多是政策：記憶體用完時怎麼辦、挑哪些 page、一次 fault 最久可以多久。詳細的待決事項在 `spec/control-procedures-v0.md` 第 10 節。
+
+## 11. 前提、推論、還不知道的
 
 | 類別 | 內容 | 用在哪一層 |
 |---|---|---|
@@ -283,8 +465,9 @@ working set 一旦超過 frame 區，轉換的頻率不是慢慢增加，而是�
 | 還不知道 | 同一個 core 的兩個 hardware thread 同時改 TLB 的限制 | 6 |
 | 還不知道 | L1 與 L2 的大小 | 4 |
 | 還沒設計 | 只填 TLB 的 TLB miss handler 要不要拿 `mm_lock` | 5 |
+| 模型 | TLB miss handler 不拿 lock、clear request 只送到每個 core 時，會把清掉的對應寫回 TLB。有兩種做法沒找到這個問題；關著 interrupt 等 `mm_lock` 一律 deadlock。見第 9 節設計圖 11、12 | 5、6 |
 
-## 10. 和先前的文件、動畫不一樣的地方
+## 12. 和先前的文件、動畫不一樣的地方
 
 下面這些是在 P1 指定之前做的。和這份文件衝突的地方，以這份為準。
 
@@ -294,16 +477,16 @@ working set 一旦超過 frame 區，轉換的頻率不是慢慢增加，而是�
 | `spec/kernel-step-detail-v0.md` 的 `access` 與 `rerun` | 硬體走 page table，成本記 0 | TLB miss 時由 kernel SW 做，成本還不知道 |
 | 白板圖 3 | N engines | N 目前暫定 4 |
 
-address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE 是 valid 時 kernel 沒有參與、PTE 改成 invalid 之後任何 access 都會被擋下。2026-11-13 已經在 `addrspace/` 的原始檔改掉，`docs/addrspace/` 也重建了。這個動畫仍然沒有畫 TLB 與 core，它用文字說明。TLB、core、hardware thread、L1 與 L2 cache、`mm_lock` 畫在另一頁，CPU MMU 動畫，見第 11 節。
+address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE 是 valid 時 kernel 沒有參與、PTE 改成 invalid 之後任何 access 都會被擋下。2026-11-13 已經在 `addrspace/` 的原始檔改掉，`docs/addrspace/` 也重建了。這個動畫仍然沒有畫 TLB 與 core，它用文字說明。TLB、core、hardware thread、L1 與 L2 cache、`mm_lock` 畫在另一頁，CPU MMU 動畫，見第 13 節。
 
-## 11. 接下來讀什麼
+## 13. 接下來讀什麼
 
 表格的第一列和這份文件講同一件事，主角是 CPU MMU。其餘各列是以壓縮層為主角的文件，這份文件讀完之後再讀。
 
 | 想知道 | 讀 |
 |---|---|
-| 一次 access 的三種結果、同一個 core 的兩個 hardware thread 共用 TLB、L1 與 L2 cache、兩個 core 的 TLB 怎麼變得不一致、兩個 core 同時 page fault 時的 `mm_lock`、兩個 core 同時碰同一個 page，一步一步看 | [CPU MMU 動畫](https://datochuang.github.io/dram-compression-tutorial/mmu/)，十個場景。原始檔是 `addrspace/mmu3d.src.html`，建置結果在 `docs/mmu/`，建置命令在第 15 節 |
-| 白板圖 D 會動的版本：兩邊多常叫醒 kernel SW，頻率由什麼決定，兩邊在哪裡碰到，每一步動到哪些表 | [兩種節奏動畫](https://datochuang.github.io/dram-compression-tutorial/rhythm/)，四幕。原始檔是 `addrspace/rhythm3d.src.html`，建置結果在 `docs/rhythm/`，建置命令在第 15 節 |
+| 一次 access 的三種結果、同一個 core 的兩個 hardware thread 共用 TLB、L1 與 L2 cache、兩個 core 的 TLB 怎麼變得不一致、兩個 core 同時 page fault 時的 `mm_lock`、兩個 core 同時碰同一個 page，一步一步看 | [CPU MMU 動畫](https://datochuang.github.io/dram-compression-tutorial/mmu/)，十個場景。原始檔是 `addrspace/mmu3d.src.html`，建置結果在 `docs/mmu/`，建置命令在第 17 節 |
+| 白板圖 D 會動的版本：兩邊多常叫醒 kernel SW，頻率由什麼決定，兩邊在哪裡碰到，每一步動到哪些表 | [兩種節奏動畫](https://datochuang.github.io/dram-compression-tutorial/rhythm/)，四幕。原始檔是 `addrspace/rhythm3d.src.html`，建置結果在 `docs/rhythm/`，建置命令在第 17 節 |
 | 加了壓縮層之後，一個 page 有哪些狀態 | [figures/README.md](figures/README.md) 的圖 0 |
 | 資料在 logical 與 physical 兩邊各長什麼樣子 | address 動畫，`docs/addrspace/` |
 | kernel SW 在每個場景的每一步 | [figures/README.md](figures/README.md) 的圖 1 到圖 11 |
@@ -312,7 +495,7 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 | kernel SW 的控制程序與 pseudo code | [spec/control-procedures-v0.md](spec/control-procedures-v0.md) |
 | LZ4 HW 的設計規格 | [spec/lz4-hw-design-spec-v0.md](spec/lz4-hw-design-spec-v0.md) |
 
-## 12. 名詞
+## 14. 名詞
 
 | 名詞 | 意思 |
 |---|---|
@@ -333,7 +516,7 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 | `mm_lock` | 改共用的表之前要拿的 lock |
 | hardware page table walk | TLB miss 時由硬體自己讀 page table。這個平台沒有 |
 
-## 13. 這個 repo 裡有什麼
+## 15. 這個 repo 裡有什麼
 
 | 位置 | 內容 |
 |---|---|
@@ -341,9 +524,9 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 | `CLAUDE.md` | 平台前提 P1 到 P4、從前提推出來的事、還不知道的事、還沒照前提改的舊內容 |
 | `spec/` | 規格與分析。兩份主要產出是 `spec/lz4-hw-design-spec-v0.md` 與 `spec/control-procedures-v0.md`。兩者之間的介面在 `spec/hw-fw-interface.md` |
 | `sim/` | 模擬器與測試。`sim/ifsim` 是介面與時間的模型，`sim/hostsim` 是 kernel SW 的模型，`sim/hwref` 是 LZ4 HW 的 cycle 等級 reference，`sim/lz4sim` 是最早的系統模擬器 |
-| `figures/` | 白板工程圖與分析圖。`figures/two-stage-task/`、`figures/cpu-mmu-basics/` 與 `figures/system-overview/` 是這份文件用的圖，`figures/README.md` 是 kernel SW 的十三張圖 |
+| `figures/` | 白板工程圖與分析圖。`figures/two-stage-task/`、`figures/cpu-mmu-basics/` 與 `figures/system-overview/` 是前七層用的圖，`figures/cpu-mmu-kernel-sw/` 與 `figures/kernel-sw-design/` 是第 9、10 節的兩份設計。每一組的資料夾裡有 README 與合成的 PDF。`figures/README.md` 是 kernel SW 逐步的十三張圖 |
 | `addrspace/` | address 動畫與 CPU MMU 動畫的原始檔。address 動畫的建置結果在 `docs/addrspace/`，CPU MMU 動畫的在 `docs/mmu/` |
-| `src/` | 圖解說明文件的原始檔與建置工具，見第 15 節 |
+| `src/` | 圖解說明文件的原始檔與建置工具，見第 17 節 |
 | `docs/` | GitHub Pages 發佈的頁面，從 `main` 的 `/docs` 發佈。草稿不要放在這裡 |
 | `reference/` | Linux zram 的原始碼與研讀筆記，只用來對照，不複製進 `sim/` 與 `spec/`。只放在本機，不 commit |
 
@@ -360,7 +543,7 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 
 測試：`cd sim && python3 -m pytest tests -q`。
 
-## 14. 已經發佈的互動頁面
+## 16. 已經發佈的互動頁面
 
 這些頁面從 `docs/` 發佈到 GitHub Pages。它們以壓縮層為主角，讀之前先讀完上面的七層。
 
@@ -374,7 +557,7 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 - [address 動畫](https://datochuang.github.io/dram-compression-tutorial/addrspace/)：一個 symbol 在 logical 與 physical 兩邊的樣子。
 - [CPU MMU 動畫](https://datochuang.github.io/dram-compression-tutorial/mmu/)：TLB、core、hardware thread、L1 與 L2 cache、`mm_lock`，十個場景。這一頁以 CPU MMU 為主角，可以和這份文件一起讀。
 
-## 15. 圖解說明文件的原始檔與建置
+## 17. 圖解說明文件的原始檔與建置
 
 - `src/page.html`：說明文件的原始檔，中文，含 `/*__CORE__*/` 佔位符，建置時嵌入 LZ4 程式。兩個語言版本都從這一份產生。
 - `src/en.json`：逐行的英文翻譯表。key 是 `page.html` 裡的整行原文，value 是英文整行。標籤、id、程式碼都和原文一致，只有文字不同。
