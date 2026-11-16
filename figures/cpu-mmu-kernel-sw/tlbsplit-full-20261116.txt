@@ -1,0 +1,449 @@
+to=core lockwait=a:irq-on refill=c:can isr=cannot fix=none
+    users=2            StaleTlb   seed 1
+        step    76  user1       refill A: reads PTE 0x0 = 0x80021000
+        step    83  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step    84  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    87  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step    95  user1       refill B: writes core 1 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step    96  user1       uses page 0x0 -> 0x80021000 from core 1 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 1 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    users=3            StaleTlb   seed 1
+        step   873  user2       refill A: reads PTE 0x0 = 0x8002a000
+        step   874  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step   876  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step   878  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step   879  user2       refill B: writes core 0 TLB 0x0 -> 0x8002a000 (PTE now 0x0)
+        step   885  user2       uses page 0x0 -> 0x8002a000 from core 0 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 0 still translates page 0x0 to 0x8002a000, the PTE says 0x0
+    wide users=3       StaleTlb   seed 1
+        step   623  user2       refill A: reads PTE 0x0 = 0x80028000
+        step   625  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step   626  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step   627  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step   639  user2       refill B: writes core 0 TLB 0x0 -> 0x80028000 (PTE now 0x0)
+        step   640  user2       uses page 0x0 -> 0x80028000 from core 0 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 0 still translates page 0x0 to 0x80028000, the PTE says 0x0
+    wide users=4       StaleTlb   seed 1
+        step    33  user1       refill A: reads PTE 0x0 = 0x80021000
+        step    59  user2       refill A: reads PTE 0x0 = 0x80021000
+        step    65  user2       refill B: writes core 0 TLB 0x0 -> 0x80021000 (PTE now 0x80021000)
+        step    70  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step    72  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    73  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step   143  user1       refill B: writes core 1 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step   144  user1       uses page 0x0 -> 0x80021000 from core 1 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 1 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    explore users=2    ok         111 schedules
+    explore users=3    ok         618 schedules
+to=core lockwait=a:irq-on refill=c:cannot isr=cannot fix=none
+    users=2            StaleTlb   seed 1
+        step    76  user1       refill A: reads PTE 0x0 = 0x80021000
+        step    83  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step    84  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    87  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step    95  user1       refill B: writes core 1 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step    96  user1       uses page 0x0 -> 0x80021000 from core 1 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 1 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    users=3            StaleTlb   seed 1
+        step   873  user2       refill A: reads PTE 0x0 = 0x8002a000
+        step   874  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step   876  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step   878  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step   879  user2       refill B: writes core 0 TLB 0x0 -> 0x8002a000 (PTE now 0x0)
+        step   885  user2       uses page 0x0 -> 0x8002a000 from core 0 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 0 still translates page 0x0 to 0x8002a000, the PTE says 0x0
+    wide users=3       StaleTlb   seed 4
+        step   617  user1       refill A: reads PTE 0x2 = 0x80024000
+        step   638  reclaimer   PTE 0x2 invalid, own core 1 TLB cleared, requests to ['core0']
+        step   639  clear@core0 core0 clears page 0x2 from core 0 TLB (taken by user2), acks
+        step   640  reclaimer   every target acknowledged page 0x2; pte_unmap returns
+        step   677  user2       refill A: reads PTE 0x2 = 0x80029000
+        step   687  user2       refill B: writes core 0 TLB 0x2 -> 0x80029000 (PTE now 0x80029000)
+        step   690  user1       refill B: writes core 1 TLB 0x2 -> 0x80024000 (PTE now 0x80029000)
+        step   692  user1       uses page 0x2 -> 0x80024000 from core 1 TLB, PTE says 0x80029000: STALE
+        -> StaleTlb: core 1 still translates page 0x2 to 0x80024000, the PTE says 0x80029000
+    wide users=4       StaleTlb   seed 1
+        step    33  user1       refill A: reads PTE 0x0 = 0x80021000
+        step    59  user2       refill A: reads PTE 0x0 = 0x80021000
+        step    65  user2       refill B: writes core 0 TLB 0x0 -> 0x80021000 (PTE now 0x80021000)
+        step    70  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step    74  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user2), acks
+        step    76  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step   110  user1       refill B: writes core 1 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step   111  user1       uses page 0x0 -> 0x80021000 from core 1 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 1 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    explore users=2    ok         111 schedules
+    explore users=3    ok         618 schedules
+to=core lockwait=b:irq-off refill=c:can isr=cannot fix=none
+    users=2            StaleTlb   seed 1
+        step    76  user1       refill A: reads PTE 0x0 = 0x80021000
+        step    83  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step    84  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    87  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step    95  user1       refill B: writes core 1 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step    96  user1       uses page 0x0 -> 0x80021000 from core 1 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 1 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    users=3            Deadlock   seed 1
+        step    91  reclaimer   PTE 0x12 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x12 by [core0: user0 waits for mm_lock with interrupts off, user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+    wide users=3       StaleTlb   seed 1
+        step   623  user2       refill A: reads PTE 0x0 = 0x80028000
+        step   625  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step   626  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step   627  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step   639  user2       refill B: writes core 0 TLB 0x0 -> 0x80028000 (PTE now 0x0)
+        step   640  user2       uses page 0x0 -> 0x80028000 from core 0 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 0 still translates page 0x0 to 0x80028000, the PTE says 0x0
+    wide users=4       StaleTlb   seed 1
+        step    33  user1       refill A: reads PTE 0x0 = 0x80021000
+        step    59  user2       refill A: reads PTE 0x0 = 0x80021000
+        step    65  user2       refill B: writes core 0 TLB 0x0 -> 0x80021000 (PTE now 0x80021000)
+        step    70  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step    72  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    73  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step   143  user1       refill B: writes core 1 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step   144  user1       uses page 0x0 -> 0x80021000 from core 1 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 1 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    explore users=2    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step    87  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [core0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for frame
+    explore users=3    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step   103  reclaimer   PTE 0x14 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x14 by [core0: user0 waits for mm_lock with interrupts off, user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+to=core lockwait=b:irq-off refill=c:cannot isr=cannot fix=none
+    users=2            StaleTlb   seed 1
+        step    76  user1       refill A: reads PTE 0x0 = 0x80021000
+        step    83  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step    84  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    87  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step    95  user1       refill B: writes core 1 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step    96  user1       uses page 0x0 -> 0x80021000 from core 1 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 1 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    users=3            Deadlock   seed 1
+        step    91  reclaimer   PTE 0x12 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x12 by [core0: user0 waits for mm_lock with interrupts off, user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+    wide users=3       Deadlock   seed 1
+        step    69  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [core0: user0 waits for mm_lock with interrupts off, user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for ('page', 16), user2 waits for lock
+    wide users=4       StaleTlb   seed 1
+        step    33  user1       refill A: reads PTE 0x0 = 0x80021000
+        step    59  user2       refill A: reads PTE 0x0 = 0x80021000
+        step    65  user2       refill B: writes core 0 TLB 0x0 -> 0x80021000 (PTE now 0x80021000)
+        step    70  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step    74  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user2), acks
+        step    76  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step    90  user1       refill B: writes core 1 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step    91  user1       uses page 0x0 -> 0x80021000 from core 1 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 1 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    explore users=2    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+    explore users=3    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step   103  reclaimer   PTE 0x14 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x14 by [core0: user0 waits for mm_lock with interrupts off, user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+to=thread lockwait=a:irq-on refill=c:can isr=cannot fix=none
+    users=2            StaleTlb   seed 1
+        step    76  user1       refill A: reads PTE 0x0 = 0x80021000
+        step    83  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1']
+        step    84  clear@hwt user0 hwt user0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    86  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        step    87  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step    95  user1       refill B: writes core 1 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step    96  user1       uses page 0x0 -> 0x80021000 from core 1 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 1 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    users=3            StaleTlb   seed 13
+        step   379  user2       refill A: reads PTE 0x2 = 0x80027000
+        step   380  reclaimer   PTE 0x2 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step   381  clear@hwt user2 hwt user2 clears page 0x2 from core 0 TLB (taken by user2), acks
+        step   382  clear@hwt user0 hwt user0 clears page 0x2 from core 0 TLB (taken by user0), acks
+        step   383  clear@hwt user1 hwt user1 clears page 0x2 from core 1 TLB (taken by user1), acks
+        step   384  reclaimer   every target acknowledged page 0x2; pte_unmap returns
+        step   392  user2       refill B: writes core 0 TLB 0x2 -> 0x80027000 (PTE now 0x0)
+        step   393  user2       uses page 0x2 -> 0x80027000 from core 0 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 0 still translates page 0x2 to 0x80027000, the PTE says 0x0
+    wide users=3       StaleTlb   seed 1
+        step  1066  user0       refill A: reads PTE 0x10 = 0x8002a000
+        step  1067  user2       refill B: writes core 0 TLB 0x10 -> 0x8002a000 (PTE now 0x8002a000)
+        step  1127  reclaimer   PTE 0x10 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step  1128  clear@hwt user0 hwt user0 clears page 0x10 from core 0 TLB (taken by user0), acks
+        step  1129  clear@hwt user1 hwt user1 clears page 0x10 from core 1 TLB (taken by user1), acks
+        step  1130  clear@hwt user2 hwt user2 clears page 0x10 from core 0 TLB (taken by user2), acks
+        step  1131  user0       refill B: writes core 0 TLB 0x10 -> 0x8002a000 (PTE now 0x0)
+        step  1132  reclaimer   every target acknowledged page 0x10; pte_unmap returns
+        step  1134  user0       uses page 0x10 -> 0x8002a000 from core 0 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 0 still translates page 0x10 to 0x8002a000, the PTE says 0x0
+    wide users=4       StaleTlb   seed 1
+        step   332  user1       refill A: reads PTE 0x2 = 0x80025000
+        step   361  reclaimer   PTE 0x2 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2', 'hwt user3']
+        step   362  clear@hwt user2 hwt user2 clears page 0x2 from core 0 TLB (taken by user2), acks
+        step   363  clear@hwt user1 hwt user1 clears page 0x2 from core 1 TLB (taken by user1), acks
+        step   364  clear@hwt user3 hwt user3 clears page 0x2 from core 1 TLB (taken by user3), acks
+        step   366  clear@hwt user0 hwt user0 clears page 0x2 from core 0 TLB (taken by user0), acks
+        step   367  reclaimer   every target acknowledged page 0x2; pte_unmap returns
+        step   457  user3       refill A: reads PTE 0x2 = 0x80024000
+        step   469  user1       refill B: writes core 1 TLB 0x2 -> 0x80025000 (PTE now 0x80024000)
+        step   470  user1       uses page 0x2 -> 0x80025000 from core 1 TLB, PTE says 0x80024000: STALE
+        -> StaleTlb: core 1 still translates page 0x2 to 0x80025000, the PTE says 0x80024000
+    explore users=2    ok         114 schedules
+    explore users=3    ok         708 schedules
+to=thread lockwait=a:irq-on refill=c:cannot isr=cannot fix=none
+    users=2            ok         100 seeds
+    users=3            ok         100 seeds
+    wide users=3       ok         100 seeds
+    wide users=4       ok         100 seeds
+    explore users=2    ok         114 schedules
+    explore users=3    ok         708 schedules
+to=thread lockwait=b:irq-off refill=c:can isr=cannot fix=none
+    users=2            StaleTlb   seed 1
+        step    76  user1       refill A: reads PTE 0x0 = 0x80021000
+        step    83  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1']
+        step    84  clear@hwt user0 hwt user0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    86  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        step    87  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step    95  user1       refill B: writes core 1 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step    96  user1       uses page 0x0 -> 0x80021000 from core 1 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 1 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    users=3            Deadlock   seed 1
+        step    69  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step    70  clear@hwt user0 hwt user0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    71  clear@hwt user2 hwt user2 clears page 0x0 from core 0 TLB (taken by user2), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user1: user1 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+    wide users=3       Deadlock   seed 1
+        step    69  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step    71  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        step    72  clear@hwt user0 hwt user0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user2: user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for ('page', 16), user2 waits for lock
+    wide users=4       Deadlock   seed 1
+        step   168  reclaimer   PTE 0x17 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2', 'hwt user3']
+        step   169  clear@hwt user3 hwt user3 clears page 0x17 from core 1 TLB (taken by user3), acks
+        step   172  clear@hwt user1 hwt user1 clears page 0x17 from core 1 TLB (taken by user1), acks
+        step   173  clear@hwt user0 hwt user0 clears page 0x17 from core 0 TLB (taken by user0), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x17 by [hwt user2: user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock, user3 waits for lock
+    explore users=2    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step    87  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1']
+        step    90  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for frame
+    explore users=3    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step    89  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step    92  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        step    93  clear@hwt user2 hwt user2 clears page 0x0 from core 0 TLB (taken by user2), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for frame, user2 waits for frame
+to=thread lockwait=b:irq-off refill=c:cannot isr=cannot fix=none
+    users=2            Deadlock   seed 1
+        step   104  reclaimer   PTE 0x1 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1']
+        step   107  clear@hwt user1 hwt user1 clears page 0x1 from core 1 TLB (taken by user1), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x1 by [hwt user0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock
+    users=3            Deadlock   seed 1
+        step    69  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step    70  clear@hwt user0 hwt user0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    74  clear@hwt user2 hwt user2 clears page 0x0 from core 0 TLB (taken by user2), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user1: user1 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+    wide users=3       Deadlock   seed 1
+        step    69  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step    71  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off; hwt user2: user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for ('page', 16), user2 waits
+    wide users=4       Deadlock   seed 1
+        step    70  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2', 'hwt user3']
+        step    74  clear@hwt user2 hwt user2 clears page 0x0 from core 0 TLB (taken by user2), acks
+        step    79  user1       refill B: writes core 1 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step    80  user1       uses page 0x0 -> 0x80021000 from core 1 TLB while its clearing is going on
+        step    86  clear@hwt user3 hwt user3 clears page 0x0 from core 1 TLB (taken by user3), acks
+        step    96  clear@hwt user0 hwt user0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user1: user1 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock, user3 waits for lock
+    explore users=2    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step    87  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1']
+        step    90  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for frame
+    explore users=3    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step    89  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step    92  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        step    93  clear@hwt user2 hwt user2 clears page 0x0 from core 0 TLB (taken by user2), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for frame, user2 waits for frame
+to=core lockwait=a:irq-on refill=c:can isr=cannot fix=recheck
+    users=2            ok         100 seeds
+    users=3            ok         100 seeds
+    wide users=3       StaleTlb   seed 95
+        step    72  user0       refill A: reads PTE 0x0 = 0x80021000
+        step    78  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step    79  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    80  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step   128  user0       refill B: writes core 0 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step   172  user2       uses page 0x0 -> 0x80021000 from core 0 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 0 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    wide users=4       StaleTlb   seed 2
+        step    73  user0       refill A: reads PTE 0x0 = 0x80021000
+        step    85  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step    86  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step    87  user0       refill B: writes core 0 TLB 0x0 -> 0x80021000 (PTE now 0x0)
+        step    88  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step   109  user2       uses page 0x0 -> 0x80021000 from core 0 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 0 still translates page 0x0 to 0x80021000, the PTE says 0x0
+    explore users=2    ok         130 schedules
+    explore users=3    ok         696 schedules
+to=core lockwait=a:irq-on refill=c:cannot isr=cannot fix=recheck
+    users=2            ok         100 seeds
+    users=3            ok         100 seeds
+    wide users=3       ok         100 seeds
+    wide users=4       StaleTlb   seed 98
+        step  1268  user2       refill A: reads PTE 0x0 = 0x80029000
+        step  1286  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        step  1288  clear@core0 core0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        step  1290  reclaimer   every target acknowledged page 0x0; pte_unmap returns
+        step  1328  user2       refill B: writes core 0 TLB 0x0 -> 0x80029000 (PTE now 0x0)
+        step  1347  user0       uses page 0x0 -> 0x80029000 from core 0 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 0 still translates page 0x0 to 0x80029000, the PTE says 0x0
+    explore users=2    ok         130 schedules
+    explore users=3    ok         696 schedules
+to=thread lockwait=a:irq-on refill=c:can isr=cannot fix=recheck
+    users=2            ok         100 seeds
+    users=3            ok         100 seeds
+    wide users=3       ok         100 seeds
+    wide users=4       StaleTlb   seed 32
+        step  1189  user2       refill A: reads PTE 0x10 = 0x80027000
+        step  1195  reclaimer   PTE 0x10 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2', 'hwt user3']
+        step  1196  clear@hwt user0 hwt user0 clears page 0x10 from core 0 TLB (taken by user0), acks
+        step  1197  clear@hwt user3 hwt user3 clears page 0x10 from core 1 TLB (taken by user3), acks
+        step  1198  clear@hwt user2 hwt user2 clears page 0x10 from core 0 TLB (taken by user2), acks
+        step  1199  clear@hwt user1 hwt user1 clears page 0x10 from core 1 TLB (taken by user1), acks
+        step  1200  reclaimer   every target acknowledged page 0x10; pte_unmap returns
+        step  1223  user2       refill B: writes core 0 TLB 0x10 -> 0x80027000 (PTE now 0x0)
+        step  1244  user0       uses page 0x10 -> 0x80027000 from core 0 TLB, PTE says 0x0: STALE
+        -> StaleTlb: core 0 still translates page 0x10 to 0x80027000, the PTE says 0x0
+    explore users=2    ok         133 schedules
+    explore users=3    ok         786 schedules
+to=thread lockwait=a:irq-on refill=c:cannot isr=cannot fix=recheck
+    users=2            ok         100 seeds
+    users=3            ok         100 seeds
+    wide users=3       ok         100 seeds
+    wide users=4       ok         100 seeds
+    explore users=2    ok         133 schedules
+    explore users=3    ok         786 schedules
+to=core lockwait=a:irq-on refill=c:can isr=cannot fix=refill_locked
+    users=2            Deadlock   seed 12
+        step   883  reclaimer   PTE 0x6 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x6 by [core0: user0 is in an ISR]; user0 waits for lock
+    users=3            ok         100 seeds
+    wide users=3       ok         100 seeds
+    wide users=4       ok         100 seeds
+    explore users=2    ok         146 schedules
+    explore users=3    ok         762 schedules
+to=core lockwait=a:irq-on refill=c:can isr=can fix=refill_locked
+    users=2            ok         100 seeds
+    users=3            ok         100 seeds
+    wide users=3       ok         100 seeds
+    wide users=4       ok         100 seeds
+    explore users=2    ok         146 schedules
+    explore users=3    ok         762 schedules
+to=core lockwait=b:irq-off refill=c:can isr=cannot fix=refill_locked
+    users=2            Deadlock   seed 1
+        step   122  reclaimer   PTE 0x1 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x1 by [core0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock
+    users=3            Deadlock   seed 1
+        step    93  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [core0: user0 waits for mm_lock with interrupts off, user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+    wide users=3       Deadlock   seed 1
+        step   165  reclaimer   PTE 0x12 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x12 by [core0: user0 waits for mm_lock with interrupts off, user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+    wide users=4       Deadlock   seed 1
+    explore users=2    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+    explore users=3    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step   131  reclaimer   PTE 0x14 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x14 by [core0: user0 waits for mm_lock with interrupts off, user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+to=core lockwait=b:irq-off refill=c:can isr=can fix=refill_locked
+    users=2            Deadlock   seed 1
+        step   122  reclaimer   PTE 0x1 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x1 by [core0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock
+    users=3            Deadlock   seed 1
+        step    93  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [core0: user0 waits for mm_lock with interrupts off, user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+    wide users=3       Deadlock   seed 1
+        step   165  reclaimer   PTE 0x12 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x12 by [core0: user0 waits for mm_lock with interrupts off, user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+    wide users=4       Deadlock   seed 1
+    explore users=2    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+    explore users=3    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step   131  reclaimer   PTE 0x14 invalid, own core 1 TLB cleared, requests to ['core0']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x14 by [core0: user0 waits for mm_lock with interrupts off, user2 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+to=thread lockwait=a:irq-on refill=c:can isr=cannot fix=refill_locked
+    users=2            Deadlock   seed 1
+        step   123  reclaimer   PTE 0x1 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1']
+        step   125  clear@hwt user1 hwt user1 clears page 0x1 from core 1 TLB (taken by user1), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x1 by [hwt user0: user0 is in an ISR]; user0 waits for lock, user1 waits for lock
+    users=3            Deadlock   seed 3
+        step  1370  reclaimer   PTE 0x13 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step  1372  clear@hwt user1 hwt user1 clears page 0x13 from core 1 TLB (taken by user1), acks
+        step  1374  clear@hwt user2 hwt user2 clears page 0x13 from core 0 TLB (taken by user2), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x13 by [hwt user0: user0 is in an ISR]; user0 waits for lock, user1 waits for lock
+    wide users=3       Deadlock   seed 3
+        step  1176  reclaimer   PTE 0x7 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step  1177  clear@hwt user1 hwt user1 clears page 0x7 from core 1 TLB (taken by user1), acks
+        step  1178  clear@hwt user2 hwt user2 clears page 0x7 from core 0 TLB (taken by user2), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x7 by [hwt user0: user0 is in an ISR]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+    wide users=4       Deadlock   seed 7
+        step   356  reclaimer   PTE 0x5 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2', 'hwt user3']
+        step   357  clear@hwt user2 hwt user2 clears page 0x5 from core 0 TLB (taken by user2), acks
+        step   358  clear@hwt user3 hwt user3 clears page 0x5 from core 1 TLB (taken by user3), acks
+        step   360  clear@hwt user1 hwt user1 clears page 0x5 from core 1 TLB (taken by user1), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x5 by [hwt user0: user0 is in an ISR]; user0 waits for lock, user1 waits for lock, user2 waits for lock, user3 waits for lock
+    explore users=2    ok         149 schedules
+    explore users=3    Deadlock   schedule: interruptions {377: 0}, as step: number of the task that runs instead
+        step   381  reclaimer   PTE 0x2 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step   387  clear@hwt user1 hwt user1 clears page 0x2 from core 1 TLB (taken by user1), acks
+        step   388  clear@hwt user2 hwt user2 clears page 0x2 from core 0 TLB (taken by user2), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x2 by [hwt user0: user0 is in an ISR]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+to=thread lockwait=a:irq-on refill=c:can isr=can fix=refill_locked
+    users=2            ok         100 seeds
+    users=3            ok         100 seeds
+    wide users=3       ok         100 seeds
+    wide users=4       ok         100 seeds
+    explore users=2    ok         149 schedules
+    explore users=3    ok         852 schedules
+to=thread lockwait=b:irq-off refill=c:can isr=cannot fix=refill_locked
+    users=2            Deadlock   seed 1
+        step    80  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off; hwt user1: user1 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock
+    users=3            Deadlock   seed 1
+        step    93  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off; hwt user1: user1 waits for mm_lock with interrupts off; hwt user2: user2 waits for mm_lock with interrupts off]; user0 w
+    wide users=3       Deadlock   seed 1
+        step   120  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step   121  clear@hwt user2 hwt user2 clears page 0x0 from core 0 TLB (taken by user2), acks
+        step   122  clear@hwt user0 hwt user0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user1: user1 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+    wide users=4       Deadlock   seed 1
+        step   120  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2', 'hwt user3']
+        step   122  clear@hwt user0 hwt user0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user1: user1 waits for mm_lock with interrupts off; hwt user2: user2 waits for mm_lock with interrupts off; hwt user3: user3 waits for mm_lock with interrupts off]; user0 w
+    explore users=2    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step   111  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1']
+        step   114  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for frame
+    explore users=3    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step   115  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step   118  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        step   119  clear@hwt user2 hwt user2 clears page 0x0 from core 0 TLB (taken by user2), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for frame, user2 waits for frame
+to=thread lockwait=b:irq-off refill=c:can isr=can fix=refill_locked
+    users=2            Deadlock   seed 1
+        step    80  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off; hwt user1: user1 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock
+    users=3            Deadlock   seed 1
+        step    93  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off; hwt user1: user1 waits for mm_lock with interrupts off; hwt user2: user2 waits for mm_lock with interrupts off]; user0 w
+    wide users=3       Deadlock   seed 1
+        step   120  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step   121  clear@hwt user2 hwt user2 clears page 0x0 from core 0 TLB (taken by user2), acks
+        step   122  clear@hwt user0 hwt user0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user1: user1 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for lock, user2 waits for lock
+    wide users=4       Deadlock   seed 1
+        step   120  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2', 'hwt user3']
+        step   122  clear@hwt user0 hwt user0 clears page 0x0 from core 0 TLB (taken by user0), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user1: user1 waits for mm_lock with interrupts off; hwt user2: user2 waits for mm_lock with interrupts off; hwt user3: user3 waits for mm_lock with interrupts off]; user0 w
+    explore users=2    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step   111  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1']
+        step   114  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for frame
+    explore users=3    Deadlock   schedule: interruptions {}, as step: number of the task that runs instead
+        step   115  reclaimer   PTE 0x0 invalid, own core 1 TLB cleared, requests to ['hwt user0', 'hwt user1', 'hwt user2']
+        step   118  clear@hwt user1 hwt user1 clears page 0x0 from core 1 TLB (taken by user1), acks
+        step   119  clear@hwt user2 hwt user2 clears page 0x0 from core 0 TLB (taken by user2), acks
+        -> Deadlock: reclaimer holds mm_lock and waits for the clear of page 0x0 by [hwt user0: user0 waits for mm_lock with interrupts off]; user0 waits for lock, user1 waits for frame, user2 waits for frame
+161 s

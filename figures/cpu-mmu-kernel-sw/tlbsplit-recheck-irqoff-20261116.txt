@@ -1,0 +1,4 @@
+to=core lockwait=b:irq-off refill=c:can isr=cannot fix=recheck {'Deadlock': 200}
+to=core lockwait=b:irq-off refill=c:cannot isr=cannot fix=recheck {'Deadlock': 200}
+to=thread lockwait=b:irq-off refill=c:can isr=cannot fix=recheck {'Deadlock': 200}
+to=thread lockwait=b:irq-off refill=c:cannot isr=cannot fix=recheck {'Deadlock': 200}
