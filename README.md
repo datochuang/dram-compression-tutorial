@@ -524,10 +524,10 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 | `CLAUDE.md` | 平台前提 P1 到 P4、從前提推出來的事、還不知道的事、還沒照前提改的舊內容 |
 | `spec/` | 規格與分析。兩份主要產出是 `spec/lz4-hw-design-spec-v0.md` 與 `spec/control-procedures-v0.md`。兩者之間的介面在 `spec/hw-fw-interface.md` |
 | `sim/` | 模擬器與測試。`sim/ifsim` 是介面與時間的模型，`sim/hostsim` 是 kernel SW 的模型，`sim/hwref` 是 LZ4 HW 的 cycle 等級 reference，`sim/lz4sim` 是最早的系統模擬器 |
-| `figures/` | 白板工程圖與分析圖。`figures/two-stage-task/`、`figures/cpu-mmu-basics/` 與 `figures/system-overview/` 是前七層用的圖，`figures/cpu-mmu-kernel-sw/` 與 `figures/kernel-sw-design/` 是第 9、10 節的兩份設計。每一組的資料夾裡有 README 與合成的 PDF。`figures/README.md` 是 kernel SW 逐步的十三張圖 |
+| `figures/` | 白板工程圖與分析圖。`figures/two-stage-task/`、`figures/cpu-mmu-basics/` 與 `figures/system-overview/` 是前七層用的圖，`figures/cpu-mmu-kernel-sw/` 與 `figures/kernel-sw-design/` 是第 9、10 節的兩份設計。每一組的資料夾裡有 README、提示詞與驗收紀錄。`figures/README.md` 是 kernel SW 逐步的十三張圖。`figures/publish_whiteboards.py` 把驗收過的圖複製到 `docs/whiteboards/` |
 | `addrspace/` | address 動畫與 CPU MMU 動畫的原始檔。address 動畫的建置結果在 `docs/addrspace/`，CPU MMU 動畫的在 `docs/mmu/` |
 | `src/` | 圖解說明文件的原始檔與建置工具，見第 17 節 |
-| `docs/` | GitHub Pages 發佈的頁面，從 `main` 的 `/docs` 發佈。草稿不要放在這裡 |
+| `docs/` | GitHub Pages 發佈的頁面，從 `main` 的 `/docs` 發佈。草稿不要放在這裡。`docs/whiteboards/` 是程式產生的，重畫或新增白板圖之後跑 `python3 figures/publish_whiteboards.py` |
 | `reference/` | Linux zram 的原始碼與研讀筆記，只用來對照，不複製進 `sim/` 與 `spec/`。只放在本機，不 commit |
 
 `spec/` 裡大部分的文件是模擬器照 template 產生的，數字來自實際執行，不要直接改。手寫的只有 `spec/kernel-sw-efficiency-in-perspective.md` 與 `spec/failure-detection-options.md`。
@@ -556,6 +556,7 @@ address 動畫原本有三句話和平台前提衝突：CPU MMU 查 PTE、PTE �
 - [3D 課程](https://datochuang.github.io/dram-compression-tutorial/lesson/)：逐 byte 的壓縮與解壓縮，四課。
 - [address 動畫](https://datochuang.github.io/dram-compression-tutorial/addrspace/)：一個 symbol 在 logical 與 physical 兩邊的樣子。
 - [CPU MMU 動畫](https://datochuang.github.io/dram-compression-tutorial/mmu/)：TLB、core、hardware thread、L1 與 L2 cache、`mm_lock`，十個場景。這一頁以 CPU MMU 為主角，可以和這份文件一起讀。
+- [白板文件](https://datochuang.github.io/dram-compression-tutorial/whiteboards/)：所有驗收過的白板圖，八組，每組一份 PDF。點縮圖看原尺寸。
 
 ## 17. 圖解說明文件的原始檔與建置
 

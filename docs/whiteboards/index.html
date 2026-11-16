@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板文件</title>
+<style>
+:root { --bg: #ffffff; --fg: #1d1d1f; --muted: #5f6368; --line: #d9d9de; --accent: #1a5fb4; --card: #f6f6f8; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #16171a; --fg: #ececf0; --muted: #a2a6ad; --line: #34363c; --accent: #8ab4f8; --card: #202227; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+h2 { font-size: 1.25rem; margin: 0 0 4px; }
+header p, section p { color: var(--muted); margin: 4px 0 8px; }
+nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 8px; }
+nav a { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: .9rem; }
+a { color: var(--accent); text-decoration: none; }
+section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 24px; }
+.links { display: flex; flex-wrap: wrap; gap: 16px; }
+.pdf { font-weight: 600; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+.sheet { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.sheet img { display: block; width: 100%; height: auto; background: #fff; }
+.sheet span { display: block; padding: 6px 10px; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>白板文件</h1>
+    <p>DRAM compression 專案的白板工程圖。點縮圖看原尺寸，點 PDF 看整組。圖上的字是英文，說明在 repo 的 README。</p>
+    <p>這一頁由 <code>figures/publish_whiteboards.py</code> 從 <code>figures/</code> 產生。</p>
+    <nav>
+      <a href="#two-stage-task">工作分兩段</a>
+      <a href="#cpu-mmu-kernel-sw">CPU MMU kernel SW 設計</a>
+      <a href="#kernel-sw-design">LZ4 kernel SW 設計</a>
+      <a href="#cpu-mmu-basics">CPU MMU 入門：白板圖 A 到 D</a>
+      <a href="#system-overview">processor 與 kernel：白板圖 1 到 4</a>
+      <a href="#page-states">page 的六種 state</a>
+      <a href="#kernel-actions">kernel SW 的每一步</a>
+      <a href="#capacity-approaches">省容量的幾種做法</a>
+    </nav>
+  </header>
+  <section id="two-stage-task">
+    <h2>工作分兩段</h2>
+    <p>這次的工作是什麼：先在多核心上把 CPU MMU 與記憶體管理打通，再在 page swap 裡加上 LZ4 HW。兩邊在空間、時間與軟體上都分開設計。</p>
+    <p class="links"><a class="pdf" href="two-stage-task/two-stage-task.pdf">PDF，3 張</a>
+      <a href="https://github.com/datochuang/dram-compression-tutorial/tree/main/figures/two-stage-task">提示詞與驗收紀錄</a></p>
+    <div class="grid">
+      <a class="sheet" href="two-stage-task/01-two-stages.jpg"><img src="two-stage-task/01-two-stages.jpg" alt="01-two-stages" loading="lazy"><span>01-two-stages</span></a>
+      <a class="sheet" href="two-stage-task/02-apart-in-space-and-time.jpg"><img src="two-stage-task/02-apart-in-space-and-time.jpg" alt="02-apart-in-space-and-time" loading="lazy"><span>02-apart-in-space-and-time</span></a>
+      <a class="sheet" href="two-stage-task/03-apart-even-in-software.jpg"><img src="two-stage-task/03-apart-even-in-software.jpg" alt="03-apart-even-in-software" loading="lazy"><span>03-apart-even-in-software</span></a>
+    </div>
+  </section>
+  <section id="cpu-mmu-kernel-sw">
+    <h2>CPU MMU kernel SW 設計</h2>
+    <p>給沒碰過 CPU MMU 的人：前 4 張講前提，接著是 kernel SW 的各個部分，最後是多個 core 時的 race、陷阱與還沒決定的事。</p>
+    <p class="links"><a class="pdf" href="cpu-mmu-kernel-sw/cpu-mmu-kernel-sw.pdf">PDF，14 張</a>
+      <a href="https://github.com/datochuang/dram-compression-tutorial/tree/main/figures/cpu-mmu-kernel-sw">提示詞與驗收紀錄</a></p>
+    <div class="grid">
+      <a class="sheet" href="cpu-mmu-kernel-sw/01-why-translate.jpg"><img src="cpu-mmu-kernel-sw/01-why-translate.jpg" alt="01-why-translate" loading="lazy"><span>01-why-translate</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/02-page-table-tlb-cpu-mmu.jpg"><img src="cpu-mmu-kernel-sw/02-page-table-tlb-cpu-mmu.jpg" alt="02-page-table-tlb-cpu-mmu" loading="lazy"><span>02-page-table-tlb-cpu-mmu</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/03-three-outcomes.jpg"><img src="cpu-mmu-kernel-sw/03-three-outcomes.jpg" alt="03-three-outcomes" loading="lazy"><span>03-three-outcomes</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/04-the-processor.jpg"><img src="cpu-mmu-kernel-sw/04-the-processor.jpg" alt="04-the-processor" loading="lazy"><span>04-the-processor</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/05-parts-of-the-cpu-mmu-kernel-sw.jpg"><img src="cpu-mmu-kernel-sw/05-parts-of-the-cpu-mmu-kernel-sw.jpg" alt="05-parts-of-the-cpu-mmu-kernel-sw" loading="lazy"><span>05-parts-of-the-cpu-mmu-kernel-sw</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/06-the-pte-is-ours.jpg"><img src="cpu-mmu-kernel-sw/06-the-pte-is-ours.jpg" alt="06-the-pte-is-ours" loading="lazy"><span>06-the-pte-is-ours</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/07-tlb-miss-handler.jpg"><img src="cpu-mmu-kernel-sw/07-tlb-miss-handler.jpg" alt="07-tlb-miss-handler" loading="lazy"><span>07-tlb-miss-handler</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/08-page-fault-handler.jpg"><img src="cpu-mmu-kernel-sw/08-page-fault-handler.jpg" alt="08-page-fault-handler" loading="lazy"><span>08-page-fault-handler</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/09-changing-a-mapping.jpg"><img src="cpu-mmu-kernel-sw/09-changing-a-mapping.jpg" alt="09-changing-a-mapping" loading="lazy"><span>09-changing-a-mapping</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/10-many-programs.jpg"><img src="cpu-mmu-kernel-sw/10-many-programs.jpg" alt="10-many-programs" loading="lazy"><span>10-many-programs</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/11-refill-against-clear.jpg"><img src="cpu-mmu-kernel-sw/11-refill-against-clear.jpg" alt="11-refill-against-clear" loading="lazy"><span>11-refill-against-clear</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/12-what-held-in-the-model.jpg"><img src="cpu-mmu-kernel-sw/12-what-held-in-the-model.jpg" alt="12-what-held-in-the-model" loading="lazy"><span>12-what-held-in-the-model</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/13-where-it-goes-wrong.jpg"><img src="cpu-mmu-kernel-sw/13-where-it-goes-wrong.jpg" alt="13-where-it-goes-wrong" loading="lazy"><span>13-where-it-goes-wrong</span></a>
+      <a class="sheet" href="cpu-mmu-kernel-sw/14-modeled-and-open.jpg"><img src="cpu-mmu-kernel-sw/14-modeled-and-open.jpg" alt="14-modeled-and-open" loading="lazy"><span>14-modeled-and-open</span></a>
+    </div>
+  </section>
+  <section id="kernel-sw-design">
+    <h2>LZ4 kernel SW 設計</h2>
+    <p>給沒碰過壓縮的人：前 4 張講前提，接著是 fault path、reclaimer、page 的 state，最後是設計的取捨與還沒決定的事。</p>
+    <p class="links"><a class="pdf" href="kernel-sw-design/kernel-sw-design.pdf">PDF，13 張</a>
+      <a href="https://github.com/datochuang/dram-compression-tutorial/tree/main/figures/kernel-sw-design">提示詞與驗收紀錄</a></p>
+    <div class="grid">
+      <a class="sheet" href="kernel-sw-design/01-why-compress.jpg"><img src="kernel-sw-design/01-why-compress.jpg" alt="01-why-compress" loading="lazy"><span>01-why-compress</span></a>
+      <a class="sheet" href="kernel-sw-design/02-pages-and-frames.jpg"><img src="kernel-sw-design/02-pages-and-frames.jpg" alt="02-pages-and-frames" loading="lazy"><span>02-pages-and-frames</span></a>
+      <a class="sheet" href="kernel-sw-design/03-page-swap.jpg"><img src="kernel-sw-design/03-page-swap.jpg" alt="03-page-swap" loading="lazy"><span>03-page-swap</span></a>
+      <a class="sheet" href="kernel-sw-design/04-how-a-page-is-stored.jpg"><img src="kernel-sw-design/04-how-a-page-is-stored.jpg" alt="04-how-a-page-is-stored" loading="lazy"><span>04-how-a-page-is-stored</span></a>
+      <a class="sheet" href="kernel-sw-design/05-parts-of-the-kernel-sw.jpg"><img src="kernel-sw-design/05-parts-of-the-kernel-sw.jpg" alt="05-parts-of-the-kernel-sw" loading="lazy"><span>05-parts-of-the-kernel-sw</span></a>
+      <a class="sheet" href="kernel-sw-design/06-page-states.jpg"><img src="kernel-sw-design/06-page-states.jpg" alt="06-page-states" loading="lazy"><span>06-page-states</span></a>
+      <a class="sheet" href="kernel-sw-design/07-fault-path.jpg"><img src="kernel-sw-design/07-fault-path.jpg" alt="07-fault-path" loading="lazy"><span>07-fault-path</span></a>
+      <a class="sheet" href="kernel-sw-design/08-reclaimer.jpg"><img src="kernel-sw-design/08-reclaimer.jpg" alt="08-reclaimer" loading="lazy"><span>08-reclaimer</span></a>
+      <a class="sheet" href="kernel-sw-design/09-keeping-faults-short.jpg"><img src="kernel-sw-design/09-keeping-faults-short.jpg" alt="09-keeping-faults-short" loading="lazy"><span>09-keeping-faults-short</span></a>
+      <a class="sheet" href="kernel-sw-design/10-where-the-time-goes.jpg"><img src="kernel-sw-design/10-where-the-time-goes.jpg" alt="10-where-the-time-goes" loading="lazy"><span>10-where-the-time-goes</span></a>
+      <a class="sheet" href="kernel-sw-design/11-many-cores-at-once.jpg"><img src="kernel-sw-design/11-many-cores-at-once.jpg" alt="11-many-cores-at-once" loading="lazy"><span>11-many-cores-at-once</span></a>
+      <a class="sheet" href="kernel-sw-design/12-where-it-goes-wrong.jpg"><img src="kernel-sw-design/12-where-it-goes-wrong.jpg" alt="12-where-it-goes-wrong" loading="lazy"><span>12-where-it-goes-wrong</span></a>
+      <a class="sheet" href="kernel-sw-design/13-designed-and-open.jpg"><img src="kernel-sw-design/13-designed-and-open.jpg" alt="13-designed-and-open" loading="lazy"><span>13-designed-and-open</span></a>
+    </div>
+  </section>
+  <section id="cpu-mmu-basics">
+    <h2>CPU MMU 入門：白板圖 A 到 D</h2>
+    <p>README 前七層用的圖：address 為什麼要轉換、page table 與 TLB、拿走 frame 前先清每個 core 的 TLB、兩邊各多常叫醒 kernel SW。</p>
+    <p class="links"><a class="pdf" href="cpu-mmu-basics/cpu-mmu-basics.pdf">PDF，4 張</a>
+      <a href="https://github.com/datochuang/dram-compression-tutorial/tree/main/figures/cpu-mmu-basics">提示詞與驗收紀錄</a></p>
+    <div class="grid">
+      <a class="sheet" href="cpu-mmu-basics/01-why-translate.jpg"><img src="cpu-mmu-basics/01-why-translate.jpg" alt="01-why-translate" loading="lazy"><span>01-why-translate</span></a>
+      <a class="sheet" href="cpu-mmu-basics/02-page-table-tlb-mmu.jpg"><img src="cpu-mmu-basics/02-page-table-tlb-mmu.jpg" alt="02-page-table-tlb-mmu" loading="lazy"><span>02-page-table-tlb-mmu</span></a>
+      <a class="sheet" href="cpu-mmu-basics/03-clear-every-tlb-first.jpg"><img src="cpu-mmu-basics/03-clear-every-tlb-first.jpg" alt="03-clear-every-tlb-first" loading="lazy"><span>03-clear-every-tlb-first</span></a>
+      <a class="sheet" href="cpu-mmu-basics/04-two-sides-two-rhythms.jpg"><img src="cpu-mmu-basics/04-two-sides-two-rhythms.jpg" alt="04-two-sides-two-rhythms" loading="lazy"><span>04-two-sides-two-rhythms</span></a>
+    </div>
+  </section>
+  <section id="system-overview">
+    <h2>processor 與 kernel：白板圖 1 到 4</h2>
+    <p>README 前七層用的圖：每個 core 自己的與共用的、TLB miss 進 kernel、一份 kernel 程式在好幾個 hw thread 上跑、LZ4 HW 怎麼接到每個 core。</p>
+    <p class="links"><a class="pdf" href="system-overview/system-overview.pdf">PDF，4 張</a>
+      <a href="https://github.com/datochuang/dram-compression-tutorial/tree/main/figures/system-overview">提示詞與驗收紀錄</a></p>
+    <div class="grid">
+      <a class="sheet" href="system-overview/01-per-core-and-shared.jpg"><img src="system-overview/01-per-core-and-shared.jpg" alt="01-per-core-and-shared" loading="lazy"><span>01-per-core-and-shared</span></a>
+      <a class="sheet" href="system-overview/02-tlb-miss-enters-kernel.jpg"><img src="system-overview/02-tlb-miss-enters-kernel.jpg" alt="02-tlb-miss-enters-kernel" loading="lazy"><span>02-tlb-miss-enters-kernel</span></a>
+      <a class="sheet" href="system-overview/03-one-kernel-many-instances.jpg"><img src="system-overview/03-one-kernel-many-instances.jpg" alt="03-one-kernel-many-instances" loading="lazy"><span>03-one-kernel-many-instances</span></a>
+      <a class="sheet" href="system-overview/04-one-lz4-hw-for-every-core.jpg"><img src="system-overview/04-one-lz4-hw-for-every-core.jpg" alt="04-one-lz4-hw-for-every-core" loading="lazy"><span>04-one-lz4-hw-for-every-core</span></a>
+    </div>
+  </section>
+  <section id="page-states">
+    <h2>page 的六種 state</h2>
+    <p>壓縮層裡一個 page 的狀態與變化。和下一組合起來就是 figures/README.md 的十三張圖。</p>
+    <p class="links"><a class="pdf" href="page-states/page-states.pdf">PDF，1 張</a>
+      <a href="https://github.com/datochuang/dram-compression-tutorial/tree/main/figures/page-states">提示詞與驗收紀錄</a></p>
+    <div class="grid">
+      <a class="sheet" href="page-states/00-page-states.jpg"><img src="page-states/00-page-states.jpg" alt="00-page-states" loading="lazy"><span>00-page-states</span></a>
+    </div>
+  </section>
+  <section id="kernel-actions">
+    <h2>kernel SW 的每一步</h2>
+    <p>八個場景裡 kernel 的每一步：讀寫哪個資料結構、在哪裡、做什麼、要幾個 cycle。數字來自 spec/kernel-step-detail-v0.md。</p>
+    <p class="links"><a class="pdf" href="kernel-actions/kernel-actions.pdf">PDF，12 張</a>
+      <a href="https://github.com/datochuang/dram-compression-tutorial/tree/main/figures/kernel-actions">提示詞與驗收紀錄</a></p>
+    <div class="grid">
+      <a class="sheet" href="kernel-actions/01-where-tables-live.jpg"><img src="kernel-actions/01-where-tables-live.jpg" alt="01-where-tables-live" loading="lazy"><span>01-where-tables-live</span></a>
+      <a class="sheet" href="kernel-actions/02-fault-lock-a.jpg"><img src="kernel-actions/02-fault-lock-a.jpg" alt="02-fault-lock-a" loading="lazy"><span>02-fault-lock-a</span></a>
+      <a class="sheet" href="kernel-actions/03-fault-job.jpg"><img src="kernel-actions/03-fault-job.jpg" alt="03-fault-job" loading="lazy"><span>03-fault-job</span></a>
+      <a class="sheet" href="kernel-actions/04-fault-lock-b.jpg"><img src="kernel-actions/04-fault-lock-b.jpg" alt="04-fault-lock-b" loading="lazy"><span>04-fault-lock-b</span></a>
+      <a class="sheet" href="kernel-actions/05-first-touch.jpg"><img src="kernel-actions/05-first-touch.jpg" alt="05-first-touch" loading="lazy"><span>05-first-touch</span></a>
+      <a class="sheet" href="kernel-actions/06a-fault-rescue.jpg"><img src="kernel-actions/06a-fault-rescue.jpg" alt="06a-fault-rescue" loading="lazy"><span>06a-fault-rescue</span></a>
+      <a class="sheet" href="kernel-actions/06b-fault-lost.jpg"><img src="kernel-actions/06b-fault-lost.jpg" alt="06b-fault-lost" loading="lazy"><span>06b-fault-lost</span></a>
+      <a class="sheet" href="kernel-actions/07-clock-scan.jpg"><img src="kernel-actions/07-clock-scan.jpg" alt="07-clock-scan" loading="lazy"><span>07-clock-scan</span></a>
+      <a class="sheet" href="kernel-actions/08-evict-rw-lock-a.jpg"><img src="kernel-actions/08-evict-rw-lock-a.jpg" alt="08-evict-rw-lock-a" loading="lazy"><span>08-evict-rw-lock-a</span></a>
+      <a class="sheet" href="kernel-actions/09-evict-rw-job.jpg"><img src="kernel-actions/09-evict-rw-job.jpg" alt="09-evict-rw-job" loading="lazy"><span>09-evict-rw-job</span></a>
+      <a class="sheet" href="kernel-actions/10-evict-rw-lock-b.jpg"><img src="kernel-actions/10-evict-rw-lock-b.jpg" alt="10-evict-rw-lock-b" loading="lazy"><span>10-evict-rw-lock-b</span></a>
+      <a class="sheet" href="kernel-actions/11-totals.jpg"><img src="kernel-actions/11-totals.jpg" alt="11-totals" loading="lazy"><span>11-totals</span></a>
+    </div>
+  </section>
+  <section id="capacity-approaches">
+    <h2>省容量的幾種做法</h2>
+    <p>最早的兩張：所有 client 經過同一個壓縮層、HRT 的記憶體不壓縮時，可以怎麼做，空間是怎麼省下來的。</p>
+    <p class="links"><a class="pdf" href="capacity-approaches/capacity-approaches.pdf">PDF，2 張</a>
+      <a href="https://github.com/datochuang/dram-compression-tutorial/tree/main/figures/capacity-approaches">提示詞與驗收紀錄</a></p>
+    <div class="grid">
+      <a class="sheet" href="capacity-approaches/00-capacity-approaches.jpg"><img src="capacity-approaches/00-capacity-approaches.jpg" alt="00-capacity-approaches" loading="lazy"><span>00-capacity-approaches</span></a>
+      <a class="sheet" href="capacity-approaches/01-how-space-is-saved.jpg"><img src="capacity-approaches/01-how-space-is-saved.jpg" alt="01-how-space-is-saved" loading="lazy"><span>01-how-space-is-saved</span></a>
+    </div>
+  </section>
+</main>
+</body>
+</html>
